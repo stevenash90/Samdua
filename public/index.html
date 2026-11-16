@@ -3,68 +3,93 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#0b3d2e">
+<meta name="theme-color" content="#07251b">
 <title>Sâm Lốc</title>
 <style>
-:root{--felt:#0f5a41;--felt2:#0a3b2b;--ink:#06231a;--gold:#f2c14e;--cream:#fbf6e9;--red:#c8323c;--mute:#9cc7b4;--cw:56px;--ch:80px}
+:root{--felt:#17734f;--felt2:#0c4a33;--ink:#061c15;--wood:#6b4423;--wood2:#3f2610;--gold:#f6c453;--cream:#fbf6e9;--red:#c9303b;--mute:#a5cdbb;--cw:56px;--ch:80px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--cream);
-  background:radial-gradient(120% 90% at 50% 35%,var(--felt) 0%,var(--felt2) 70%,var(--ink) 100%) fixed;overflow:hidden;user-select:none}
-button{font:inherit;color:inherit;border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:#ffffff1f}
-button:active{transform:translateY(1px)}
-button.pri{background:var(--gold);color:#3a2a00}
-button.dan{background:var(--red);color:#fff}
+  background:radial-gradient(130% 100% at 50% 30%,#0e3a2b 0%,var(--ink) 75%) fixed;overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;border:0;border-radius:14px;padding:12px 16px;font-weight:800;cursor:pointer;background:#ffffff1f}
+button:active{transform:translateY(2px)}
+button.pri{background:linear-gradient(#ffd97a,#eeb233);color:#3a2a00;box-shadow:0 3px 0 #a87510}
+button.dan{background:linear-gradient(#e2505a,#b3222d);color:#fff;box-shadow:0 3px 0 #7a141c}
 button:disabled{opacity:.4}
-input{font:inherit;width:100%;padding:13px 14px;border-radius:12px;border:2px solid #ffffff2e;background:#00000038;color:var(--cream);outline:0}
+input{font:inherit;width:100%;padding:13px 14px;border-radius:12px;border:2px solid #ffffff2e;background:#00000045;color:var(--cream);outline:0}
 input:focus{border-color:var(--gold)}
 .screen{display:none;height:100%;flex-direction:column}
 .screen.on{display:flex}
-.wrap{max-width:440px;width:100%;margin:0 auto;padding:22px 18px;display:flex;flex-direction:column;gap:12px;overflow:auto}
-h1{font-family:Georgia,"Times New Roman",serif;font-size:46px;margin:14px 0 0;text-align:center;color:var(--gold);letter-spacing:1px}
-.sub{text-align:center;color:var(--mute);margin:0 0 10px}
+.wrap{max-width:440px;width:100%;margin:0 auto;padding:20px 18px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:48px;margin:10px 0 0;text-align:center;color:var(--gold);letter-spacing:1px;text-shadow:0 3px 0 #0008}
+.sub{text-align:center;color:var(--mute);margin:0 0 6px}
 .row{display:flex;gap:10px}.row>*{flex:1}
 .or{text-align:center;color:var(--mute);font-size:13px}
-details{background:#0000002e;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;color:#d9ecdf}
+.lbl{font-size:13px;color:var(--mute);margin:4px 0 -4px}
+.avpick{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.avpick div{aspect-ratio:1;display:grid;place-items:center;font-size:24px;border-radius:50%;background:#00000045;border:2px solid transparent}
+.avpick div.on{border-color:var(--gold);background:#f6c45333}
+details{background:#0000003a;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;color:#d9ecdf}
 summary{font-weight:700;cursor:pointer;color:var(--cream)}
 details ul{padding-left:18px;margin:8px 0 2px}
-/* lobby */
+/* phòng chờ */
 .code{font-family:ui-monospace,Menlo,monospace;font-size:44px;letter-spacing:10px;text-align:center;color:var(--gold);font-weight:800}
 .plist{display:flex;flex-direction:column;gap:8px}
-.pitem{display:flex;align-items:center;gap:10px;background:#00000033;border-radius:12px;padding:10px 12px}
+.pitem{display:flex;align-items:center;gap:10px;background:#0000003d;border-radius:14px;padding:8px 12px}
+.pitem .pa{width:38px;height:38px;border-radius:50%;background:#0b3a2a;display:grid;place-items:center;font-size:22px;flex:none}
 .pitem .nm{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:#ffffff26;font-weight:700}
+.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:#ffffff26;font-weight:700;white-space:nowrap}
 .tag.g{background:var(--gold);color:#3a2a00}
 .x{padding:4px 10px;border-radius:8px;font-size:13px}
-/* game */
-.top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--mute)}
+/* bàn chơi */
+.top{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;font-size:13px;color:var(--mute)}
 .top b{color:var(--gold);letter-spacing:2px}
 .top button{padding:6px 10px;font-size:12px;border-radius:8px}
-.opps{display:flex;justify-content:space-around;gap:6px;padding:4px 8px}
-.opp{flex:1;max-width:110px;background:#0000003d;border:2px solid transparent;border-radius:14px;padding:8px 4px;text-align:center;position:relative;min-width:0}
-.opp.turn{border-color:var(--gold);box-shadow:0 0 16px #f2c14e66}
-.opp.off{opacity:.55}
-.opp .nm{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.opp .cnt{display:inline-block;margin:5px 0 3px;width:30px;height:40px;line-height:40px;border-radius:6px;font-weight:800;
-  background:repeating-linear-gradient(45deg,#8c1f2a 0 5px,#a52834 5px 10px);border:2px solid var(--cream);color:#fff}
-.opp .sc{font-size:12px;color:var(--mute)}
-.opp .st{position:absolute;top:-8px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--red);color:#fff}
-.opp .st.gray{background:#465f55}
-.mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px;padding:6px}
+.table{flex:1;position:relative;margin:2px 8px 0;min-height:300px}
+.felt{position:absolute;inset:26px 6px 22px;border-radius:120px/90px;border:9px solid var(--wood);
+  background:radial-gradient(90% 80% at 50% 45%,#1f8a60 0%,var(--felt) 45%,var(--felt2) 100%);
+  box-shadow:0 0 0 3px var(--wood2),0 10px 30px #000a,inset 0 0 40px #0007}
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none;padding:0 12px}
 .tcards{display:flex;justify-content:center}
-.tcards .card{margin-left:-22px}.tcards .card:first-child{margin-left:0}
-.by{font-size:13px;color:var(--mute)}
-.log{font-size:14px;color:var(--cream);min-height:18px;text-align:center}
-.hint{font-size:20px;font-weight:800;color:var(--gold)}
-.bar{height:5px;background:#0000004d;margin:0 12px;border-radius:9px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--gold);width:0}
-.me{padding:6px 10px calc(10px + env(safe-area-inset-bottom))}
-.meinfo{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);padding:4px 4px 0}
-.meinfo b{color:var(--cream)}
-.hand{position:relative;height:104px;margin:0 auto}
+.by{font-size:12px;color:#d7efe2;background:#0006;padding:2px 10px;border-radius:99px}
+.by:empty{display:none}
+.log{font-size:13px;color:var(--cream);min-height:17px;text-align:center;text-shadow:0 1px 2px #000}
+.hint{font-size:17px;font-weight:800;color:var(--gold);text-align:center;text-shadow:0 2px 3px #000a}
+.seat{position:absolute;width:86px;text-align:center;z-index:2}
+.seat.tl{top:0;left:0}.seat.tr{top:0;right:0}.seat.bl{bottom:0;left:0}.seat.br{bottom:0;right:0}
+.seat.tc{top:0;left:50%;margin-left:-43px}
+.seat.off{opacity:.55}
+.ring{width:58px;height:58px;margin:0 auto;border-radius:50%;padding:4px;background:#ffffff3a;position:relative}
+.turn .ring{background:conic-gradient(var(--gold) calc(var(--p,1)*360deg),#0009 0);box-shadow:0 0 16px #f6c45399}
+.av{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2b5e4b,#0a2a1f);display:grid;place-items:center;font-size:30px;line-height:1}
+.cnt{position:absolute;right:-12px;bottom:-4px;width:24px;height:32px;line-height:28px;border-radius:5px;font-weight:800;font-size:14px;color:#fff;
+  background:repeating-linear-gradient(45deg,#7d1d2b 0 4px,#a12a3a 4px 8px);border:2px solid var(--cream);box-shadow:0 2px 4px #0008}
+.plate{margin-top:4px;background:#000000a6;border-radius:9px;padding:2px 4px 3px}
+.plate .nm{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plate .sc{font-size:11px;color:var(--gold)}
+.st{position:absolute;top:50px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--red);color:#fff;z-index:3}
+.st.gray{background:#4a6359}
+.bub{position:absolute;top:-6px;left:50%;transform:translateX(-50%);white-space:nowrap;z-index:6;background:#fff;color:#111;font-weight:800;font-size:15px;
+  padding:7px 12px;border-radius:16px;box-shadow:0 4px 12px #000a}
+.bub::after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-7px;border:7px solid transparent;border-top-color:#fff;border-bottom:0}
+.seat.tl .bub,.seat.tr .bub,.seat.tc .bub{top:66px}
+.seat.tl .bub::after,.seat.tr .bub::after,.seat.tc .bub::after{bottom:auto;top:-7px;border:7px solid transparent;border-bottom-color:#fff;border-top:0}
+.seat.tl .bub,.seat.bl .bub{left:4px;transform:none}.seat.tr .bub,.seat.br .bub{left:auto;right:4px;transform:none}
+.seat.tl .bub::after,.seat.bl .bub::after{left:36px}.seat.tr .bub::after,.seat.br .bub::after{left:auto;right:30px}
+.bub.pop{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{scale:.2;opacity:0}to{scale:1;opacity:1}}
+/* mình */
+.me{padding:0 10px calc(10px + env(safe-area-inset-bottom));position:relative}
+.mebar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:-18px;position:relative;z-index:3}
+.mebar .ring{margin:0;flex:none}
+.mebar .info{background:#000000a6;border-radius:10px;padding:4px 10px;min-width:96px}
+.mebar .nm{font-size:13px;font-weight:700}
+.mebar .sc{font-size:12px;color:var(--gold)}
+.mebar .bub{top:-44px}
+.hand{position:relative;height:104px;margin:2px auto 0}
 .hand .card{position:absolute;bottom:4px;transition:transform .12s}
 .hand .card.sel{transform:translateY(-18px);box-shadow:0 0 0 3px var(--gold),0 6px 12px #0006}
-.card{width:var(--cw);height:var(--ch);border-radius:8px;background:var(--cream);color:#1a1a1a;box-shadow:0 2px 6px #0007;
+.card{width:var(--cw);height:var(--ch);border-radius:8px;background:linear-gradient(#fffdf5,#f1ead6);color:#1a1a1a;box-shadow:0 2px 6px #0008;
   border:1px solid #cfc7b0;position:relative;font-weight:800;flex:none}
 .card.r{color:var(--red)}
 .card .a{position:absolute;top:3px;left:5px;font-size:17px;line-height:1;text-align:center}
@@ -72,20 +97,22 @@ details ul{padding-left:18px;margin:8px 0 2px}
 .card .b{position:absolute;right:5px;bottom:2px;font-size:26px;line-height:1}
 .card.s{--cw:30px;--ch:42px;border-radius:5px}
 .card.s .a{font-size:11px;left:3px;top:2px}.card.s .a span{font-size:10px}.card.s .b{display:none}
-.acts{display:flex;gap:10px;margin-top:6px}
-.acts button{flex:1;padding:14px;font-size:16px}
-/* overlay */
-.ov{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+.acts{display:flex;gap:10px;margin-top:6px;min-height:50px}
+.acts button{flex:1;padding:13px;font-size:16px;border-radius:99px}
+.acts .grn{background:linear-gradient(#35c07a,#17874e);color:#fff;box-shadow:0 3px 0 #0c5a32}
+/* kết quả */
+.ov{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:16px;z-index:8}
 .ov.on{display:flex}
-.panel{background:#0c4634;border:2px solid var(--gold);border-radius:18px;padding:18px;width:100%;max-width:420px;max-height:92%;overflow:auto}
+.panel{background:linear-gradient(#11553f,#0a3a2b);border:3px solid var(--gold);border-radius:20px;padding:18px;width:100%;max-width:420px;max-height:92%;overflow:auto}
 .panel h2{margin:0 0 12px;text-align:center;color:var(--gold);font-family:Georgia,serif;font-size:22px}
 .rrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #ffffff1f}
-.rrow .nm{width:86px;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rrow .cs{flex:1;display:flex;flex-wrap:wrap;gap:2px;min-height:20px;font-size:12px;color:var(--mute)}
-.rrow .d{font-weight:800;width:44px;text-align:right}
+.rrow .ra{font-size:22px;width:28px;text-align:center}
+.rrow .nm{width:78px;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .cs{flex:1;display:flex;flex-wrap:wrap;gap:2px;min-height:20px;font-size:12px;color:var(--mute);align-items:center}
+.rrow .d{font-weight:800;width:40px;text-align:right}
 .rrow .d.p{color:#7be39d}.rrow .d.n{color:#ff8d8d}
 .rrow .tot{width:40px;text-align:right;font-size:12px;color:var(--mute)}
-.toast{position:fixed;left:50%;bottom:190px;transform:translateX(-50%);background:#000d;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;
+.toast{position:fixed;left:50%;bottom:200px;transform:translateX(-50%);background:#000d;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;
   opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90%;text-align:center}
 .toast.on{opacity:1}
 </style>
@@ -98,6 +125,8 @@ details ul{padding-left:18px;margin:8px 0 2px}
     <h1>Sâm Lốc</h1>
     <p class="sub">Lập phòng, gửi link, vào chiếu</p>
     <input id="inName" maxlength="16" placeholder="Tên của bạn" autocomplete="off">
+    <div class="lbl">Chọn avatar</div>
+    <div class="avpick" id="avpick"></div>
     <button class="pri" id="btCreate">Tạo phòng mới</button>
     <div class="or">— hoặc vào phòng có sẵn —</div>
     <div class="row">
@@ -139,15 +168,17 @@ details ul{padding-left:18px;margin:8px 0 2px}
 <!-- Bàn chơi -->
 <section class="screen" id="sGame">
   <div class="top"><span>Phòng <b id="gCode"></b></span><button id="btLeave2">Rời</button></div>
-  <div class="opps" id="opps"></div>
-  <div class="mid">
-    <div class="tcards" id="tcards"></div>
-    <div class="by" id="tby"></div>
-    <div class="log" id="log"></div>
+  <div class="table">
+    <div class="felt"></div>
+    <div class="center">
+      <div class="tcards" id="tcards"></div>
+      <div class="by" id="tby"></div>
+      <div class="log" id="log"></div>
+    </div>
+    <div id="seats"></div>
   </div>
-  <div class="bar"><i id="tbar"></i></div>
   <div class="me">
-    <div class="meinfo"><span id="meSt"></span><span>Điểm: <b id="meSc">0</b></span></div>
+    <div class="mebar" id="mebar"></div>
     <div class="hand" id="hand"></div>
     <div class="acts" id="acts"></div>
   </div>
@@ -169,38 +200,52 @@ details ul{padding-left:18px;margin:8px 0 2px}
 <script>
 const $ = id => document.getElementById(id);
 const RANK = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'], SUIT = ['♠','♣','♦','♥'];
+const AVATARS = ['😎','🤠','🥸','😈','🤡','👻','🤖','👽','🐯','🐵','🐷','🦊','🐸','🐼','🦁','🐙'];
+const SLOTS = { 1:['tc'], 2:['tl','tr'], 3:['bl','tl','tr'], 4:['bl','tl','tr','br'] }; // theo chiều lượt đánh, bắt đầu từ nhà dưới mình
 const store = {
   get(k){ try { return localStorage.getItem(k) } catch(e){ return null } },
   set(k,v){ try { localStorage.setItem(k,v) } catch(e){} }
 };
 let token = store.get('sam_token');
 if (!token) { token = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2,'0')).join(''); store.set('sam_token', token); }
-let room = null, es = null, S = null, sel = new Set(), deadline = 0, total = 1;
+let room = null, es = null, S = null, sel = new Set(), deadline = 0, total = 1, lastKey = '', lastFx = 0, bub = null;
+let myAv = store.get('sam_av') || AVATARS[Math.floor(Math.random()*AVATARS.length)];
 
 $('inName').value = store.get('sam_name') || '';
 const qRoom = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
 $('inCode').value = qRoom;
 
+function el(tag, cls, txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; }
 function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>e.classList.remove('on'),2200); }
 function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===id)); }
+const sc = n => (n>0?'+':'')+n;
 
-async function api(a, extra){
+// chọn avatar
+(function(){
+  const box=$('avpick');
+  AVATARS.forEach(a=>{
+    const d=el('div', a===myAv?'on':'', a);
+    d.onclick=()=>{ myAv=a; store.set('sam_av',a); box.querySelectorAll('div').forEach(x=>x.classList.toggle('on',x===d)); };
+    box.append(d);
+  });
+})();
+
+async function api(a, extra, quiet){
   try {
     const r = await fetch('/api', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(Object.assign({ a, token, room }, extra)) });
     const j = await r.json();
-    if (j.err) toast(j.err);
+    if (j.err && !quiet) toast(j.err);
     return j;
   } catch(e){ toast('Mất kết nối máy chủ'); return { err:1 }; }
 }
-
 function name(){ const n=$('inName').value.trim(); if(!n){ toast('Nhập tên đã nhé'); $('inName').focus(); return null } store.set('sam_name', n); return n; }
 
-$('btCreate').onclick = async () => { const n=name(); if(!n) return; const j=await api('create',{name:n}); if(j.code) enter(j.code); };
+$('btCreate').onclick = async () => { const n=name(); if(!n) return; const j=await api('create',{name:n,av:myAv}); if(j.code) enter(j.code); };
 $('btJoin').onclick = async () => {
   const n=name(); if(!n) return;
   const c=$('inCode').value.trim().toUpperCase(); if(c.length!==4) return toast('Mã phòng gồm 4 ký tự');
-  const j=await api('join',{room:c,name:n}); if(j.code) enter(j.code);
+  const j=await api('join',{room:c,name:n,av:myAv}); if(j.code) enter(j.code);
 };
 
 function enter(code){
@@ -212,7 +257,7 @@ function enter(code){
   es.addEventListener('gone', exit);
 }
 function exit(){
-  if (es) es.close(); es=null; room=null; S=null; sel.clear(); store.set('sam_room','');
+  if (es) es.close(); es=null; room=null; S=null; sel.clear(); bub=null; store.set('sam_room','');
   history.replaceState(null,'',location.pathname);
   $('ov').classList.remove('on'); show('sHome');
 }
@@ -229,29 +274,36 @@ $('btCopy').onclick = async () => {
 function cardEl(c, small){
   const d=document.createElement('div'), s=c&3;
   d.className='card'+(s>=2?' r':'')+(small?' s':'');
-  const a=document.createElement('div'); a.className='a'; a.textContent=RANK[c>>2];
-  const sp=document.createElement('span'); sp.textContent=SUIT[s]; a.appendChild(sp);
-  const b=document.createElement('div'); b.className='b'; b.textContent=SUIT[s];
-  d.append(a,b); return d;
+  const a=el('div','a',RANK[c>>2]); a.appendChild(el('span','',SUIT[s]));
+  d.append(a, el('div','b',SUIT[s])); return d;
 }
-function el(tag, cls, txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; }
+function avatarEl(p){ const r=el('div','ring'); r.append(el('div','av',p.av||'🙂')); return r; }
+function bubbleFor(i, host){
+  if (!bub || bub.by!==i || Date.now()>bub.until) return;
+  const b=el('div','bub'+(bub.fresh?' pop':''), bub.text); bub.fresh=false; host.append(b);
+}
 
-let lastKey = '';
 function render(){
   if (!S) return;
   const key = S.phase+'|'+S.turn+'|'+(S.table?S.table.cards.join():'');
   if (key !== lastKey) { lastKey = key; total = S.left || 1; }
+  if (S.fx && S.fx.id !== lastFx) {
+    lastFx = S.fx.id; bub = { by:S.fx.by, text:S.fx.text, until:Date.now()+2600, fresh:true };
+    setTimeout(render, 2650);
+    // Chỗ gắn lồng tiếng sau này: new Audio('/sfx/'+S.fx.k+'.mp3').play().catch(()=>{});
+  }
   const isHost = S.you === S.host;
+
   if (S.phase === 'lobby') {
     show('sLobby'); $('ov').classList.remove('on');
     $('lbCode').textContent = S.code;
     const box=$('lbPlayers'); box.textContent='';
     S.players.forEach((p,i)=>{
-      const it=el('div','pitem'); it.append(el('span','nm',p.name));
+      const it=el('div','pitem'); it.append(el('div','pa',p.av), el('span','nm',p.name));
       if(i===S.host) it.append(el('span','tag g','Chủ phòng'));
       if(i===S.you) it.append(el('span','tag','Bạn'));
       if(p.bot) it.append(el('span','tag','Máy'));
-      if(p.score) it.append(el('span','tag',(p.score>0?'+':'')+p.score));
+      if(p.score) it.append(el('span','tag',sc(p.score)));
       if(isHost && i!==S.you){ const x=el('button','x','✕'); x.onclick=()=>api('kick',{idx:i}); it.append(x); }
       box.append(it);
     });
@@ -264,38 +316,54 @@ function render(){
   show('sGame'); $('gCode').textContent = S.code;
   const n=S.players.length, me=S.players[S.you];
 
-  // đối thủ, theo thứ tự lượt sau mình
-  const ob=$('opps'); ob.textContent='';
+  // 4 góc bàn
+  const sb=$('seats'); sb.textContent='';
+  const slots = SLOTS[n-1] || [];
   for(let k=1;k<n;k++){
     const i=(S.you+k)%n, p=S.players[i];
-    const o=el('div','opp'+(S.turn===i?' turn':'')+(p.online?'':' off'));
-    o.append(el('div','nm',p.name), el('div','cnt',S.phase==='over'?'–':p.count), el('div','sc',(p.score>0?'+':'')+p.score+' đ'));
+    const o=el('div','seat '+slots[k-1]+(S.turn===i?' turn':'')+(p.online?'':' off'));
+    const ring=avatarEl(p);
+    if(S.phase!=='over') ring.append(el('div','cnt',p.count));
+    const plate=el('div','plate'); plate.append(el('div','nm',p.name), el('div','sc',sc(p.score)+' đ'));
+    o.append(ring, plate);
     if(S.samBy===i) o.append(el('div','st','BÁO SÂM'));
     else if(p.count===1 && S.phase==='play') o.append(el('div','st','BÁO 1'));
     else if(p.passed) o.append(el('div','st gray','Bỏ lượt'));
     else if(!p.online) o.append(el('div','st gray','Mất mạng'));
-    ob.append(o);
+    bubbleFor(i,o);
+    sb.append(o);
   }
 
   // giữa bàn
   const tc=$('tcards'); tc.textContent='';
-  if(S.table){ S.table.cards.slice().sort((a,b)=>a-b).forEach(c=>tc.append(cardEl(c))); $('tby').textContent = S.players[S.table.by].name + (S.table.by===S.you?' (bạn)':''); }
-  else { $('tby').textContent=''; if(S.phase==='play') tc.append(el('div','hint', S.turn===S.you?'Bạn cầm cái — đánh gì cũng được':'Vòng mới')); if(S.phase==='sam') tc.append(el('div','hint','Có ai báo Sâm không?')); }
+  if(S.table){
+    const cs=S.table.cards.slice().sort((a,b)=>a-b), W=Math.min(innerWidth,460)-60;
+    const step=cs.length>1?Math.min(30,(W-56)/(cs.length-1)):0;
+    cs.forEach((c,k)=>{ const d=cardEl(c); if(k) d.style.marginLeft=(step-56)+'px'; tc.append(d); });
+    $('tby').textContent = S.players[S.table.by].name + (S.table.by===S.you?' (bạn)':'');
+  } else {
+    $('tby').textContent='';
+    if(S.phase==='play') tc.append(el('div','hint', S.turn===S.you?'Bạn cầm cái — đánh gì cũng được':'Vòng mới'));
+    if(S.phase==='sam') tc.append(el('div','hint','Có ai báo Sâm không?'));
+  }
   $('log').textContent = S.log;
 
-  // bài của mình
+  // mình
+  const mb=$('mebar'); mb.textContent=''; mb.className='mebar'+(S.turn===S.you?' turn':'');
+  const info=el('div','info');
+  info.append(el('div','nm', S.samBy===S.you?'Bạn đang báo Sâm': me.passed?'Đã bỏ lượt': S.turn===S.you?'Đến lượt bạn': me.name), el('div','sc',sc(me.score)+' điểm'));
+  mb.append(avatarEl(me), info); bubbleFor(S.you, mb);
+
   const hd=$('hand'); hd.textContent='';
   sel.forEach(c=>{ if(!S.hand.includes(c)) sel.delete(c); });
   const W=Math.min(innerWidth-20,440), cw=56, m=S.hand.length;
-  const step = m>1 ? Math.min(cw+4,(W-cw)/(m-1)) : 0, tw = m? cw+step*(m-1):0;
-  hd.style.width = tw+'px';
+  const step = m>1 ? Math.min(cw+4,(W-cw)/(m-1)) : 0;
+  hd.style.width = (m? cw+step*(m-1):0)+'px';
   S.hand.forEach((c,k)=>{
     const d=cardEl(c); d.style.left=(k*step)+'px'; if(sel.has(c)) d.classList.add('sel');
     d.onclick=()=>{ sel.has(c)?sel.delete(c):sel.add(c); d.classList.toggle('sel'); updActs(); };
     hd.append(d);
   });
-  $('meSc').textContent=(me.score>0?'+':'')+me.score;
-  $('meSt').textContent = S.samBy===S.you?'Bạn đang báo Sâm': me.passed?'Bạn đã bỏ lượt': S.turn===S.you?'Đến lượt bạn': me.name;
 
   // nút
   const ac=$('acts'); ac.textContent='';
@@ -306,7 +374,7 @@ function render(){
       ac.append(no,yes);
     } else ac.append(el('div','sub','Chờ các nhà khác…'));
   } else if(S.phase==='play'){
-    const ps=el('button','', 'Bỏ lượt'), pl=el('button','pri','Đánh'); pl.id='btPlay';
+    const ps=el('button','dan', 'Bỏ lượt'), pl=el('button','grn','Đánh bài'); pl.id='btPlay';
     ps.disabled = S.turn!==S.you || !S.table;
     ps.onclick=()=>api('pass');
     pl.onclick=async()=>{ const j=await api('play',{cards:[...sel]}); if(!j.err) sel.clear(); };
@@ -319,13 +387,13 @@ function render(){
     $('rTitle').textContent=S.result.title;
     const rr=$('rRows'); rr.textContent='';
     S.result.rows.forEach((r,i)=>{
-      const row=el('div','rrow'); row.append(el('div','nm',r.name+(i===S.you?' (bạn)':'')));
+      const row=el('div','rrow'); row.append(el('div','ra',r.av||''), el('div','nm',r.name+(i===S.you?' (bạn)':'')));
       const cs=el('div','cs');
       if(i===S.result.winner && !r.hand.length) cs.textContent='Hết bài';
       else r.hand.forEach(c=>cs.append(cardEl(c,true)));
       if(r.cong) cs.append(el('span','tag','Cóng'));
       const p=S.players[i];
-      row.append(cs, el('div','d '+(r.delta>0?'p':r.delta<0?'n':''),(r.delta>0?'+':'')+r.delta), el('div','tot','= '+(p?p.score:'')));
+      row.append(cs, el('div','d '+(r.delta>0?'p':r.delta<0?'n':''),sc(r.delta)), el('div','tot','= '+(p?p.score:'')));
       rr.append(row);
     });
     $('btAgain').style.display=isHost?'':'none';
@@ -336,18 +404,18 @@ function render(){
 }
 function updActs(){ const b=$('btPlay'); if(b) b.disabled = !S || S.turn!==S.you || !sel.size; }
 
-// thanh thời gian
+// vòng đếm giờ quanh avatar người đang đến lượt
 setInterval(()=>{
   const left = deadline ? Math.max(0, deadline-Date.now()) : 0;
-  $('tbar').style.width = (S && S.phase!=='over' && total ? Math.min(100, left/total*100) : 0)+'%';
+  document.documentElement.style.setProperty('--p', total ? Math.min(1, left/total) : 0);
 }, 100);
 addEventListener('resize', render);
 
-// tự vào lại phòng khi tải lại trang / mở link mời
+// tự vào lại phòng khi tải lại trang
 (async()=>{
   const c = qRoom || store.get('sam_room'), nm = store.get('sam_name');
   if(!c || !nm) return;   // người mới mở link mời: nhập tên rồi bấm "Vào phòng"
-  room = c; const j = await api('join',{name:nm}); room = null;
+  room = c; const j = await api('join',{name:nm,av:myAv},true); room = null;
   if(j.code) enter(j.code);
 })();
 </script>
