@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b3d2e">
+<title>Sâm Lốc</title>
+<style>
+:root{--felt:#0f5a41;--felt2:#0a3b2b;--ink:#06231a;--gold:#f2c14e;--cream:#fbf6e9;--red:#c8323c;--mute:#9cc7b4;--cw:56px;--ch:80px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--cream);
+  background:radial-gradient(120% 90% at 50% 35%,var(--felt) 0%,var(--felt2) 70%,var(--ink) 100%) fixed;overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:#ffffff1f}
+button:active{transform:translateY(1px)}
+button.pri{background:var(--gold);color:#3a2a00}
+button.dan{background:var(--red);color:#fff}
+button:disabled{opacity:.4}
+input{font:inherit;width:100%;padding:13px 14px;border-radius:12px;border:2px solid #ffffff2e;background:#00000038;color:var(--cream);outline:0}
+input:focus{border-color:var(--gold)}
+.screen{display:none;height:100%;flex-direction:column}
+.screen.on{display:flex}
+.wrap{max-width:440px;width:100%;margin:0 auto;padding:22px 18px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:46px;margin:14px 0 0;text-align:center;color:var(--gold);letter-spacing:1px}
+.sub{text-align:center;color:var(--mute);margin:0 0 10px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.or{text-align:center;color:var(--mute);font-size:13px}
+details{background:#0000002e;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;color:#d9ecdf}
+summary{font-weight:700;cursor:pointer;color:var(--cream)}
+details ul{padding-left:18px;margin:8px 0 2px}
+/* lobby */
+.code{font-family:ui-monospace,Menlo,monospace;font-size:44px;letter-spacing:10px;text-align:center;color:var(--gold);font-weight:800}
+.plist{display:flex;flex-direction:column;gap:8px}
+.pitem{display:flex;align-items:center;gap:10px;background:#00000033;border-radius:12px;padding:10px 12px}
+.pitem .nm{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:#ffffff26;font-weight:700}
+.tag.g{background:var(--gold);color:#3a2a00}
+.x{padding:4px 10px;border-radius:8px;font-size:13px}
+/* game */
+.top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--mute)}
+.top b{color:var(--gold);letter-spacing:2px}
+.top button{padding:6px 10px;font-size:12px;border-radius:8px}
+.opps{display:flex;justify-content:space-around;gap:6px;padding:4px 8px}
+.opp{flex:1;max-width:110px;background:#0000003d;border:2px solid transparent;border-radius:14px;padding:8px 4px;text-align:center;position:relative;min-width:0}
+.opp.turn{border-color:var(--gold);box-shadow:0 0 16px #f2c14e66}
+.opp.off{opacity:.55}
+.opp .nm{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opp .cnt{display:inline-block;margin:5px 0 3px;width:30px;height:40px;line-height:40px;border-radius:6px;font-weight:800;
+  background:repeating-linear-gradient(45deg,#8c1f2a 0 5px,#a52834 5px 10px);border:2px solid var(--cream);color:#fff}
+.opp .sc{font-size:12px;color:var(--mute)}
+.opp .st{position:absolute;top:-8px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--red);color:#fff}
+.opp .st.gray{background:#465f55}
+.mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px;padding:6px}
+.tcards{display:flex;justify-content:center}
+.tcards .card{margin-left:-22px}.tcards .card:first-child{margin-left:0}
+.by{font-size:13px;color:var(--mute)}
+.log{font-size:14px;color:var(--cream);min-height:18px;text-align:center}
+.hint{font-size:20px;font-weight:800;color:var(--gold)}
+.bar{height:5px;background:#0000004d;margin:0 12px;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold);width:0}
+.me{padding:6px 10px calc(10px + env(safe-area-inset-bottom))}
+.meinfo{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);padding:4px 4px 0}
+.meinfo b{color:var(--cream)}
+.hand{position:relative;height:104px;margin:0 auto}
+.hand .card{position:absolute;bottom:4px;transition:transform .12s}
+.hand .card.sel{transform:translateY(-18px);box-shadow:0 0 0 3px var(--gold),0 6px 12px #0006}
+.card{width:var(--cw);height:var(--ch);border-radius:8px;background:var(--cream);color:#1a1a1a;box-shadow:0 2px 6px #0007;
+  border:1px solid #cfc7b0;position:relative;font-weight:800;flex:none}
+.card.r{color:var(--red)}
+.card .a{position:absolute;top:3px;left:5px;font-size:17px;line-height:1;text-align:center}
+.card .a span{display:block;font-size:14px;margin-top:1px}
+.card .b{position:absolute;right:5px;bottom:2px;font-size:26px;line-height:1}
+.card.s{--cw:30px;--ch:42px;border-radius:5px}
+.card.s .a{font-size:11px;left:3px;top:2px}.card.s .a span{font-size:10px}.card.s .b{display:none}
+.acts{display:flex;gap:10px;margin-top:6px}
+.acts button{flex:1;padding:14px;font-size:16px}
+/* overlay */
+.ov{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+.ov.on{display:flex}
+.panel{background:#0c4634;border:2px solid var(--gold);border-radius:18px;padding:18px;width:100%;max-width:420px;max-height:92%;overflow:auto}
+.panel h2{margin:0 0 12px;text-align:center;color:var(--gold);font-family:Georgia,serif;font-size:22px}
+.rrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #ffffff1f}
+.rrow .nm{width:86px;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .cs{flex:1;display:flex;flex-wrap:wrap;gap:2px;min-height:20px;font-size:12px;color:var(--mute)}
+.rrow .d{font-weight:800;width:44px;text-align:right}
+.rrow .d.p{color:#7be39d}.rrow .d.n{color:#ff8d8d}
+.rrow .tot{width:40px;text-align:right;font-size:12px;color:var(--mute)}
+.toast{position:fixed;left:50%;bottom:190px;transform:translateX(-50%);background:#000d;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;
+  opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90%;text-align:center}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Trang chủ -->
+<section class="screen on" id="sHome">
+  <div class="wrap">
+    <h1>Sâm Lốc</h1>
+    <p class="sub">Lập phòng, gửi link, vào chiếu</p>
+    <input id="inName" maxlength="16" placeholder="Tên của bạn" autocomplete="off">
+    <button class="pri" id="btCreate">Tạo phòng mới</button>
+    <div class="or">— hoặc vào phòng có sẵn —</div>
+    <div class="row">
+      <input id="inCode" maxlength="4" placeholder="Mã phòng" autocomplete="off" style="text-transform:uppercase;letter-spacing:4px;text-align:center">
+      <button id="btJoin">Vào phòng</button>
+    </div>
+    <details>
+      <summary>Luật chơi tóm tắt</summary>
+      <ul>
+        <li>2–5 người, mỗi người 10 lá. Thứ tự: 3 &lt; 4 … K &lt; A &lt; 2, không phân chất.</li>
+        <li>Bộ bài: rác, đôi, sám (3 lá), tứ quý, sảnh từ 3 lá (A-2-3 thấp nhất, Q-K-A cao nhất, không có K-A-2).</li>
+        <li>Chặn bằng bộ cùng loại, cùng số lá, to hơn. Tứ quý chặt được một lá 2 (+10 điểm). Đã bỏ lượt thì nghỉ hết vòng.</li>
+        <li>Không được đánh 2 cuối cùng. Nhà dưới còn 1 lá thì đánh rác phải đánh lá to nhất.</li>
+        <li><b>Báo Sâm</b>: tự tin đánh hết bài mà không ai chặn được. Thành công ăn mỗi nhà 20; bị chặn thì đền cả làng cho người chặn.</li>
+        <li>Thua thường: mất 1 điểm mỗi lá còn lại; chưa đánh được lá nào (cóng) mất 15.</li>
+        <li>Ăn trắng (20 điểm mỗi nhà): tứ quý 2, sảnh rồng, đồng màu, 5 đôi.</li>
+      </ul>
+    </details>
+  </div>
+</section>
+
+<!-- Phòng chờ -->
+<section class="screen" id="sLobby">
+  <div class="wrap">
+    <p class="sub" style="margin-top:14px">Mã phòng</p>
+    <div class="code" id="lbCode"></div>
+    <button id="btCopy">Sao chép link mời</button>
+    <input id="lnk" readonly style="display:none;font-size:13px">
+    <div class="plist" id="lbPlayers"></div>
+    <div class="row" id="hostCtl">
+      <button id="btBot">+ Thêm máy</button>
+      <button class="pri" id="btStart">Bắt đầu</button>
+    </div>
+    <p class="sub" id="lbWait">Chờ chủ phòng bắt đầu…</p>
+    <button id="btLeave1">Rời phòng</button>
+  </div>
+</section>
+
+<!-- Bàn chơi -->
+<section class="screen" id="sGame">
+  <div class="top"><span>Phòng <b id="gCode"></b></span><button id="btLeave2">Rời</button></div>
+  <div class="opps" id="opps"></div>
+  <div class="mid">
+    <div class="tcards" id="tcards"></div>
+    <div class="by" id="tby"></div>
+    <div class="log" id="log"></div>
+  </div>
+  <div class="bar"><i id="tbar"></i></div>
+  <div class="me">
+    <div class="meinfo"><span id="meSt"></span><span>Điểm: <b id="meSc">0</b></span></div>
+    <div class="hand" id="hand"></div>
+    <div class="acts" id="acts"></div>
+  </div>
+</section>
+
+<!-- Kết quả -->
+<div class="ov" id="ov"><div class="panel">
+  <h2 id="rTitle"></h2>
+  <div id="rRows"></div>
+  <div class="row" style="margin-top:14px">
+    <button id="btLeave3">Rời phòng</button>
+    <button class="pri" id="btAgain">Ván mới</button>
+  </div>
+  <p class="sub" id="rWait" style="margin:10px 0 0">Chờ chủ phòng chia ván mới…</p>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const RANK = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'], SUIT = ['♠','♣','♦','♥'];
+const store = {
+  get(k){ try { return localStorage.getItem(k) } catch(e){ return null } },
+  set(k,v){ try { localStorage.setItem(k,v) } catch(e){} }
+};
+let token = store.get('sam_token');
+if (!token) { token = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2,'0')).join(''); store.set('sam_token', token); }
+let room = null, es = null, S = null, sel = new Set(), deadline = 0, total = 1;
+
+$('inName').value = store.get('sam_name') || '';
+const qRoom = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
+$('inCode').value = qRoom;
+
+function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>e.classList.remove('on'),2200); }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===id)); }
+
+async function api(a, extra){
+  try {
+    const r = await fetch('/api', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(Object.assign({ a, token, room }, extra)) });
+    const j = await r.json();
+    if (j.err) toast(j.err);
+    return j;
+  } catch(e){ toast('Mất kết nối máy chủ'); return { err:1 }; }
+}
+
+function name(){ const n=$('inName').value.trim(); if(!n){ toast('Nhập tên đã nhé'); $('inName').focus(); return null } store.set('sam_name', n); return n; }
+
+$('btCreate').onclick = async () => { const n=name(); if(!n) return; const j=await api('create',{name:n}); if(j.code) enter(j.code); };
+$('btJoin').onclick = async () => {
+  const n=name(); if(!n) return;
+  const c=$('inCode').value.trim().toUpperCase(); if(c.length!==4) return toast('Mã phòng gồm 4 ký tự');
+  const j=await api('join',{room:c,name:n}); if(j.code) enter(j.code);
+};
+
+function enter(code){
+  room = code; store.set('sam_room', code);
+  history.replaceState(null,'','?room='+code);
+  if (es) es.close();
+  es = new EventSource('/events?room='+code+'&token='+token);
+  es.onmessage = e => { S = JSON.parse(e.data); deadline = S.left ? Date.now()+S.left : 0; render(); };
+  es.addEventListener('gone', exit);
+}
+function exit(){
+  if (es) es.close(); es=null; room=null; S=null; sel.clear(); store.set('sam_room','');
+  history.replaceState(null,'',location.pathname);
+  $('ov').classList.remove('on'); show('sHome');
+}
+async function leave(){ await api('leave'); exit(); }
+['btLeave1','btLeave2','btLeave3'].forEach(id => $(id).onclick = leave);
+$('btBot').onclick = () => api('addBot');
+$('btStart').onclick = $('btAgain').onclick = () => api('start');
+$('btCopy').onclick = async () => {
+  const url = location.origin + location.pathname + '?room=' + room;
+  try { await navigator.clipboard.writeText(url); toast('Đã sao chép link mời'); }
+  catch(e){ const i=$('lnk'); i.style.display='block'; i.value=url; i.select(); }
+};
+
+function cardEl(c, small){
+  const d=document.createElement('div'), s=c&3;
+  d.className='card'+(s>=2?' r':'')+(small?' s':'');
+  const a=document.createElement('div'); a.className='a'; a.textContent=RANK[c>>2];
+  const sp=document.createElement('span'); sp.textContent=SUIT[s]; a.appendChild(sp);
+  const b=document.createElement('div'); b.className='b'; b.textContent=SUIT[s];
+  d.append(a,b); return d;
+}
+function el(tag, cls, txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; }
+
+let lastKey = '';
+function render(){
+  if (!S) return;
+  const key = S.phase+'|'+S.turn+'|'+(S.table?S.table.cards.join():'');
+  if (key !== lastKey) { lastKey = key; total = S.left || 1; }
+  const isHost = S.you === S.host;
+  if (S.phase === 'lobby') {
+    show('sLobby'); $('ov').classList.remove('on');
+    $('lbCode').textContent = S.code;
+    const box=$('lbPlayers'); box.textContent='';
+    S.players.forEach((p,i)=>{
+      const it=el('div','pitem'); it.append(el('span','nm',p.name));
+      if(i===S.host) it.append(el('span','tag g','Chủ phòng'));
+      if(i===S.you) it.append(el('span','tag','Bạn'));
+      if(p.bot) it.append(el('span','tag','Máy'));
+      if(p.score) it.append(el('span','tag',(p.score>0?'+':'')+p.score));
+      if(isHost && i!==S.you){ const x=el('button','x','✕'); x.onclick=()=>api('kick',{idx:i}); it.append(x); }
+      box.append(it);
+    });
+    $('hostCtl').style.display = isHost?'flex':'none';
+    $('lbWait').style.display = isHost?'none':'block';
+    $('btStart').disabled = S.players.length<2;
+    $('btBot').disabled = S.players.length>=5;
+    return;
+  }
+  show('sGame'); $('gCode').textContent = S.code;
+  const n=S.players.length, me=S.players[S.you];
+
+  // đối thủ, theo thứ tự lượt sau mình
+  const ob=$('opps'); ob.textContent='';
+  for(let k=1;k<n;k++){
+    const i=(S.you+k)%n, p=S.players[i];
+    const o=el('div','opp'+(S.turn===i?' turn':'')+(p.online?'':' off'));
+    o.append(el('div','nm',p.name), el('div','cnt',S.phase==='over'?'–':p.count), el('div','sc',(p.score>0?'+':'')+p.score+' đ'));
+    if(S.samBy===i) o.append(el('div','st','BÁO SÂM'));
+    else if(p.count===1 && S.phase==='play') o.append(el('div','st','BÁO 1'));
+    else if(p.passed) o.append(el('div','st gray','Bỏ lượt'));
+    else if(!p.online) o.append(el('div','st gray','Mất mạng'));
+    ob.append(o);
+  }
+
+  // giữa bàn
+  const tc=$('tcards'); tc.textContent='';
+  if(S.table){ S.table.cards.slice().sort((a,b)=>a-b).forEach(c=>tc.append(cardEl(c))); $('tby').textContent = S.players[S.table.by].name + (S.table.by===S.you?' (bạn)':''); }
+  else { $('tby').textContent=''; if(S.phase==='play') tc.append(el('div','hint', S.turn===S.you?'Bạn cầm cái — đánh gì cũng được':'Vòng mới')); if(S.phase==='sam') tc.append(el('div','hint','Có ai báo Sâm không?')); }
+  $('log').textContent = S.log;
+
+  // bài của mình
+  const hd=$('hand'); hd.textContent='';
+  sel.forEach(c=>{ if(!S.hand.includes(c)) sel.delete(c); });
+  const W=Math.min(innerWidth-20,440), cw=56, m=S.hand.length;
+  const step = m>1 ? Math.min(cw+4,(W-cw)/(m-1)) : 0, tw = m? cw+step*(m-1):0;
+  hd.style.width = tw+'px';
+  S.hand.forEach((c,k)=>{
+    const d=cardEl(c); d.style.left=(k*step)+'px'; if(sel.has(c)) d.classList.add('sel');
+    d.onclick=()=>{ sel.has(c)?sel.delete(c):sel.add(c); d.classList.toggle('sel'); updActs(); };
+    hd.append(d);
+  });
+  $('meSc').textContent=(me.score>0?'+':'')+me.score;
+  $('meSt').textContent = S.samBy===S.you?'Bạn đang báo Sâm': me.passed?'Bạn đã bỏ lượt': S.turn===S.you?'Đến lượt bạn': me.name;
+
+  // nút
+  const ac=$('acts'); ac.textContent='';
+  if(S.phase==='sam'){
+    if(S.samPending){
+      const no=el('button','', 'Không báo'), yes=el('button','dan','Báo Sâm!');
+      no.onclick=()=>api('sam',{yes:false}); yes.onclick=()=>api('sam',{yes:true});
+      ac.append(no,yes);
+    } else ac.append(el('div','sub','Chờ các nhà khác…'));
+  } else if(S.phase==='play'){
+    const ps=el('button','', 'Bỏ lượt'), pl=el('button','pri','Đánh'); pl.id='btPlay';
+    ps.disabled = S.turn!==S.you || !S.table;
+    ps.onclick=()=>api('pass');
+    pl.onclick=async()=>{ const j=await api('play',{cards:[...sel]}); if(!j.err) sel.clear(); };
+    ac.append(ps,pl); updActs();
+  }
+
+  // kết quả
+  const ov=$('ov');
+  if(S.phase==='over' && S.result){
+    $('rTitle').textContent=S.result.title;
+    const rr=$('rRows'); rr.textContent='';
+    S.result.rows.forEach((r,i)=>{
+      const row=el('div','rrow'); row.append(el('div','nm',r.name+(i===S.you?' (bạn)':'')));
+      const cs=el('div','cs');
+      if(i===S.result.winner && !r.hand.length) cs.textContent='Hết bài';
+      else r.hand.forEach(c=>cs.append(cardEl(c,true)));
+      if(r.cong) cs.append(el('span','tag','Cóng'));
+      const p=S.players[i];
+      row.append(cs, el('div','d '+(r.delta>0?'p':r.delta<0?'n':''),(r.delta>0?'+':'')+r.delta), el('div','tot','= '+(p?p.score:'')));
+      rr.append(row);
+    });
+    $('btAgain').style.display=isHost?'':'none';
+    $('btAgain').disabled = n<2;
+    $('rWait').style.display=isHost?'none':'block';
+    ov.classList.add('on');
+  } else ov.classList.remove('on');
+}
+function updActs(){ const b=$('btPlay'); if(b) b.disabled = !S || S.turn!==S.you || !sel.size; }
+
+// thanh thời gian
+setInterval(()=>{
+  const left = deadline ? Math.max(0, deadline-Date.now()) : 0;
+  $('tbar').style.width = (S && S.phase!=='over' && total ? Math.min(100, left/total*100) : 0)+'%';
+}, 100);
+addEventListener('resize', render);
+
+// tự vào lại phòng khi tải lại trang / mở link mời
+(async()=>{
+  const c = qRoom || store.get('sam_room'), nm = store.get('sam_name');
+  if(!c || !nm) return;   // người mới mở link mời: nhập tên rồi bấm "Vào phòng"
+  room = c; const j = await api('join',{name:nm}); room = null;
+  if(j.code) enter(j.code);
+})();
+</script>
+</body>
+</html>

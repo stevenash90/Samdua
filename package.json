@@ -1,0 +1,9 @@
+{
+  "name": "sam-loc-online",
+  "version": "1.0.0",
+  "description": "Game bài Sâm Lốc chơi online theo phòng",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=16" },
+  "license": "MIT"
+}
