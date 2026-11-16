@@ -15,6 +15,15 @@ const PT_SAM = 20, PT_TRANG = 20, PT_CONG = 15, PT_CHAT = 10;
 
 const rooms = new Map();
 
+// 10 nhân vật máy: [tên, avatar]
+const BOTS = [
+  ['Chị Phiến', '💅'], ['Thành Cry', '😭'], ['A Long River', '🐉'], ['Ri Đỗ', '🎲'], ['Shark Bình', '🦈'],
+  ['Tô Tổng', '🍜'], ['Mai Thúy', '🌼'], ['Cô Tiên', '🧚'], ['Hà Linh', '💄'], ['Tún', '🐥'],
+];
+// Câu chọc khi chặt 2 / chặt sảnh dài. Số thứ tự cố định để sau này gắn file lồng tiếng (0.mp3, 1.mp3...)
+const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
+let fxSeq = 0;
+
 /* ---------- Luật bài ---------- */
 // id lá bài 0..51: hạng = id>>2 (0='3' ... 10='K', 11='A', 12='2'), chất = id&3 (♠ ♣ ♦ ♥)
 const P = c => c >> 2;
@@ -130,8 +139,9 @@ function newCode() {
 const cleanName = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 16) || 'Khách';
 const hostIdx = r => r.players.findIndex(p => !p.bot);
 
-function mkPlayer(name, token, bot) {
-  return { name, token, bot: !!bot, score: 0, conn: new Set() };
+const cleanAv = s => Array.from(String(s || '')).slice(0, 4).join('') || '🙂';
+function mkPlayer(name, token, bot, av) {
+  return { name, token, bot: !!bot, av: cleanAv(av), score: 0, conn: new Set() };
 }
 
 function startGame(r) {
@@ -147,6 +157,7 @@ function startGame(r) {
     samAns: r.players.map(p => (p.bot ? false : null)),
   };
   r.result = null;
+  r.fx = null;
   r.log = 'Chia bài xong';
   for (let k = 0; k < n; k++) {
     const i = (lead + k) % n, label = instantWin(hands[i]);
@@ -192,9 +203,14 @@ function doPlay(r, i, cards, cb) {
   g.hands[i] = g.hands[i].filter(c => !cards.includes(c));
   g.played[i] = true;
   r.log = `${me.name} đánh`;
+  const taunt = () => { const k = crypto.randomInt(TAUNTS.length); r.fx = { id: ++fxSeq, by: i, k, text: TAUNTS[k], t: Date.now() }; };
   if (g.table && cb.t === 'quad' && g.table.combo.t === 'single' && g.table.combo.k === 12) {
     g.delta[i] += PT_CHAT; g.delta[g.table.by] -= PT_CHAT;
     r.log = `${me.name} chặt 2 của ${r.players[g.table.by].name} (+${PT_CHAT})`;
+    taunt();
+  } else if (g.table && g.table.combo.t === 'straight' && g.table.combo.n >= 5) {
+    r.log = `${me.name} chặt sảnh ${g.table.combo.n} lá của ${r.players[g.table.by].name}`;
+    taunt();
   }
   g.table = { cards, by: i, combo: cb };
   if (g.samBy !== null && i !== g.samBy) return finish(r, { type: 'chan', winner: i });
@@ -237,7 +253,7 @@ function finish(r, res) {
   r.result = {
     title, winner: w,
     rows: r.players.map((p, i) => ({
-      name: p.name, delta: d[i], hand: g.hands[i],
+      name: p.name, av: p.av, delta: d[i], hand: g.hands[i],
       cong: res.type === 'thuong' && i !== w && !g.played[i],
     })),
   };
@@ -254,7 +270,7 @@ function view(r, i) {
     code: r.code, phase: r.phase, you: i, host: hostIdx(r), log: r.log || '',
     left: r.deadline ? Math.max(0, r.deadline - Date.now()) : 0,
     players: r.players.map((p, k) => ({
-      name: p.name, bot: p.bot, score: p.score, online: p.bot || p.conn.size > 0,
+      name: p.name, av: p.av, bot: p.bot, score: p.score, online: p.bot || p.conn.size > 0,
       count: inGame ? g.hands[k].length : 0,
       passed: inGame && g.passed[k],
     })),
@@ -264,6 +280,7 @@ function view(r, i) {
     samBy: inGame ? g.samBy : null,
     samPending: r.phase === 'sam' && g.samAns[i] === null,
     result: r.phase === 'over' ? r.result : null,
+    fx: r.fx && Date.now() - r.fx.t < 3000 ? { id: r.fx.id, by: r.fx.by, k: r.fx.k, text: r.fx.text } : null,
   };
 }
 
@@ -298,7 +315,7 @@ function handle(b) {
   if (token.length < 8) return { err: 'Thiếu mã người chơi' };
   if (a === 'create') {
     const code = newCode();
-    rooms.set(code, { code, players: [mkPlayer(cleanName(b.name), token)], phase: 'lobby', g: null, touched: Date.now() });
+    rooms.set(code, { code, players: [mkPlayer(cleanName(b.name), token, false, b.av)], phase: 'lobby', g: null, touched: Date.now() });
     return { code };
   }
   const r = rooms.get(String(b.room || '').toUpperCase());
@@ -308,7 +325,7 @@ function handle(b) {
     if (i >= 0) return { code: r.code };
     if (r.phase !== 'lobby' && r.phase !== 'over') return { err: 'Phòng đang chơi dở, đợi hết ván rồi vào' };
     if (r.players.length >= MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người' };
-    r.players.push(mkPlayer(cleanName(b.name), token));
+    r.players.push(mkPlayer(cleanName(b.name), token, false, b.av));
     broadcast(r);
     return { code: r.code };
   }
@@ -320,8 +337,9 @@ function handle(b) {
       if (!isHost || !idle) return { err: 'Không thêm máy được lúc này' };
       if (r.players.length >= MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người' };
       const used = r.players.map(p => p.name);
-      const nm = ['Máy Tèo', 'Máy Tý', 'Máy Sửu', 'Máy Dần'].find(x => !used.includes(x)) || 'Máy';
-      r.players.push(mkPlayer(nm, null, true));
+      const free = BOTS.filter(x => !used.includes(x[0]));
+      const [nm, av] = free[crypto.randomInt(free.length)];
+      r.players.push(mkPlayer(nm, null, true, av));
       broadcast(r); return {};
     }
     case 'kick': {
