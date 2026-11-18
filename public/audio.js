@@ -53,7 +53,7 @@ const Sound = (function () {
     if (wantMusic) music(true);
   }
 
-  function url(name) { return `/audio/${name}.${ext}?v=2`; }
+  function url(name) { return `/audio/${name}.${ext}?v=3`; }
   function load(name) {
     if (buffers.has(name)) return Promise.resolve(buffers.get(name));
     if (loading.has(name)) return loading.get(name);
