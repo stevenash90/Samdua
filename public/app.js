@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -1349,35 +1349,49 @@ document.querySelectorAll('[data-chat]').forEach(box => {
     if (await sendChat(v)) inp.value = '';
   };
   box.append(list, quick, form);
+  if (box.hasAttribute('data-dock')) {
+    const tk = h('div', 'cb-tick'); tk.title = 'Xem toàn bộ chat';
+    tk.onclick = () => { box.classList.toggle('open'); if (box.classList.contains('open')) list.scrollTop = list.scrollHeight; };
+    box.insertBefore(tk, quick);
+    inp.addEventListener('focus', () => { if (window.innerWidth < 1100) box.classList.add('open'); list.scrollTop = list.scrollHeight; });
+    document.addEventListener('pointerdown', e => { if (!box.contains(e.target)) box.classList.remove('open'); });
+    form.addEventListener('submit', () => setTimeout(() => box.classList.remove('open'), 60));   // gửi xong thì gọn lại, không che bài
+  }
 });
 async function sendChat(text) {
   const r = await act('chat', { text });
   return !r.err;
 }
 function myChatName() { return S && S.you >= 0 && S.players[S.you] ? S.players[S.you].name : store.get('sam_name', ''); }
-let ovSig = '', ovSeen = 0;
-function renderChatOverlay(msgs, me) {
-  const ov = $('chatOv'); if (!ov) return;
-  const last = msgs.slice(-5);
+// Điện thoại: 2 dòng chat mới nhất nằm ngay trên ô nhập (ngoài bàn chơi), chạm để mở cả lịch sử.
+// Máy tính màn rộng: khung chat cố định bên phải bàn. Bàn chơi không bị chữ đè lên.
+let tickSig = '', tickSeen = 0;
+function renderTick(msgs, me) {
+  const ticks = document.querySelectorAll('#sGame .cb-tick'); if (!ticks.length) return;
+  const last = msgs.slice(-2);
   const sig = last.map(m => m.id).join(',');
-  if (sig === ovSig) return;              // không vẽ lại khi tin nhắn không đổi (tránh nhấp nháy)
-  ovSig = sig;
-  ov.textContent = '';
-  last.forEach((m, k) => {
-    const ln = h('div', 'ln ' + m.kind + (k < last.length - 3 ? ' old' : '') + (m.id > ovSeen ? ' new' : ''));
-    if (m.kind === 'sys') ln.textContent = m.text;
-    else {
-      if (m.name === me && m.kind === (isSpec() ? 'spec' : 'player')) ln.classList.add('mine');
-      ln.append(h('b', '', (m.kind === 'spec' ? '👀 ' : '') + m.name + ': '), document.createTextNode(m.text));
-    }
-    ov.append(ln);
+  if (sig === tickSig) return;              // không vẽ lại khi tin nhắn không đổi (tránh nhấp nháy)
+  tickSig = sig;
+  ticks.forEach(tk => {
+    tk.textContent = '';
+    if (!last.length) { tk.append(h('div', 'ln empty', '💬 Chạm để xem chat · máy và người xem cũng nói ở đây')); return; }
+    last.forEach(m => {
+      const ln = h('div', 'ln ' + m.kind + (m.id > tickSeen ? ' new' : ''));
+      if (m.kind === 'sys') ln.textContent = m.text;
+      else {
+        if (m.name === me && m.kind === (isSpec() ? 'spec' : 'player')) ln.classList.add('mine');
+        ln.append(h('b', '', (m.kind === 'spec' ? '👀 ' : '') + (m.av ? m.av + ' ' : '') + m.name + ': '), document.createTextNode(m.text));
+      }
+      tk.append(ln);
+    });
   });
-  if (last.length) ovSeen = Math.max(ovSeen, last[last.length - 1].id);
+  if (last.length) tickSeen = Math.max(tickSeen, last[last.length - 1].id);
 }
+const shortText = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t);
 function renderChat() {
   if (!S) return;
   const msgs = (S.chat || []).slice(-40), me = myChatName();
-  renderChatOverlay(msgs, me);
+  renderTick(msgs, me);
   document.querySelectorAll('[data-chat] .cb-list').forEach(l => {
     const atBottom = l.scrollHeight - l.scrollTop - l.clientHeight < 30;
     l.textContent = '';
@@ -1402,7 +1416,7 @@ function onChatState(first) {
   const fresh = msgs.filter(m => m.id > chatSeen);
   chatSeen = last;
   for (const m of fresh) {
-    if (m.kind === 'player' && m.seat >= 0) { taunts[m.seat] = { text: m.text, until: Date.now() + 3500, chat: true }; setTimeout(() => S && render(), 3600); }
+    if (m.kind === 'player' && m.seat >= 0) { taunts[m.seat] = { text: shortText(m.text, 56), until: Date.now() + 3500, chat: true }; setTimeout(() => S && render(), 3600); }
   }
   if (fresh.some(m => m.kind !== 'sys' && m.name !== myChatName())) Sound.play('turn');
 }

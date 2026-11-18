@@ -7,12 +7,10 @@ const R = require('./rules');
 const S = require('./scoring');
 const AI = require('./ai');
 const BC = require('./botchat');
+const News = require('./news');
 
-// [tên, avatar, giọng] — Mai Thúy, Cô Tiên, Phương Oanh giọng nữ; các máy khác giọng nam
-const BOTS = [
-  ['Chị Phiến', '💅', 'nam'], ['Thành Cry', '😭', 'nam'], ['A Long River', '🐉', 'nam'], ['Ri Đỗ', '🎲', 'nam'], ['Shark Bình', '🦈', 'nam'],
-  ['Tô Tổng', '🍜', 'nam'], ['Mai Thúy', '🌼', 'nu'], ['Cô Tiên', '🧚', 'nu'], ['Hà Linh', '💄', 'nam'], ['Phương Oanh', '🎬', 'nu'],
-];
+// [tên, avatar, giọng] — lấy từ hồ sơ nhân vật (src/botchat.js)
+const BOTS = BC.BOT_LIST;
 const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
@@ -84,6 +82,8 @@ class Room {
     this.swap = null;              // lời xin đổi chỗ đang chờ: {from, to, at} (pid)
     this.swapPlan = null;          // đã đồng ý, đổi khi bắt đầu ván sau: {a: người xin, b: người đồng ý} (pid)
     this.rstats = {};              // thống kê của bàn theo người chơi (pid)
+    this.botUsed = {};             // tên máy -> câu soạn sẵn đã nói ở bàn này (không nói lại)
+    this.newsUsed = [];            // tin thời sự đã nhắc ở bàn này
     this.deckReq = null;           // đề nghị đổi bộ bài đang chờ: {from, at} (pid)
     // tạm thời (không lưu)
     this.lastChatAt = new Map();
@@ -94,10 +94,11 @@ class Room {
     this.seenCids = new Map();    // pid -> Map(cid -> phản hồi)
     this.timer = null;
     this.pauseTimer = null;
-    this.botTalk = {};            // pid máy -> {said, target} trong ván hiện tại
-    this.botQ = [];               // câu máy chờ nói: {pid, text, force}
+    this.botTalk = {};            // pid máy -> {said} trong ván hiện tại
+    this.botQ = [];               // câu máy chờ nói
     this.botTimer = null;
     this.lastBotAt = 0;
+    this.botGame = { lines: 0, budget: 0, news: 0 };
     this.outbox = [];             // sự kiện chờ đẩy tới client (âm thanh/hiệu ứng)
     this.pending = [];            // sự kiện chờ ghi DB
     this.gameStart = null;
@@ -193,96 +194,158 @@ class Room {
     if (this.now() - last < CHAT_GAP_MS) return { err: 'Gõ chậm thôi 😅' };
     this.lastChatAt.set(pid, this.now());
     this.addChat({ kind, name, av, seat, text });
-    if (kind === 'player' || kind === 'spec') this.botHear(seat, text);
+    if (kind === 'player' || kind === 'spec') this.botHear(seat, name, text);
     return {};
   }
 
   /* ---------------- máy nói chuyện ---------------- */
-  // Mỗi máy nói 2–5 câu/ván. Câu được xếp hàng, cách nhau ~2s để không loạn bàn.
-  botSay(i, cat, ctx = {}, force = false) {
-    const p = this.players[i];
-    if (!p || !p.bot || !this.settings.botChat) return false;
-    const ps = BC.PERSONAS[p.name];
-    if (!ps || !ps[cat] || !ps[cat].length) return false;
-    const t = this.botTalk[p.pid] || (this.botTalk[p.pid] = { said: 0, target: 2 + crypto.randomInt(4) });
-    if (t.said >= 5) return false;
-    if (!force && t.said >= t.target) return false;
-    if (!force && this.botQ.length >= 3) return false;
-    if (!force && this.botQ.some(q => q.pid === p.pid)) return false;   // mỗi máy chỉ một câu chờ
+  // Nguyên tắc: ít mà đúng lúc. Máy nói khi có chuyện (chặt, báo Sâm, thắng thua, bị gọi tên, có người chat),
+  // đáp nhau theo quan hệ, thỉnh thoảng khơi chuyện thời sự. Trong một bàn không máy nào nói lại câu đã nói.
+  persona(i) { const p = this.players[i]; return p && p.bot ? BC.PERSONAS[p.name] || null : null; }
+  botPool(ps, cat, ctx, tag) {
+    if (cat === 'rel') return (ps.rel && ps.rel[ctx.speakerName]) || [];
+    if (cat === 'opinion') return (ps.opinion && ps.opinion[tag]) || ps.human || [];
+    return ps[cat] || [];
+  }
+  botFresh(name, pool) { const used = this.botUsed[name] || []; return pool.filter(x => !used.includes(x)); }
+  botFill(i, raw, ctx) {
     const others = this.players.filter((_, k) => k !== i);
     const any = () => (others.length ? BC.pick(others).name : 'mọi người');
     const fem = others.filter(o => o.gender === 'nu');
     const nm = k => (k !== undefined && k !== null && this.players[k] ? this.players[k].name : any());
-    const used = t.used || (t.used = []);
-    const fresh = ps[cat].filter(x => !used.includes(x));
-    const raw = BC.pick(fresh.length ? fresh : ps[cat]);
-    used.push(raw);
-    const text = raw
-      .replace(/\{target\}/g, any)
+    return raw
+      .replace(/\{target\}/g, () => nm(ctx.target))
       .replace(/\{female\}/g, () => (fem.length ? BC.pick(fem).name : any()))
       .replace(/\{winner\}/g, () => nm(ctx.winner))
       .replace(/\{loser\}/g, () => nm(ctx.loser))
       .replace(/\{chopper\}/g, () => nm(ctx.chopper))
-      .replace(/\{victim\}/g, () => nm(ctx.victim));
+      .replace(/\{victim\}/g, () => nm(ctx.victim))
+      .replace(/\{speaker\}/g, () => ctx.speakerName || any())
+      .replace(/\{q\}/g, () => ctx.q || '');
+  }
+  // opt: { force, prio (đáp người chơi), depth, tag, news }
+  botSay(i, cat, ctx = {}, opt = {}) {
+    const p = this.players[i], ps = this.persona(i);
+    if (!ps || !this.settings.botChat || this.closed) return false;
+    if (typeof ctx.speaker === 'number' && this.players[ctx.speaker]) ctx.speakerName = this.players[ctx.speaker].name;
+    const t = this.botTalk[p.pid] || (this.botTalk[p.pid] = { said: 0 });
+    const cap = ps.talk || 4;
+    if (t.said >= cap + (opt.prio ? 2 : 0)) return false;
+    if (!opt.force && !opt.prio && this.botGame.lines >= this.botGame.budget) return false;
+    if (!opt.force && !opt.prio && this.botQ.length >= 2) return false;
+    if (!opt.force && this.botQ.some(q => q.pid === p.pid)) return false;
+    let raw = null, text = null;
+    if (cat === 'news') {
+      raw = BC.pick(ps.news);   // khung câu được dùng lại, còn tin thì không bao giờ lặp
+      ctx.q = opt.news.q;
+      text = this.botFill(i, raw, ctx);
+      text = text.charAt(0).toUpperCase() + text.slice(1);
+    } else {
+      const fresh = this.botFresh(p.name, this.botPool(ps, cat, ctx, opt.tag));
+      if (fresh.length) { raw = BC.pick(fresh); text = this.botFill(i, raw, ctx); }
+    }
+    if (!text) return false;
+    if (raw && cat !== 'news') {
+      const u = this.botUsed[p.name] || (this.botUsed[p.name] = []);
+      u.push(raw);
+      if (u.length > 400) u.splice(0, 100);
+    }
+    const item = { pid: p.pid, name: p.name, text, cat, tag: opt.tag || (opt.news && opt.news.tag) || null, depth: opt.depth || 0, prio: !!opt.prio, force: !!opt.force };
     t.said++;
-    this.botQ.push({ pid: p.pid, text, force });
+    if (!opt.prio) this.botGame.lines++;
+    if (opt.prio) this.botQ.unshift(item); else this.botQ.push(item);
     this.pumpBots();
     return true;
   }
-  maybeBot(i, cat, prob, ctx) {
-    const p = this.players[i];
-    if (!p || !p.bot) return false;
-    const ps = BC.PERSONAS[p.name];
-    if (ps && ps.quiet && cat !== 'random') prob *= 0.6;
-    return Math.random() < prob && this.botSay(i, cat, ctx);
-  }
+  maybeBot(i, cat, prob, ctx, opt) { return !!this.persona(i) && Math.random() < prob && this.botSay(i, cat, ctx, opt); }
+  botIdx(except = -1) { return this.players.map((p, k) => (p.bot && k !== except && BC.PERSONAS[p.name] ? k : -1)).filter(k => k >= 0); }
   pumpBots() {
     if (this.botTimer || !this.botQ.length || this.closed) return;
-    const gap = this.botQ[0].force ? 1300 : 1800;
-    const wait = Math.max(900 + crypto.randomInt(1400), this.lastBotAt + gap - this.now());
+    const head = this.botQ[0];
+    const inPlay = this.phase === 'sam' || this.phase === 'play';
+    const gap = head.prio ? 1200 : inPlay ? 5000 : 2600;
+    const first = head.prio ? 1100 + crypto.randomInt(1000) : 1400 + crypto.randomInt(1400);
+    const wait = Math.max(first, this.lastBotAt + gap - this.now());
     this.botTimer = setTimeout(() => {
       this.botTimer = null;
-      const q = this.botQ.shift();
-      if (!q || this.closed) return;
-      const k = this.idxOf(q.pid);
-      if (k >= 0 && this.settings.botChat) {
-        const p = this.players[k];
-        this.lastBotAt = this.now();
-        this.addChat({ kind: 'player', bot: true, name: p.name, av: p.av, seat: k, text: q.text });
-        const ps = BC.PERSONAS[p.name];
-        if (ps && ps.partner && Math.random() < 0.3) {
-          const j = this.players.findIndex(x => x.bot && x.name === ps.partner);
-          if (j >= 0) this.botSay(j, 'reply', { target: k });
-        }
-        this.publish();
-      }
-      this.pumpBots();
+      const item = this.botQ.shift();
+      if (!item || this.closed) return;
+      this.botFire(item);
     }, wait);
   }
-  // người (hoặc người xem) nhắc tên máy → máy đó đáp
-  botHear(seat, text) {
-    if (!this.settings.botChat) return;
-    const low = text.toLowerCase();
-    const k = this.players.findIndex((p, x) => x !== seat && p.bot && BC.PERSONAS[p.name] &&
-      BC.PERSONAS[p.name].keys.some(w => low.includes(w)));
-    if (k >= 0 && Math.random() < 0.7) this.botSay(k, 'reply', {}, true);
+  botFire(item) {
+    if (this.closed) return;
+    const k = this.idxOf(item.pid), text = item.text;
+    if (k >= 0 && this.settings.botChat && text) {
+      const p = this.players[k];
+      this.lastBotAt = this.now();
+      this.addChat({ kind: 'player', bot: true, name: p.name, av: p.av, seat: k, text });
+      this.botReact(k, item, text);
+      this.publish();
+    }
+    this.pumpBots();
   }
-  botsEach(fn) { this.players.forEach((p, i) => { if (p.bot) fn(i, p); }); }
+  // máy khác đáp lại câu vừa nói
+  botReact(k, item, text) {
+    const sp = this.players[k].name;
+    const others = this.botIdx(k).sort(() => Math.random() - 0.5);
+    if (item.cat === 'news') {
+      let n = 0;
+      for (const j of others) {
+        if (n >= 2) break;
+        if (Math.random() < (n ? 0.35 : 0.75) && this.botSay(j, 'opinion', { speaker: k, text }, { tag: item.tag, depth: 1, prio: true })) n++;
+      }
+      return;
+    }
+    if (item.depth >= 2) return;
+    const rel = others.filter(j => this.botFresh(this.players[j].name, (BC.PERSONAS[this.players[j].name].rel || {})[sp] || []).length);
+    if (rel.length && Math.random() < 0.5) { this.botSay(rel[0], 'rel', { speaker: k, text }, { depth: item.depth + 1 }); return; }
+    if (others.length && Math.random() < 0.1) this.botSay(others[0], 'human', { speaker: k, text }, { depth: item.depth + 1 });
+  }
+  // người chơi / người xem vừa chat → tối đa một máy đáp
+  botHear(seat, name, text) {
+    if (!this.settings.botChat) return;
+    if (this.now() - (this.lastHumanReply || 0) < 3500) return;
+    const bots = this.botIdx(seat).sort(() => Math.random() - 0.5);
+    if (!bots.length) return;
+    const ctx = { speakerName: name, text };
+    let done = false;
+    const named = bots.find(j => BC.mentions(BC.PERSONAS[this.players[j].name], text));
+    if (named !== undefined) done = Math.random() < 0.9 && this.botSay(named, 'reply', ctx, { prio: true });
+    else {
+      const tag = BC.topicOf(text);
+      if (tag) {
+        const fans = bots.filter(j => (BC.PERSONAS[this.players[j].name].fav || []).includes(tag));
+        const j = fans.length ? fans[0] : bots[0];
+        done = Math.random() < 0.65 && this.botSay(j, 'opinion', ctx, { prio: true, tag });
+      } else if (Math.random() < 0.25) done = this.botSay(bots[0], 'human', ctx, { prio: true });
+    }
+    if (done) this.lastHumanReply = this.now();
+  }
+  // khơi chuyện thời sự (mỗi ván tối đa một lần)
+  botNews(i) {
+    if (this.botGame.news >= 1 || !this.settings.botChat) return false;
+    const list = News.available(this.newsUsed, this.now());
+    if (!list.length) return false;
+    const n = BC.pick(list.slice(0, 6));
+    if (!this.botSay(i, 'news', {}, { news: n })) return false;
+    this.newsUsed.push(n.id);
+    if (this.newsUsed.length > 300) this.newsUsed.splice(0, 100);
+    this.botGame.news++;
+    return true;
+  }
   botsAfterGame(res, d) {
     if (!this.settings.botChat) return;
     const n = this.players.length;
     let loser = -1;
     for (let i = 0; i < n; i++) if (i !== res.winner && (loser < 0 || d[i] < d[loser])) loser = i;
     const ctx = { winner: res.winner, loser };
-    if (this.players[res.winner].bot) this.botSay(res.winner, 'win', ctx, true);
-    if (loser >= 0 && this.players[loser].bot && Math.random() < 0.8) this.botSay(loser, 'lose', ctx, true);
-    // đủ tối thiểu 2 câu/ván
-    this.botsEach((i, p) => {
-      const t = this.botTalk[p.pid] || { said: 0 };
-      for (let k = t.said; k < 2; k++) {
-        const cat = i === res.winner ? 'win' : k === t.said && Math.random() < 0.5 ? 'lose' : 'random';
-        if (!this.botSay(i, cat, ctx, true)) this.botSay(i, 'random', ctx, true);
-      }
+    if (this.persona(res.winner)) this.botSay(res.winner, 'win', ctx, { force: true });
+    if (loser >= 0 && this.persona(loser) && Math.random() < 0.7) this.botSay(loser, 'lose', ctx, { force: true });
+    // máy nào cả ván chưa nói câu nào thì góp một câu
+    this.botIdx().forEach(i => {
+      const t = this.botTalk[this.players[i].pid];
+      if (!t || !t.said) this.botSay(i, i === res.winner ? 'win' : 'lose', ctx, { force: true });
     });
   }
 
@@ -447,8 +510,10 @@ class Room {
     };
     this.emit('deal', { hands: hands.map(h => h.slice()), lead, names: this.players.map(p => p.name) });
     this.botTalk = {};
-    this.botQ = this.botQ.filter(q => q.force);
-    this.botsEach(i => this.maybeBot(i, 'start', 0.5));
+    this.botQ = this.botQ.filter(q => q.force || q.prio);
+    { const bots = this.botIdx();
+      this.botGame = { lines: 0, budget: 2 + 2 * bots.length, news: 0 };
+      if (bots.length) this.maybeBot(BC.pick(bots), 'start', 0.6); }
     this.log = 'Chia bài xong';
     for (let k = 0; k < n; k++) {
       const i = (lead + k) % n, label = R.instantWin(hands[i]);
@@ -538,14 +603,14 @@ class Room {
       this.emit('taunt', { by: i, k, text: TAUNTS[k] }, false);
     }
     if (kind) {
-      this.maybeBot(i, 'chop', 0.9, { victim: prev.by });
-      this.maybeBot(prev.by, 'chopped', 0.7, { chopper: i });
-    } else if (me.bot && ((cb.t === 'straight' && cb.n >= 5) || cb.t === 'quad' || cb.t === 'pairs3')) {
-      this.maybeBot(i, 'brag', 0.5);
-    } else if (me.bot) {
-      // giữa ván: máy chưa nói câu nào thì góp một câu, đỡ dồn hết về cuối ván
+      this.maybeBot(i, 'chop', 0.7, { victim: prev.by });
+      if (!this.botQ.some(q => q.pid === this.players[i].pid && q.cat === 'chop')) this.maybeBot(prev.by, 'chopped', 0.6, { chopper: i });
+    } else if (me.bot && ((cb.t === 'straight' && cb.n >= 6) || cb.t === 'quad' || cb.t === 'pairs3')) {
+      this.maybeBot(i, 'brag', 0.3);
+    } else if (me.bot && g.hands[i].length <= 6 && g.hands[i].length >= 2) {
+      // giữa ván: máy chưa nói gì thì có thể khơi chuyện thời sự
       const tk = this.botTalk[me.pid];
-      this.maybeBot(i, 'random', (!tk || !tk.said) && g.hands[i].length <= 6 ? 0.35 : 0.04);
+      if ((!tk || !tk.said) && Math.random() < 0.25) this.botNews(i);
     }
     if (g.samBy !== null && i !== g.samBy) return this.finish({ type: 'chan', winner: i, label });
     if (!g.hands[i].length) return this.finish({ type: g.samBy === i ? 'sam' : 'thuong', winner: i, label });
@@ -578,9 +643,9 @@ class Room {
     g.table = null;
     g.passed.fill(false);
     this.emit('round', { leader: g.turn });
-    if (Math.random() < 0.12) {
-      const bots = this.players.map((p, k) => (p.bot ? k : -1)).filter(k => k >= 0);
-      if (bots.length) this.maybeBot(BC.pick(bots), 'random', 1);
+    if (Math.random() < 0.15) {
+      const bots = this.botIdx();
+      if (bots.length) this.botNews(BC.pick(bots));
     }
   }
 
@@ -902,8 +967,8 @@ class Room {
         if (msg.yes) {
           g.samBy = i;
           this.emit('sam', { by: i });
-          { const bots = this.players.map((p, k) => (p.bot && k !== i ? k : -1)).filter(k => k >= 0);
-            if (bots.length) this.maybeBot(BC.pick(bots), 'sam', 0.5, { target: i }); }
+          { const bots = this.botIdx(i);
+            if (bots.length) this.maybeBot(BC.pick(bots), 'sam', 0.6, { target: i }); }
           this.beginPlay();
         } else if (g.samAns.every(x => x !== null)) this.beginPlay();
         return {};
@@ -973,6 +1038,7 @@ class Room {
     clearTimeout(this.timer);
     clearTimeout(this.pauseTimer);
     clearTimeout(this.botTimer);
+    this.botQ = [];
     this.deps.onClose && this.deps.onClose(this);
   }
 
@@ -989,7 +1055,7 @@ class Room {
     return {
       v: 2, code: this.code, created: this.created, touched: this.touched, settings: this.settings,
       players: this.players.map(p => ({ pid: p.pid, tokenHash: p.tokenHash, name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: p.auto, score: p.score, lose: p.lose || 0 })),
-      chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, swapPlan: this.swapPlan, deckReq: this.deckReq, rstats: this.rstats,
+      chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, swapPlan: this.swapPlan, deckReq: this.deckReq, rstats: this.rstats, botUsed: this.botUsed, newsUsed: this.newsUsed,
       hostPid: this.hostPid, phase: this.phase, g: gs, result: this.result, log: this.log,
       lastWinnerPid: this.lastWinnerPid, gameNo: this.gameNo, hostLog: this.hostLog,
     };
@@ -1003,6 +1069,7 @@ class Room {
       lastWinnerPid: s.lastWinnerPid, gameNo: s.gameNo || 0, hostLog: s.hostLog || [],
       chat: s.chat || [], chatSeq: s.chatSeq || 0, spectators: s.spectators || [], deck: s.deck || { no: 1, style: 0 },
       swap: s.swap || null, swapPlan: s.swapPlan || null, deckReq: s.deckReq || null, rstats: s.rstats || {},
+      botUsed: s.botUsed || {}, newsUsed: s.newsUsed || [],
     });
     r.spectators.forEach(x => r.offlineSince.set(x.pid, r.now()));
     const g = r.g;

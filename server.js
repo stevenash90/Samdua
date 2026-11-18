@@ -15,6 +15,9 @@ const VERSION = require('./package.json').version;
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const store = createStore(C, log);
 const accounts = createAccounts(store, { googleClientId: C.GOOGLE_CLIENT_ID });
+const News = require('./src/news');
+const NEWS_ON = process.env.BOT_NEWS !== '0';
+if (NEWS_ON) News.start(log);   // tải tin lúc máy chủ thức dậy, rồi định kỳ
 const rooms = new Map();
 const started = Date.now();
 let ready = false;
@@ -114,6 +117,7 @@ async function api(b, ip) {
   if (token.length < 16 || token.length > 100) return { err: 'Thiếu mã người chơi' };
   if (!ready) return { err: 'Máy chủ đang khởi động, thử lại sau vài giây' };
   if ((a === 'create' || a === 'join') && limited(ip)) return { err: 'Thao tác quá nhanh, đợi một chút' };
+  if (NEWS_ON && (a === 'create' || a === 'join' || a === 'watch')) News.freshen(log);   // mở app: tin cũ quá 20 phút thì tải lại
   if (['register', 'login', 'google', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
   if (a === 'config') return { googleClientId: C.GOOGLE_CLIENT_ID || null };
 
@@ -277,7 +281,7 @@ const server = http.createServer((req, res) => {
     const body = {
       ok: ready && !(store.lastError && (!store.lastOk || store.lastError.at > store.lastOk)),
       version: VERSION, storage: store.kind, uptimeSec: Math.round((Date.now() - started) / 1000),
-      rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
+      news: News.status(), rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
       lastStoreError: store.lastError,
     };
     store.ping().then(() => (body.db = 'ok'), e => { body.db = 'error: ' + e.message; body.ok = false; }).finally(() => {

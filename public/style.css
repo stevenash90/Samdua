@@ -378,7 +378,7 @@ body[data-deck]:not([data-deck="0"]) .card{border-color:var(--edge)}
 body[data-deck="2"] .card{background:linear-gradient(160deg,#fffdf2 0%,#f6ecd0 70%,#ead9a8 100%)}
 .gl{min-width:0;flex:1;overflow:hidden}
 .gl .chip,.gl .rc{white-space:nowrap;flex:none}
-.bub.chat{width:max-content;max-width:170px}
+.bub.chat{width:max-content;max-width:150px;font-size:12px;line-height:1.3}
 @media (max-width:420px){ .rc .lb{display:none} .gr{gap:4px} .gr .icon.sm{width:32px} }
 .slot-tl .bub,.slot-bl .bub{left:0;transform:translateY(100%)}
 .slot-bl .bub{transform:translateY(-100%)}
@@ -427,7 +427,6 @@ body[data-deck="2"] .card{background:linear-gradient(160deg,#fffdf2 0%,#f6ecd0 7
 .cb-quick button{flex:none;background:#ffffff12;border-radius:99px;padding:5px 10px;font-size:12.5px;white-space:nowrap}
 .chatbox.lobby{padding:4px 16px calc(8px + var(--sab));max-width:460px;width:100%;margin:0 auto}
 .chatbox.lobby .cb-list{max-height:96px}
-@media (min-width:700px) and (min-height:760px){ #sGame .chatbox .cb-list{max-height:84px} }
 @media (max-height:680px){ .cb-list{max-height:44px} }
 .cb-in{padding:10px 12px;border-radius:10px;border:1.5px solid #ffffff26;background:#00000055;color:var(--cream);outline:0;width:100%}
 
@@ -436,17 +435,28 @@ body[data-deck="2"] .card{background:linear-gradient(160deg,#fffdf2 0%,#f6ecd0 7
 .join-row .btn{padding:13px 12px}
 
 /* chat nổi trên bàn: 5 dòng gần nhất, không chặn thao tác trên bàn */
-.chat-ov{position:absolute;left:14px;right:34%;bottom:100px;z-index:8;pointer-events:none;display:flex;flex-direction:column;gap:1px;font-size:12.5px;line-height:1.35}
-.chat-ov .ln{color:#fff;text-shadow:0 1px 2px #000,0 0 6px #000c;word-break:break-word}
-.chat-ov .ln.new{animation:fade .3s}
-.chat-ov .ln b{color:var(--gold)}
-.chat-ov .ln.spec b{color:#7fd1ff}
-.chat-ov .ln.mine b{color:#7bf0a8}
-.chat-ov .ln.sys{color:#d6efe4;font-style:italic;font-size:11.5px}
-.chat-ov .ln.old{opacity:.7}
-#sGame .chatbox .cb-list{display:none}
-#sGame .chatbox{margin-top:4px}
-@media (min-width:700px){ .chat-ov{left:40px;right:55%;bottom:120px;font-size:13.5px} }
+/* chat trong ván: không đè lên bàn */
+#sGame .chat-dock .cb-list{display:none;position:absolute;left:0;right:0;bottom:100%;max-height:min(42vh,320px);margin-bottom:6px;padding:10px 12px;
+  background:#071f17f2;border:1px solid var(--line);border-radius:16px;box-shadow:0 -10px 30px #0008;-webkit-mask-image:none;mask-image:none;font-size:13px}
+#sGame .chat-dock.open .cb-list{display:flex}
+.cb-tick{height:36px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:0 6px;cursor:pointer;font-size:12px;line-height:18px;border-radius:10px}
+.cb-tick:hover{background:#ffffff08}
+.cb-tick .ln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e9f3ee;text-shadow:0 1px 2px #000}
+.cb-tick .ln.new{animation:fade .3s}
+.cb-tick .ln b{color:var(--gold);font-weight:700}
+.cb-tick .ln.spec b{color:#7fd1ff}
+.cb-tick .ln.mine b{color:#7bf0a8}
+.cb-tick .ln.sys{color:var(--mute);font-style:italic}
+.cb-tick .ln.empty{color:#ffffff55}
+.chat-dock.open .cb-tick{opacity:.5}
+.chat-side{display:none}
+@media (min-width:1100px) and (min-height:600px){
+  #sGame .tablewrap{max-width:1240px;gap:14px;padding:0 14px}
+  #sGame .chat-side{display:flex;flex-direction:column;flex:none;width:300px;margin:10px 0 12px;padding:12px;background:#00000030;border:1px solid var(--line);border-radius:18px}
+  #sGame .chat-side .cb-list{flex:1;max-height:none;font-size:13.5px;line-height:1.45;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 24px);mask-image:linear-gradient(to bottom,transparent 0,#000 24px)}
+  #sGame .chat-side .cb-quick{flex-wrap:wrap}
+  #sGame .chat-dock{display:none}
+}
 .update-bar{position:fixed;left:12px;right:12px;top:calc(8px + var(--sat));z-index:90;background:var(--gold);color:#2c1d00;font-weight:800;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px #000a}
 .update-bar span{flex:1;font-size:13.5px}
 .update-bar button{background:#2c1d00;color:var(--gold);border-radius:10px;padding:8px 12px;font-weight:800}

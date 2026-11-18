@@ -21,7 +21,8 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Người xem**: vào phòng bằng nút 👀 Xem (hoặc khi phòng đang chơi dở). Chỉ thấy bài công khai, chat được, không thao tác ván, không xem lại được ván. Còn chỗ thì bấm "Vào chơi" giữa các ván.
 - **Đổi chỗ giải đen**: thua 10 ván liên tiếp thì được xin đổi chỗ (kể cả lúc đang chơi, nút trong menu ⋯). Người kia có 30 giây trả lời; đồng ý thì đổi chỗ từ ván sau. Có thoại "Đen quá, đổi chỗ phát!" / "Ok cưng!"; từ chối thì hiện câu đáp ngẫu nhiên.
 - **Thống kê bàn** (nút 📊, mở được giữa ván): thắng/thua nhiều nhất, tỉ lệ thắng thua, báo Sâm, bắt Sâm, chặt, bị chặt, cóng, chuỗi xanh/đỏ hiện tại và dài nhất, lãi lỗ.
-- **Máy nói chuyện**: mỗi máy có tính cách riêng (`src/botchat.js`) và chém gió trên chat khi vào ván, chặt/bị chặt, có người báo Sâm, thắng/thua, hoặc khi bị gọi tên. Mỗi máy nói 2–5 câu/ván, các câu cách nhau để không loạn bàn. Chủ phòng tắt được trong cài đặt hoặc menu ⋯.
+- **Máy nói chuyện**: 19 nhân vật máy có tính cách, quan hệ và chủ đề riêng (`src/botchat.js`, chỉ dẫn đầy đủ ở `docs/NHAN_VAT.md`). Máy nói ít mà đúng lúc, đáp nhau và đáp người chơi, khơi chuyện thời sự (gói tin soạn sẵn + tiêu đề VnExpress tải miễn phí khi máy chủ thức dậy / có người mở app, đã lọc tin buồn và chính trị). Trong một bàn không máy nào nói lại câu đã nói. Chủ phòng tắt được.
+- **Chat không đè bàn**: điện thoại hiện 2 dòng mới nhất ngay trên ô nhập, chạm để mở lịch sử; máy tính màn rộng có khung chat riêng bên phải bàn.
 - **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.
 
 ## Tài khoản thành viên
@@ -59,7 +60,8 @@ src/config.js        cấu hình (biến môi trường)
 src/rules.js         luật bài thuần (nhận diện bộ, chặn, chặt, ăn trắng)
 src/scoring.js       tính tiền: chặt 2, chặt đè, Sâm, cóng, thối 2, ăn trắng
 src/ai.js            gợi ý nước đi / não của máy (chỉ thông tin công khai)
-src/botchat.js       tính cách & câu thoại chat của từng máy
+src/botchat.js       tính cách & câu thoại chat của từng máy (sinh chỉ dẫn: node scripts/nhan_vat.js)
+src/news.js          tin thời sự cho máy: gói soạn sẵn + RSS VnExpress (lọc tin nhạy cảm)
 src/room.js          state machine phòng & ván, tạm dừng, AFK, chủ phòng, event log
 src/store.js         lưu trữ: PostgreSQL (migration) hoặc file JSON
 src/accounts.js      tài khoản: đăng ký, đăng nhập, Google, phiên, hồ sơ
@@ -112,6 +114,7 @@ Bảng dữ liệu được tạo tự động (migration chạy lúc khởi đ�
 | `PAUSE_LIMIT_MS` | giới hạn tạm dừng mặc định mỗi ván | 600000 |
 | `CROSS_CHOP` | `1` = tứ quý được đè ba đôi thông (chưa xác nhận luật) | 0 |
 | `GOOGLE_CLIENT_ID` | bật nút đăng nhập Google | trống |
+| `BOT_NEWS` | `0` = không tải tin báo cho máy (chỉ dùng gói tin soạn sẵn) | bật |
 
 Điểm/tiền (chặt 2, hệ số chặt đè, Sâm, ăn trắng, cóng, thối 2) do chủ phòng chỉnh khi tạo phòng.
 

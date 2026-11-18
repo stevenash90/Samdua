@@ -14,6 +14,7 @@ const BASE = `http://localhost:${PORT}`;
 const PG = process.env.TEST_DATABASE_URL || '';
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'samdua-e2e-'));
 const ENV = Object.assign({}, process.env, {
+  BOT_NEWS: '0',
   PORT: String(PORT), DATABASE_URL: PG, DATA_DIR, BOT_MS: '60', TURN_MS: '15000', SAM_MS: '1500', REVEAL_MS: '400',
   HOST_GRACE_MS: '1500', AFK_MS: '60000',
 });

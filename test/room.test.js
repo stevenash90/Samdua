@@ -238,56 +238,123 @@ test('mô phỏng 300 ván toàn máy: không lỗi, tổng điểm bằng 0, m�
   }
 });
 
-test('máy nói chuyện: mỗi máy 2–5 câu/ván, đúng tính cách, tắt được', t => {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 7_000_000 });
+test('nhân vật: đủ hồ sơ, bỏ Tô Tổng, có Phương Oanh và 10 nhân vật mới, quan hệ trỏ đúng tên', () => {
   const { PERSONAS } = require('../src/botchat');
   const { BOTS } = require('../src/room');
-  for (const [nm] of BOTS) assert.ok(PERSONAS[nm], 'thiếu tính cách cho ' + nm);
-  assert.ok(BOTS.some(b => b[0] === 'Phương Oanh') && !BOTS.some(b => b[0] === 'Tún'));
+  const names = BOTS.map(b => b[0]);
+  assert.ok(!names.includes('Tô Tổng') && !names.includes('Tún') && names.includes('Phương Oanh'));
+  for (const n of ['M10', 'Đô 500', 'Người Mỹ gốc U Cà', 'Big Kim', 'Tesla Driver']) assert.ok(names.includes(n), n);
+  assert.strictEqual(names.length, 19);
+  for (const [n, p] of Object.entries(PERSONAS)) {
+    for (const k of ['start', 'chop', 'chopped', 'brag', 'win', 'lose', 'sam', 'reply', 'human', 'news']) assert.ok(p[k] && p[k].length, `${n}.${k}`);
+    assert.ok(p.talk >= 2 && p.talk <= 10, n);
+    assert.ok(p.bio && p.style && p.inspired, n);
+    for (const r of Object.keys(p.rel || {})) assert.ok(PERSONAS[r], `${n} → ${r}`);
+    assert.ok(p.news.every(x => x.includes('{q}')), n);
+  }
+});
+
+test('tin thời sự: lọc tin buồn/chính trị, không nhắc lại tin đã dùng', () => {
+  const News = require('../src/news');
+  const xml = `<rss><channel>
+    <item><title><![CDATA[Trấn Thành đoán trúng mascot ở Ca sĩ mặt nạ]]></title><link>a</link></item>
+    <item><title>Ca sĩ nổi tiếng qua đời ở tuổi 60</title><link>b</link></item>
+    <item><title>Quốc hội thông qua luật mới về thuế</title><link>c</link></item>
+    <item><title>Tuyển Việt Nam thắng đậm trận giao hữu &amp; vui</title><link>d</link></item>
+  </channel></rss>`;
+  const items = News.parseFeed(xml, 'showbiz');
+  assert.deepStrictEqual(items.map(x => x.id), ['a', 'd']);
+  assert.match(items[1].q, /thắng đậm trận giao hữu & vui/);
+  News._setRss(items);
+  const all = News.available([], Date.parse('2026-11-18'));
+  assert.ok(all.some(x => x.id === 'csmn') && all.some(x => x.id === 'a'));
+  assert.ok(!News.available(['csmn', 'a'], Date.parse('2026-11-18')).some(x => x.id === 'csmn' || x.id === 'a'));
+  assert.ok(!News.available([], Date.parse('2027-06-01')).some(x => x.id === 'csmn'), 'tin hết hạn');
+  News._setRss([]);
+});
+
+test('máy nói chuyện: tiết chế, không lặp câu trong cả bàn, đáp người chơi, đáp nhau, tắt được', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.parse('2026-11-18T12:00:00Z') });
+  const { PERSONAS } = require('../src/botchat');
   const room = new Room('BCH', { store: mkStore(), send() {} });
-  const h = room.addHuman('bc-token', 'Người', '🙂', { gender: 'nu' });
+  const h = room.addHuman('bc-token', 'Lan', '🙂', { gender: 'nu' });
   room.connect(h.pid);
   for (let k = 0; k < 4; k++) room.handle(h.pid, { a: 'addBot' });
+  const bots = () => room.players.filter(x => x.bot);
+  const drain = s => { for (let k = 0; k < s; k++) tick(t, 1000); };
   const play = () => {
     room.handle(h.pid, { a: 'start' });
     room.players[0].auto = true;
     room.handle(h.pid, { a: 'sam', yes: false });
     let guard = 0;
     while (room.phase !== 'over' && guard++ < 500) { room.commit(); tick(t, 4000); room.players[0].auto = true; }
-    for (let k = 0; k < 60; k++) tick(t, 1000);   // chờ máy nói hết hàng đợi
+    drain(40);
   };
-  for (let gno = 0; gno < 30; gno++) {
+  let total = 0;
+  for (let gno = 0; gno < 12; gno++) {
     const from = room.chatSeq;
     play();
     const lines = room.chat.filter(m => m.id > from && m.bot);
-    for (const p of room.players.filter(x => x.bot)) {
+    total += lines.length;
+    for (const p of bots()) {
       const c = lines.filter(m => m.name === p.name);
-      assert.ok(c.length >= 2 && c.length <= 5, `${p.name} nói ${c.length} câu`);
+      assert.ok(c.length <= PERSONAS[p.name].talk, `${p.name} nói ${c.length} câu`);
       assert.ok(c.every(m => !/\{\w+\}/.test(m.text)), 'còn biến chưa thay');
       assert.ok(c.every(m => m.kind === 'player' && m.seat === room.idxOf(p.pid)));
     }
+    assert.ok(lines.length <= 2 + 2 * 4 + 4 + 2, `cả bàn nói ${lines.length} câu/ván là quá nhiều`);
   }
-  // gọi tên máy → máy đáp
-  const bi = room.players.findIndex(p => p.bot);
-  const key = PERSONAS[room.players[bi].name].keys[0];
-  let replied = 0;
-  for (let k = 0; k < 10; k++) {
+  assert.ok(total >= 12, 'máy phải có nói');
+  // không nói lại câu nào trong cả bàn (trừ câu khơi tin: mỗi tin chỉ một lần)
+  const all = room.chat.filter(m => m.bot).map(m => m.name + '|' + m.text);
+  assert.strictEqual(new Set(all).size, all.length, 'có câu bị lặp');
+  // gọi tên máy → máy đáp (nếu còn câu chưa nói)
+  const b = bots().find(p => (PERSONAS[p.name].reply.length - (room.botUsed[p.name] || []).filter(x => PERSONAS[p.name].reply.includes(x)).length) > 0);
+  if (b) {
     room.botTalk = {};
-    const from = room.chatSeq;
-    tick(t, 1000);
-    room.handle(h.pid, { a: 'chat', text: 'ê ' + key + ' ơi' });
-    for (let j = 0; j < 6; j++) tick(t, 1000);
-    if (room.chat.some(m => m.id > from && m.bot && m.name === room.players[bi].name)) replied++;
+    let replied = false;
+    for (let k = 0; k < 6 && !replied; k++) {
+      const from = room.chatSeq;
+      drain(4);
+      room.handle(h.pid, { a: 'chat', text: 'ê ' + PERSONAS[b.name].keys[0] + ' ơi' });
+      drain(4);
+      replied = room.chat.some(m => m.id > from && m.bot && m.name === b.name);
+    }
+    assert.ok(replied, 'máy phải đáp khi bị gọi tên');
   }
-  assert.ok(replied >= 3, 'máy phải đáp khi bị gọi tên');
+  // lưu / khôi phục giữ danh sách câu đã nói
+  const r2 = Room.restore(JSON.parse(JSON.stringify(room.snapshot())), { send() {} });
+  assert.deepStrictEqual(r2.botUsed, room.botUsed);
+  assert.deepStrictEqual(r2.newsUsed, room.newsUsed);
   // tắt → im lặng
   room.handle(h.pid, { a: 'settings', settings: { botChat: false } });
-  assert.strictEqual(room.settings.botChat, false);
   const from = room.chatSeq;
   play();
-  room.handle(h.pid, { a: 'chat', text: key });
-  for (let j = 0; j < 10; j++) tick(t, 1000);
+  room.handle(h.pid, { a: 'chat', text: 'đói quá ăn phở không' });
+  drain(10);
   assert.strictEqual(room.chat.filter(m => m.id > from && m.bot).length, 0);
+  room.close();
+});
+
+test('máy khơi chuyện thời sự thì máy khác góp ý kiến', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.parse('2026-11-18T12:00:00Z') });
+  const room = new Room('NEWS', { store: mkStore(), send() {} });
+  const h = room.addHuman('nw-token', 'Lan', '🙂');
+  room.connect(h.pid);
+  for (let k = 0; k < 3; k++) room.handle(h.pid, { a: 'addBot' });
+  room.botGame = { lines: 0, budget: 10, news: 0 };
+  let replies = 0;
+  for (let k = 0; k < 8; k++) {
+    room.botGame.news = 0; room.botTalk = {};
+    const from = room.chatSeq;
+    assert.ok(room.botNews(1));
+    for (let s = 0; s < 20; s++) tick(t, 1000);
+    const ls = room.chat.filter(m => m.id > from && m.bot);
+    assert.ok(ls.length >= 1);
+    if (ls.length >= 2) replies++;
+  }
+  assert.ok(replies >= 3, 'các máy khác phải góp chuyện');
+  assert.strictEqual(new Set(room.newsUsed).size, room.newsUsed.length);
   room.close();
 });
 
