@@ -38,8 +38,9 @@ function broadcast(room) {
   if (!set) return;
   for (const ws of set) {
     const i = room.idxOf(ws.pid);
-    if (i < 0) { sendJson(ws, { t: 'gone' }); ws.close(); continue; }
-    sendJson(ws, { t: 'state', s: room.view(i), ev: room.eventsFor(i) });
+    if (i >= 0) { sendJson(ws, { t: 'state', s: room.view(i), ev: room.eventsFor(i) }); continue; }
+    if (room.specIdx(ws.pid) >= 0) { sendJson(ws, { t: 'state', s: room.view(-1, 'spec'), ev: room.eventsFor(-1) }); continue; }
+    sendJson(ws, { t: 'gone' }); ws.close();
   }
 }
 function closeSockets(room) {
@@ -84,11 +85,11 @@ function hello(ws, m) {
   if (!ready) return sendJson(ws, { t: 'retry' });
   const room = rooms.get(String(m.room || '').toUpperCase());
   if (!room || room.closed) return sendJson(ws, { t: 'gone' });
-  const i = room.auth(String(m.token || ''));
-  if (i < 0) return sendJson(ws, { t: 'gone' });
+  const who = room.who(String(m.token || ''));
+  if (!who) return sendJson(ws, { t: 'gone' });
   if (ws.room) { const old = rooms.get(ws.room); if (old) { leaveSocket(ws, old); old.disconnect(ws.pid); } }
   ws.room = room.code;
-  ws.pid = room.players[i].pid;
+  ws.pid = who.pid;
   if (!sockets.has(room.code)) sockets.set(room.code, new Set());
   sockets.get(room.code).add(ws);
   room.connect(ws.pid);
@@ -132,12 +133,21 @@ async function api(b, ip) {
       }
       return { code: room.code };
     }
-    if (room.phase !== 'lobby' && room.phase !== 'over') return { err: 'Phòng đang chơi dở, đợi hết ván rồi vào' };
-    if (room.players.length >= C.MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người' };
+    if (room.phase !== 'lobby' && room.phase !== 'over') return { err: 'Phòng đang chơi dở, đợi hết ván rồi vào', canWatch: true };
+    if (room.players.length >= C.MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người', canWatch: true };
+    room.removeSpectator(pid, true);   // đang xem thì chuyển sang ngồi chơi
     room.addHuman(token, b.name, b.av);
     room.log = `${room.players[room.players.length - 1].name} vào phòng`;
     room.commit();
     return { code: room.code };
+  }
+  if (a === 'watch') {
+    const room = rooms.get(String(b.room || '').toUpperCase());
+    if (!room || room.closed) return { err: 'Không tìm thấy phòng' };
+    if (room.auth(token) >= 0) return { code: room.code };   // đã là người chơi
+    if (!room.addSpectator(token, b.name, b.av)) return { err: 'Phòng đã đủ người xem' };
+    room.commit();
+    return { code: room.code, spectator: true };
   }
   if (a === 'history') {
     const games = await store.gamesFor(pid, 50);

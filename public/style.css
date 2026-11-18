@@ -341,3 +341,48 @@ details.adv summary{padding:10px 0;font-weight:700;color:var(--gold);cursor:poin
 #sLobby #btStart{position:sticky;bottom:0;z-index:3}
 .pitem{padding:6px 10px}
 .pitem .pa{width:36px;height:36px;font-size:20px}
+
+/* ---------- chat ---------- */
+.btChat{position:relative}
+.badge{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--red);color:#fff;font-size:10.5px;font-weight:800;font-style:normal;line-height:17px;text-align:center}
+.chat-body{height:78dvh}
+.chat-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px;user-select:text;-webkit-user-select:text}
+.cm{display:flex;gap:8px;align-items:flex-end;max-width:88%}
+.cm .ca{width:28px;height:28px;border-radius:50%;background:#0b3a2a;display:grid;place-items:center;font-size:16px;flex:none}
+.cm .cb{background:#ffffff14;border-radius:14px 14px 14px 4px;padding:6px 10px;font-size:14px;line-height:1.35;word-break:break-word}
+.cm .cn{display:block;font-size:11px;font-weight:700;color:var(--gold);margin-bottom:1px}
+.cm.spec .cn{color:#7fd1ff}
+.cm.mine{align-self:flex-end;flex-direction:row-reverse}
+.cm.mine .cb{background:#f3c45a2e;border-radius:14px 14px 4px 14px}
+.cm.sys{align-self:center;max-width:94%}
+.cm.sys .cb{background:none;color:var(--mute);font-size:12px;text-align:center;font-style:italic;padding:2px 6px}
+.chat-quick{display:flex;gap:6px;overflow-x:auto;padding:2px 0;flex:none}
+.chat-quick button{flex:none;background:#ffffff12;border:1px solid var(--line);border-radius:99px;padding:6px 11px;font-size:13px;white-space:nowrap}
+.chat-form{display:flex;gap:8px;flex:none}
+.chat-form input{flex:1;padding:12px 14px;border-radius:12px;border:1.5px solid #ffffff26;background:#00000055;color:var(--cream);outline:0}
+.bub.chat{background:#e9f6ff;font-weight:700;max-width:170px;white-space:normal;text-align:center;font-size:13px}
+.bub.chat::after{border-top-color:#e9f6ff}
+.slot-tl .bub.chat::after,.slot-tc .bub.chat::after,.slot-tr .bub.chat::after{border-bottom-color:#e9f6ff;border-top-color:transparent}
+.ask-ic{font-size:44px;text-align:center}
+.spec-note{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;color:#7fd1ff;font-weight:700;font-size:14px}
+.swap-btn{background:linear-gradient(180deg,#5b6cf0,#3b47b8);color:#fff;border:0}
+.streak{font-size:10px;color:#9fb2ff;font-weight:700}
+
+/* ---------- kiểu bộ bài ---------- */
+body[data-deck="1"]{--back1:#1d3f8a;--back2:#2b58b8;--edge:#bcd0ff}
+body[data-deck="2"]{--back1:#14110b;--back2:#3a2e12;--edge:#f3c45a}
+body[data-deck="3"]{--back1:#4a1d6b;--back2:#6b2c97;--edge:#e4c8ff}
+body[data-deck="4"]{--back1:#0c5a3c;--back2:#137a52;--edge:#c9f2dd}
+body[data-deck] .cnt,body[data-deck] .card.back{background:repeating-linear-gradient(45deg,var(--back1,#7a1b29) 0 4px,var(--back2,#9c2738) 4px 8px)}
+body[data-deck]:not([data-deck="0"]) .card{border-color:var(--edge)}
+body[data-deck="2"] .card{background:linear-gradient(160deg,#fffdf2 0%,#f6ecd0 70%,#ead9a8 100%)}
+.gl{min-width:0;flex:1;overflow:hidden}
+.gl .chip,.gl .rc{white-space:nowrap;flex:none}
+.bub.chat{width:max-content;max-width:170px}
+@media (max-width:420px){ .rc .lb{display:none} .gr{gap:4px} .gr .icon.sm{width:32px} }
+.slot-tl .bub,.slot-bl .bub{left:0;transform:translateY(100%)}
+.slot-bl .bub{transform:translateY(-100%)}
+.slot-tr .bub,.slot-br .bub{left:auto;right:0;transform:translateY(100%)}
+.slot-br .bub{transform:translateY(-100%)}
+.slot-tl .bub::after,.slot-bl .bub::after{left:28px}
+.slot-tr .bub::after,.slot-br .bub::after{left:auto;right:22px}

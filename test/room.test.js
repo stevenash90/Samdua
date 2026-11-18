@@ -237,3 +237,111 @@ test('mô phỏng 300 ván toàn máy: không lỗi, tổng điểm bằng 0, m�
     room.close();
   }
 });
+
+/* ---------------- chat, người xem, đổi chỗ, đổi bộ bài ---------------- */
+test('chat: lọc nội dung, giới hạn tốc độ, giữ tối đa 60 tin, lưu qua restart', t => {
+  const { room, act } = setup(t, 2, H3.slice(0, 2));
+  assert.match(act(0, { a: 'chat', text: '   ' }).err, /trống/);
+  assert.deepStrictEqual(act(0, { a: 'chat', text: 'xin chào\u0000<b>' }), {});
+  assert.match(act(0, { a: 'chat', text: 'spam' }).err, /chậm/);
+  const m = room.chat[room.chat.length - 1];
+  assert.strictEqual(m.text, 'xin chào <b>');
+  assert.strictEqual(m.kind, 'player');
+  assert.strictEqual(m.seat, 0);
+  for (let k = 0; k < 70; k++) { tick(t, 800); act(1, { a: 'chat', text: 'tin ' + k }); }
+  assert.strictEqual(room.chat.length, 60);
+  assert.strictEqual(room.chat[59].text, 'tin 69');
+  assert.ok(act(1, { a: 'chat', text: 'x'.repeat(500) }) && true);
+  const r2 = Room.restore(JSON.parse(JSON.stringify(room.snapshot())), { send() {} });
+  assert.strictEqual(r2.chat.length, 60);
+  assert.strictEqual(r2.chatSeq, room.chatSeq);
+});
+
+test('người xem: không có bài, không thao tác ván, chat được, không thấy bài kín qua sự kiện', t => {
+  const { room, act } = setup(t, 2, H3.slice(0, 2));
+  const sp = room.addSpectator('spectator-token-123456', 'Hóng', '👀');
+  assert.ok(sp);
+  assert.strictEqual(room.who('spectator-token-123456').role, 'spec');
+  assert.strictEqual(room.who('token-player-0').role, 'player');
+  assert.strictEqual(room.who('nobody-token-xxxxxxxx'), null);
+  act(0, { a: 'start' });
+  const v = room.view(-1, 'spec');
+  assert.deepStrictEqual(v.hand, []);
+  assert.strictEqual(v.you, -1);
+  assert.strictEqual(v.samPending, false);
+  assert.strictEqual(v.spectators.length, 1);
+  assert.ok(!JSON.stringify(v).includes('"hands"'));
+  assert.ok(room.eventsFor(-1).every(e => !e.hands));
+  for (const a of ['start', 'pause', 'sam', 'play', 'pass', 'suggest', 'addBot', 'deckReq']) {
+    assert.match(room.handle(sp.pid, { a }).err, /Người xem/);
+  }
+  tick(t, 1000);
+  assert.deepStrictEqual(room.handle(sp.pid, { a: 'chat', text: 'đánh đi' }), {});
+  assert.strictEqual(room.chat[room.chat.length - 1].kind, 'spec');
+  room.handle(sp.pid, { a: 'leave' });
+  assert.strictEqual(room.spectators.length, 0);
+});
+
+test('đổi chỗ giải đen: phải thua 5 ván liên tiếp, giữa ván không được, máy đồng ý ngay, người thì phải chấp nhận', t => {
+  const { room, act } = setup(t, 3, H3);
+  room.handle(room.players[0].pid, { a: 'addBot' }); // ghế 3 là máy
+  room.players[1].lose = 4;
+  assert.match(act(1, { a: 'swapReq', idx: 2 }).err, /Thua 5 ván/);
+  room.players[1].lose = 5;
+  // người với người: cần chấp nhận
+  assert.deepStrictEqual(act(1, { a: 'swapReq', idx: 2 }), {});
+  assert.strictEqual(room.swap.to, room.players[2].pid);
+  assert.match(act(0, { a: 'swapAns', yes: true }).err, /Không có lời/);
+  const p1 = room.players[1].pid, p2 = room.players[2].pid;
+  assert.deepStrictEqual(act(2, { a: 'swapAns', yes: true }), {});
+  assert.strictEqual(room.players[1].pid, p2);
+  assert.strictEqual(room.players[2].pid, p1);
+  assert.strictEqual(room.players[2].lose, 0, 'đổi xong thì xoá chuỗi thua');
+  // với máy: đồng ý ngay
+  room.players[0].lose = 7;
+  const bot = room.players[3].pid;
+  assert.deepStrictEqual(act(0, { a: 'swapReq', idx: 3 }), {});
+  assert.strictEqual(room.players[0].pid, bot);
+  // giữa ván không đổi được
+  const h = room.players[3];
+  h.lose = 5;
+  room.deps.deal = () => [...H3, 'Jd Qs Ad 2c 3c 4h 6c 7c 7d Kd'].map(cards);
+  assert.deepStrictEqual(room.handle(room.hostPid, { a: 'start' }), {});
+  if (room.phase === 'sam' || room.phase === 'play') assert.match(room.handle(h.pid, { a: 'swapReq', idx: 1 }).err, /giữa các ván/);
+});
+
+test('lời xin đổi chỗ / đổi bộ bài tự hết hạn', t => {
+  const { room, act } = setup(t, 2, H3.slice(0, 2));
+  room.players[1].lose = 5;
+  act(1, { a: 'swapReq', idx: 0 });
+  act(1, { a: 'deckReq' });
+  tick(t, 31000);
+  assert.ok(room.tick());
+  assert.strictEqual(room.swap, null);
+  assert.strictEqual(room.deckReq, null);
+});
+
+test('chuỗi thua được đếm đúng sau mỗi ván', t => {
+  const { room, act } = setup(t, 3, H3);
+  act(0, { a: 'start' });
+  act(2, { a: 'sam', yes: true });
+  act(2, { a: 'play', cards: cards('4d'), v: room.g.turnId });
+  act(0, { a: 'play', cards: cards('8d'), v: room.g.turnId }); // P0 bắt Sâm, thắng
+  assert.deepStrictEqual(room.players.map(p => p.lose), [0, 1, 1]);
+});
+
+test('đổi bộ bài: người chơi đề nghị, chỉ chủ phòng quyết; chủ phòng tự đổi được; có thời gian chờ', t => {
+  const { room, act } = setup(t, 3, H3);
+  assert.deepStrictEqual(act(1, { a: 'deckReq' }), {});
+  assert.match(act(2, { a: 'deckReq' }).err, /chờ chủ phòng/);
+  assert.match(act(1, { a: 'deckAns', yes: true }).err, /Chỉ chủ phòng/);
+  assert.deepStrictEqual(act(0, { a: 'deckAns', yes: true }), {});
+  assert.deepStrictEqual(room.deck, { no: 2, style: 1 });
+  assert.match(act(1, { a: 'deckReq' }).err, /đợi một chút/);
+  act(2, { a: 'deckReq' });
+  act(0, { a: 'deckAns', yes: false });
+  assert.strictEqual(room.deck.no, 2);
+  act(0, { a: 'deckReq' }); // chủ phòng đổi thẳng
+  assert.deepStrictEqual(room.deck, { no: 3, style: 2 });
+  assert.ok(room.chat.some(c => c.kind === 'sys' && /thay bộ bài mới/.test(c.text)));
+});

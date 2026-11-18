@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=2.0.0">
+<link rel="stylesheet" href="/style.css?v=2.1.0">
 </head>
 <body>
 
@@ -31,7 +31,8 @@
     <button class="btn gold big" id="btGoCreate">Tạo phòng mới</button>
     <div class="join-row">
       <input id="inCode" maxlength="4" placeholder="MÃ PHÒNG" autocomplete="off">
-      <button class="btn" id="btJoin">Vào phòng</button>
+      <button class="btn" id="btJoin">Vào chơi</button>
+      <button class="btn" id="btWatch" title="Vào xem, không chơi">👀 Xem</button>
     </div>
     <nav class="homenav">
       <button data-go="history"><span>🕘</span>Lịch sử</button>
@@ -68,7 +69,8 @@
 
 <!-- ============ PHÒNG CHỜ ============ -->
 <section class="screen" id="sLobby">
-  <header class="bar"><button class="icon" id="btLobbyLeave">←</button><h2>Phòng chờ</h2><button class="icon" data-go="settings">⚙️</button></header>
+  <header class="bar"><button class="icon" id="btLobbyLeave">←</button><h2>Phòng chờ</h2>
+    <div class="gr"><button class="icon sm btChat" title="Chat">💬<i class="badge hide"></i></button><button class="icon sm btMenu" title="Bàn chơi">⋯</button><button class="icon sm" data-go="settings">⚙️</button></div></header>
   <div class="wrap">
     <div class="code-box">
       <small>Mã phòng</small>
@@ -83,17 +85,20 @@
       <button class="btn" id="btEditRoom">Cài đặt phòng</button>
     </div>
     <button class="btn gold big" id="btStart">Bắt đầu</button>
+    <button class="btn" id="btSwapLobby" hidden></button>
     <p class="muted center" id="lbWait">Chờ chủ phòng bắt đầu…</p>
+    <button class="btn gold big hide" id="btSitLobby">🪑 Vào chơi</button>
   </div>
 </section>
 
 <!-- ============ BÀN CHƠI ============ -->
 <section class="screen" id="sGame">
   <header class="gbar">
-    <div class="gl"><span class="rc">Phòng <b id="gCode"></b></span><span class="chip" id="gNo"></span></div>
+    <div class="gl"><span class="rc"><span class="lb">Phòng </span><b id="gCode"></b></span><span class="chip" id="gNo"></span><span class="chip hide" id="gSpec"></span></div>
     <div class="gr">
       <button class="icon sm hide" id="btPause" title="Tạm dừng">⏸</button>
-      <button class="icon sm hide" id="btHost" title="Chủ phòng">👑</button>
+      <button class="icon sm btChat" title="Chat">💬<i class="badge hide"></i></button>
+      <button class="icon sm btMenu" title="Bàn chơi">⋯</button>
       <button class="icon sm" data-go="settings" title="Cài đặt">⚙️</button>
       <button class="icon sm" id="btGameLeave" title="Rời phòng">✕</button>
     </div>
@@ -205,19 +210,31 @@
   <div class="panel result" id="resultPanel"></div>
 </div>
 
-<!-- ============ CHỦ PHÒNG ============ -->
+<!-- ============ BÀN CHƠI (đổi bộ bài, đổi chỗ, người xem, quyền chủ phòng) ============ -->
 <div class="sheet" id="hostSheet">
   <div class="sheet-body">
-    <div class="sheet-head"><h2>👑 Quản lý bàn</h2><button class="icon" id="btCloseHost">✕</button></div>
+    <div class="sheet-head"><h2>🃏 Bàn chơi</h2><button class="icon" id="btCloseHost">✕</button></div>
     <div id="hostBody"></div>
   </div>
 </div>
+
+<!-- ============ CHAT ============ -->
+<div class="sheet" id="chatSheet">
+  <div class="sheet-body chat-body">
+    <div class="sheet-head"><h2>💬 Chat</h2><button class="icon" id="btCloseChat">✕</button></div>
+    <div class="chat-list" id="chatList"></div>
+    <div class="chat-quick" id="chatQuick"></div>
+    <form class="chat-form" id="chatForm"><input id="chatInput" maxlength="200" placeholder="Nhắn gì đó…" autocomplete="off"><button class="btn gold" type="submit">Gửi</button></form>
+  </div>
+</div>
+
+<div class="confirm" id="ask"><div class="panel"><div class="ask-ic" id="askIcon"></div><p id="askText"></p><div class="row"><button class="btn" id="askNo">Từ chối</button><button class="btn gold" id="askYes">Đồng ý</button></div></div></div>
 
 <div class="netbar" id="netbar">Đang kết nối lại…</div>
 <div class="toast" id="toast"></div>
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
-<script src="/audio.js?v=2.0.0"></script>
-<script src="/app.js?v=2.0.0"></script>
+<script src="/audio.js?v=2.1.0"></script>
+<script src="/app.js?v=2.1.0"></script>
 </body>
 </html>

@@ -17,6 +17,10 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Lưu bền vững**: PostgreSQL (hoặc file JSON khi chạy ở máy). Máy chủ khởi động lại giữa ván thì ván được giữ nguyên và tự tạm dừng.
 - **Âm thanh**: hiệu ứng bài, chặt, Sâm, thắng/thua, thông báo, nhạc nền lounge, ambient, giọng đọc tiếng Việt (mặc định tắt), âm theo vị trí ghế. Từng nhóm có âm lượng riêng.
 - Lịch sử ván, thống kê cá nhân, cài đặt (rung, giảm hiệu ứng, tiết kiệm hiệu năng).
+- **Chat** trong phòng (người chơi và người xem), có câu nhanh; tin của người chơi hiện thành bong bóng cạnh ghế.
+- **Người xem**: vào phòng bằng nút 👀 Xem (hoặc khi phòng đang chơi dở). Chỉ thấy bài công khai, chat được, không thao tác ván, không xem lại được ván. Còn chỗ thì bấm "Vào chơi" giữa các ván.
+- **Đổi chỗ giải đen**: thua 5 ván liên tiếp thì được xin đổi chỗ với người khác (giữa các ván). Máy luôn đồng ý; người thì có 30 giây chấp nhận/từ chối.
+- **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.
 
 ## Cấu trúc
 

@@ -254,6 +254,34 @@ test('khởi động lại server giữa ván: không mất dữ liệu, ván t�
   await a2.close(); await b2.close();
 });
 
+test('người xem: vào giữa ván, không nhận bài kín, chat được, không thao tác được', async () => {
+  const S = 'e2e-token-SSSSSSSSSSSSSS';
+  const a = new Client(A, 'a');
+  await a.connect(room);
+  const host = a.S.host === 0 ? a : null;
+  if (host && (a.S.phase === 'over' || a.S.phase === 'lobby')) await a.act('start');
+  if (a.S.phase !== 'lobby' && a.S.phase !== 'over') {
+    const j = await api({ a: 'join', token: S, name: 'Hóng', room });
+    assert.ok(j.canWatch, 'đang chơi thì được mời vào xem');
+  }
+  const w = await api({ a: 'watch', token: S, name: 'Hóng', av: '👀', room });
+  assert.ok(w.code);
+  const s = new Client(S, 's');
+  await s.connect(room);
+  assert.strictEqual(s.S.role, 'spec');
+  assert.deepStrictEqual(s.S.hand, []);
+  assert.strictEqual(s.S.you, -1);
+  assert.ok(s.events.every(e => !e.hands));
+  assert.match((await s.act('play', { cards: [0] })).err, /Người xem/);
+  assert.strictEqual((await s.act('chat', { text: 'hóng ván' })).err, undefined);
+  await a.until(st => st.chat.some(m => m.kind === 'spec' && m.text === 'hóng ván'));
+  const r = await api({ a: 'replay', token: S, game: gameId1 });
+  assert.match(r.err, /không có trong ván/);
+  await s.act('leave');
+  await a.until(st => !st.spectators.length);
+  await s.close(); await a.close();
+});
+
 test('health check', async () => {
   const h = await (await fetch(BASE + '/health')).json();
   assert.strictEqual(h.ok, true);

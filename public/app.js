@@ -212,8 +212,26 @@ $('btJoin').onclick = async () => {
   const c = $('inCode').value.trim().toUpperCase();
   if (c.length !== 4) return toast('Mã phòng gồm 4 ký tự');
   const j = await api('join', { room: c, name: n, av: myAv });
+  if (j.err && j.canWatch && (await confirmBox(j.err + '. Vào xem ván không?'))) return watchRoom(c, n);
   if (j.err) return toast(j.err);
+  store.set('sam_role', 'player');
   enterRoom(j.code);
+};
+async function watchRoom(c, n) {
+  const j = await api('watch', { room: c, name: n, av: myAv });
+  if (j.err) return toast(j.err);
+  store.set('sam_role', j.spectator ? 'spec' : 'player');
+  enterRoom(j.code);
+}
+$('btWatch').onclick = () => {
+  const n = myName(); if (!n) return;
+  const c = $('inCode').value.trim().toUpperCase();
+  if (c.length !== 4) return toast('Nhập mã phòng muốn xem');
+  watchRoom(c, n);
+};
+$('btSitLobby').onclick = async () => {
+  const j = await api('join', { room: S.code, name: store.get('sam_name', 'Khách'), av: myAv });
+  if (j.err) toast(j.err); else store.set('sam_role', 'player');
 };
 
 /* ================= tạo phòng / cài đặt phòng ================= */
@@ -268,6 +286,7 @@ $('btCreate').onclick = async () => {
   const n = myName(); if (!n) return show('sHome');
   const j = await api('create', { name: n, av: myAv, settings: s });
   if (j.err) return toast(j.err);
+  store.set('sam_role', 'player');
   enterRoom(j.code);
 };
 
@@ -289,7 +308,7 @@ function leftRoom(msg) {
   show('sHome');
 }
 async function leaveRoom() {
-  const inGame = S && (S.phase === 'sam' || S.phase === 'play');
+  const inGame = S && !isSpec() && (S.phase === 'sam' || S.phase === 'play');
   if (inGame && !(await confirmBox('Rời phòng giữa ván? Máy sẽ đánh thay bạn tới hết ván.'))) return;
   await Net.act('leave');
   leftRoom();
@@ -327,7 +346,11 @@ function onState(s, evs, first) {
   const away = ['sHistory', 'sStats', 'sReplay', 'sRules'].includes(current) || (current === 'sCreate' && editMode);
   if (!away) showRoomScreen();
   if (!first) handleEvents(evs);
+  document.body.dataset.deck = S.deck ? S.deck.style : 0;
   render();
+  onChatState(first);
+  checkRequests();
+  if ($('hostSheet').classList.contains('on') && !$('hostBody').querySelector('.hp .btn.gold')) renderHostSheet();
   Sound.music(!!S && S.phase !== 'lobby');
 }
 
@@ -351,6 +374,7 @@ function renderLobby() {
     if (i === S.you) it.append(h('span', 'tg', 'Bạn'));
     if (p.bot) it.append(h('span', 'tg', 'Máy'));
     if (p.score) it.append(h('span', 'tg', sc(p.score)));
+    if (p.lose >= 3) it.append(h('span', 'tg o', '🥶 thua ' + p.lose));
     if (isHost && i !== S.you) {
       if (!p.bot) { const c = h('button', 'x', '👑'); c.title = 'Chuyển chủ phòng'; c.onclick = async () => { if (await confirmBox(`Chuyển quyền chủ phòng cho ${p.name}?`)) act('transferHost', { idx: i }); }; it.append(c); }
       const x = h('button', 'x', '✕'); x.onclick = () => act('kick', { idx: i }); it.append(x);
@@ -359,9 +383,17 @@ function renderLobby() {
   });
   $('lbRules').textContent = '';
   $('lbRules').append(...rulesSummary(S.settings));
+  (S.spectators || []).forEach(sp => {
+    const it = h('div', 'pitem');
+    const pa = h('div', 'pa', sp.av); pa.append(h('i', 'dot ' + (sp.online ? 'on' : '')));
+    it.append(pa, h('span', 'nm', sp.name), h('span', 'tg', '👀 Đang xem'));
+    box.append(it);
+  });
   $('hostCtl').classList.toggle('hide', !isHost);
   $('btStart').classList.toggle('hide', !isHost);
   $('lbWait').classList.toggle('hide', isHost);
+  $('btSitLobby').classList.toggle('hide', !isSpec() || S.players.length >= 5);
+  setupSwapButton($('btSwapLobby'));
   $('btStart').disabled = S.players.length < 2;
   $('btBot').disabled = S.players.length >= 5;
 }
@@ -379,6 +411,9 @@ function rulesSummary(st) {
   out.pop();
   return out;
 }
+
+const isSpec = () => !!S && S.role === 'spec';
+const persp = () => (S && S.you >= 0 ? S.you : 0);   // người xem nhìn bàn từ ghế 0
 
 /* ---------- bàn chơi (dùng chung cho chơi thật và xem lại) ---------- */
 function slotsFor(n, you) {
@@ -435,7 +470,7 @@ function renderTable(box, vm) {
       seat.append(oh);
     }
     const tb = vm.taunts && vm.taunts[i];
-    if (tb) seat.append(h('div', 'bub', tb));
+    if (tb) seat.append(h('div', 'bub' + (tb.chat ? ' chat' : ''), tb.text));
     box.append(seat);
   });
   // giữa bàn: vòng hiện tại — mọi bộ trong vòng đều thấy, bộ mới nhất nổi bật
@@ -480,20 +515,21 @@ function gameVM() {
   let centerHint = '', centerSub = '';
   if (S.phase === 'sam') { centerHint = 'Có ai báo Sâm không?'; centerSub = 'Báo Sâm = đánh hết bài mà không ai chặn được'; }
   else if (S.phase === 'play' && !S.table) centerHint = S.turn === S.you ? 'Bạn cầm cái — đánh gì cũng được' : 'Vòng mới';
+  if (isSpec() && S.phase === 'sam') { centerHint = 'Đang chờ báo Sâm…'; centerSub = ''; }
   let chain = '';
   if (S.chain) chain = S.chain.choppers.length > 1 ? `Chặt đè x${Math.pow(S.settings.points.chatDeMult, S.chain.choppers.length - 1)}` : 'Chặt 2';
   return {
-    you: S.you, host: S.host, phase: S.phase, players: S.players, piles: S.piles, trick: S.trick, turn: S.turn,
+    you: persp(), host: S.host, phase: S.phase, players: S.players, piles: S.piles, trick: S.trick, turn: S.turn,
     samBy: S.samBy, showCounts: S.phase !== 'over', reveal: S.phase === 'reveal', winner: S.reveal ? S.reveal.winner : -1,
     warn: S.turn >= 0 && timerFrac.left <= 5000 && !timerFrac.frozen, log: S.log, centerHint, centerSub, chain,
     taunts: activeTaunts(), freshSig: lastTrickSig,
-    meLabel: S.samBy === S.you ? 'Bạn báo Sâm' : S.turn === S.you ? 'Đến lượt bạn' : null,
+    meLabel: isSpec() ? null : S.samBy === S.you ? 'Bạn báo Sâm' : S.turn === S.you ? 'Đến lượt bạn' : null,
     openHands: S.phase === 'over' && S.result ? S.result.rows.map(r => r.hand) : null,
   };
 }
 function activeTaunts() {
   const out = {}, now = Date.now();
-  for (const k in taunts) if (taunts[k].until > now) out[k] = taunts[k].text;
+  for (const k in taunts) if (taunts[k].until > now) out[k] = taunts[k];
   return out;
 }
 
@@ -504,7 +540,8 @@ function renderGame() {
   const canPause = isHost && (S.phase === 'sam' || S.phase === 'play');
   $('btPause').classList.toggle('hide', !canPause);
   $('btPause').textContent = S.pause ? '▶' : '⏸';
-  $('btHost').classList.toggle('hide', !isHost);
+  const ns = (S.spectators || []).length;
+  $('gSpec').textContent = '👀 ' + ns; $('gSpec').classList.toggle('hide', !ns);
   const box = $('table');
   lastTrickSig = renderTable(box, gameVM());
   // lớp tạm dừng
@@ -534,7 +571,6 @@ function renderGame() {
   renderActs();
   renderResult();
   renderAfk();
-  if ($('hostSheet').classList.contains('on')) renderHostSheet();
 }
 
 /* ---------- bài trên tay ---------- */
@@ -605,9 +641,22 @@ function updateHint() {
 }
 
 /* ---------- nút hành động ---------- */
+function sitButton(cls) {
+  const b = h('button', 'btn ' + (cls || 'gold'), '🪑 Vào chơi');
+  b.onclick = async () => {
+    const j = await api('join', { room: S.code, name: store.get('sam_name', 'Khách'), av: myAv });
+    if (j.err) toast(j.err); else { store.set('sam_role', 'player'); toast('Đã vào bàn'); }
+  };
+  return b;
+}
 function renderActs() {
   const ac = $('acts'); ac.textContent = '';
   const paused = !!S.pause;
+  if (isSpec()) {
+    ac.append(h('div', 'spec-note', '👀 Bạn đang xem ván'));
+    if ((S.phase === 'over' || S.phase === 'lobby') && S.players.length < 5) ac.append(sitButton());
+    return;
+  }
   if (S.phase === 'sam') {
     if (S.samPending && !paused) {
       const no = h('button', 'btn', 'Không báo'), yes = h('button', 'btn red', 'Báo Sâm!');
@@ -687,11 +736,13 @@ function renderResult() {
   const isHost = S.you === S.host;
   const box = $('resultPanel');
   fillResult(box, S.result, S.you, names(S.players), {
-    replay: () => openReplay(S.gameId),
+    replay: isSpec() ? null : () => openReplay(S.gameId),
+    swap: true,
     hide: () => { resultHidden[S.gameId] = 1; renderResult(); },
     again: isHost ? () => act('start') : null,
     leave: leaveRoom,
-    waitText: isHost ? '' : 'Chờ chủ phòng chia ván mới…',
+    waitText: isHost ? '' : isSpec() ? 'Bạn đang xem. Bấm "Vào chơi" nếu còn chỗ.' : 'Chờ chủ phòng chia ván mới…',
+    sit: isSpec() && S.players.length < 5,
     canAgain: S.players.length >= 2,
   });
   ov.classList.add('on');
@@ -745,7 +796,9 @@ function fillResult(box, r, you, nameList, ctl) {
   if (ctl.leave) { const b = h('button', 'btn', 'Rời phòng'); b.onclick = ctl.leave; bt.append(b); }
   if (ctl.again) { const b = h('button', 'btn gold', 'Ván mới'); b.disabled = !ctl.canAgain; b.onclick = ctl.again; bt.append(b); }
   if (ctl.close) { const b = h('button', 'btn gold', 'Đóng'); b.onclick = ctl.close; bt.append(b); }
+  if (ctl.sit) bt.append(sitButton());
   box.append(bt);
+  if (ctl.swap) { const sb = h('button', 'btn'); sb.style.width = '100%'; sb.style.marginTop = '8px'; setupSwapButton(sb); box.append(sb); }
   if (ctl.waitText) box.append(h('p', 'muted center', ctl.waitText));
 }
 
@@ -768,7 +821,7 @@ function confetti() {
 /* ---------- sự kiện: âm thanh, banner, rung ---------- */
 function seatPan(i) {
   if (!S) return 0;
-  const slot = slotsFor(S.players.length, S.you)[i];
+  const slot = slotsFor(S.players.length, persp())[i];
   return settings.spatial ? (PAN[slot] || 0) : 0;
 }
 function banner(text, cls = 'red', sub) {
@@ -820,6 +873,8 @@ function handleEvents(evs) {
       case 'conn': Sound.play(e.online ? 'reconnect' : 'disconnect', { pan: seatPan(e.idx) }); break;
       case 'host': Sound.play('notify'); toast(`${e.name || ''} giờ là chủ phòng`); break;
       case 'settings': toast(e.ai ? 'Chủ phòng đã bật gợi ý AI' : 'Chủ phòng đã tắt gợi ý AI'); break;
+      case 'deck': Sound.play('shuffle'); banner('BỘ BÀI MỚI 🃏', 'gold', S.deck ? S.deck.name : ''); break;
+      case 'swap': Sound.play('collect'); banner('ĐỔI CHỖ 🔄', 'gold', 'Giải đen!'); break;
       case 'end': {
         Sound.play('end');
         if (e.kind === 'sam') { Sound.play('sam_win'); Sound.voice('v_samwin', 6); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
@@ -877,13 +932,36 @@ setInterval(() => {
 }, 200);
 
 /* ---------- quản lý bàn (chủ phòng) ---------- */
-$('btHost').onclick = () => { renderHostSheet(); $('hostSheet').classList.add('on'); };
+document.querySelectorAll('.btMenu').forEach(b => (b.onclick = () => { renderHostSheet(); $('hostSheet').classList.add('on'); }));
 $('btCloseHost').onclick = () => $('hostSheet').classList.remove('on');
 $('btPause').onclick = () => act(S && S.pause ? 'resume' : 'pause');
 function renderHostSheet() {
   const b = $('hostBody'); b.textContent = '';
   if (!S) return;
   const isHost = S.you === S.host;
+  // bộ bài
+  const dk = h('div', 'card-panel form');
+  const dr = h('div', 'frow'); const dl = h('div', ''); dl.append(h('b', '', '🃏 Bộ bài: ' + (S.deck ? S.deck.name : '')), h('small', '', `Bộ thứ ${S.deck ? S.deck.no : 1} của phòng`)); dr.append(dl); dk.append(dr);
+  if (!isSpec()) {
+    const db = h('button', 'btn', isHost ? '🃏 Thay bộ bài mới' : '🃏 Đề nghị chủ phòng đổi bộ bài mới');
+    if (S.deckReq && !isHost) { db.disabled = true; db.textContent = 'Đang chờ chủ phòng trả lời…'; }
+    db.onclick = async () => { const r = await act('deckReq'); if (!r.err) { toast(isHost ? 'Đã thay bộ bài mới' : 'Đã gửi đề nghị tới chủ phòng'); renderHostSheet(); } };
+    dk.append(db);
+    if (isHost && S.deckReq && S.players[S.deckReq.from]) {
+      const q = h('div', 'frow'); q.append(h('span', '', `${S.players[S.deckReq.from].name} đề nghị đổi bộ bài`));
+      const y = h('button', 'btn slim gold', 'Đổi'), n = h('button', 'btn slim', 'Không');
+      y.onclick = () => act('deckAns', { yes: true }); n.onclick = () => act('deckAns', { yes: false });
+      q.append(y, n); dk.append(q);
+    }
+  }
+  b.append(dk);
+  // xin đổi chỗ giải đen
+  if (!isSpec()) { const sw0 = h('button', 'btn'); setupSwapButton(sw0); if (!sw0.hidden) b.append(sw0); }
+  if (!isHost) {
+    // người không phải chủ phòng: chỉ xem danh sách
+    b.append(peopleList(false));
+    return;
+  }
   const panel = h('div', 'card-panel form');
   const aiRow = h('div', 'frow');
   const lab = h('div', ''); lab.append(h('b', '', 'Gợi ý AI cho cả phòng'));
@@ -899,6 +977,18 @@ function renderHostSheet() {
     panel.append(pb);
   }
   b.append(panel);
+  b.append(peopleList(true));
+  if (S.hostLog && S.hostLog.length > 1) {
+    const hl = h('div', 'card-panel');
+    hl.append(h('b', '', 'Lịch sử chủ phòng'));
+    S.hostLog.slice().reverse().forEach(x => {
+      const why = { create: 'tạo phòng', manual: 'chuyển tay', host_offline: 'chủ cũ mất kết nối', host_left: 'chủ cũ rời phòng', no_host: 'không có chủ phòng' }[x.reason] || x.reason;
+      hl.append(h('div', 'hp st', new Date(x.at).toLocaleTimeString('vi-VN') + ' · ' + why));
+    });
+    b.append(hl);
+  }
+}
+function peopleList(isHost) {
   const pl = h('div', 'card-panel');
   S.players.forEach((p, i) => {
     const r = h('div', 'hp');
@@ -915,17 +1005,127 @@ function renderHostSheet() {
     }
     pl.append(r);
   });
-  b.append(pl);
-  if (S.hostLog && S.hostLog.length > 1) {
-    const hl = h('div', 'card-panel');
-    hl.append(h('b', '', 'Lịch sử chủ phòng'));
-    S.hostLog.slice().reverse().forEach(x => {
-      const why = { create: 'tạo phòng', manual: 'chuyển tay', host_offline: 'chủ cũ mất kết nối', host_left: 'chủ cũ rời phòng', no_host: 'không có chủ phòng' }[x.reason] || x.reason;
-      hl.append(h('div', 'hp st', new Date(x.at).toLocaleTimeString('vi-VN') + ' · ' + why));
-    });
-    b.append(hl);
-  }
+  (S.spectators || []).forEach(sp => {
+    const r = h('div', 'hp');
+    r.append(h('span', '', sp.av), h('span', 'nm', sp.name), h('span', 'st', sp.online ? '👀 Đang xem' : '👀 Đã thoát'));
+    pl.append(r);
+  });
+  return pl;
 }
+
+/* ---------- xin đổi chỗ giải đen ---------- */
+function setupSwapButton(btn) {
+  const me = S && S.players[S.you];
+  const idle = S && (S.phase === 'over' || S.phase === 'lobby');
+  btn.hidden = true; btn.classList.add('hide');
+  if (!me || isSpec() || !idle || (me.lose || 0) < (S.swapNeed || 5) || S.players.length < 2) return;
+  btn.hidden = false; btn.classList.remove('hide');
+  btn.className = 'btn swap-btn';
+  btn.textContent = S.swap && S.swap.from === S.you ? '⏳ Đang chờ đồng ý đổi chỗ…' : `😵 Thua ${me.lose} ván liền — Xin đổi chỗ giải đen`;
+  btn.disabled = !!S.swap;
+  btn.onclick = () => openSwapPicker();
+}
+function openSwapPicker() {
+  const b = $('hostBody'); b.textContent = '';
+  b.append(h('p', 'muted', 'Chọn người muốn đổi chỗ. Máy luôn đồng ý, người thì phải bấm chấp nhận (30 giây).'));
+  const pl = h('div', 'card-panel');
+  S.players.forEach((p, i) => {
+    if (i === S.you) return;
+    const r = h('div', 'hp');
+    r.append(h('span', '', p.av), h('span', 'nm', p.name + (p.bot ? ' (máy)' : '')));
+    const go = h('button', 'btn slim gold', 'Đổi chỗ');
+    go.onclick = async () => { const res = await act('swapReq', { idx: i }); if (!res.err) { $('hostSheet').classList.remove('on'); toast(p.bot ? 'Đã đổi chỗ!' : `Đã gửi lời xin đổi chỗ tới ${p.name}`); } };
+    r.append(go); pl.append(r);
+  });
+  b.append(pl);
+  $('hostSheet').classList.add('on');
+}
+
+/* ---------- hỏi đáp (lời xin đổi chỗ, đề nghị đổi bài) ---------- */
+const asked = new Set();
+function ask(key, icon, text, yes, no, onYes, onNo) {
+  if (asked.has(key)) return;
+  asked.add(key);
+  $('askIcon').textContent = icon; $('askText').textContent = text;
+  $('askYes').textContent = yes; $('askNo').textContent = no;
+  $('ask').classList.add('on');
+  Sound.play('notify'); vibrate([60, 40, 60]);
+  const done = f => { $('ask').classList.remove('on'); f(); };
+  $('askYes').onclick = () => done(onYes);
+  $('askNo').onclick = () => done(onNo);
+}
+function checkRequests() {
+  if (!S || isSpec()) return;
+  if (S.swap && S.swap.to === S.you && S.players[S.swap.from]) {
+    const p = S.players[S.swap.from];
+    ask('swap' + S.swap.at, '🔄', `${p.name} thua ${p.lose} ván liền, xin đổi chỗ ngồi với bạn để giải đen. Đồng ý không?`, 'Đổi chỗ', 'Không',
+      () => act('swapAns', { yes: true }), () => act('swapAns', { yes: false }));
+  } else if (S.deckReq && S.you === S.host && S.players[S.deckReq.from]) {
+    ask('deck' + S.deckReq.at, '🃏', `${S.players[S.deckReq.from].name} đề nghị đổi bộ bài mới.`, 'Đổi bộ mới', 'Giữ bộ cũ',
+      () => act('deckAns', { yes: true }), () => act('deckAns', { yes: false }));
+  } else if ($('ask').classList.contains('on') && !S.swap && !S.deckReq) $('ask').classList.remove('on');
+}
+
+/* ---------- chat ---------- */
+const QUICK = ['Đánh nhanh lên!', 'Ngon! 👍', 'Cay thế 😤', 'Đen quá 😭', 'Hehe 😏', 'Bài xấu quá', 'Chờ tí', 'GG'];
+let chatSeen = 0, chatUnread = 0;
+(function chatInit() {
+  const q = $('chatQuick');
+  QUICK.forEach(t => { const b = h('button', '', t); b.onclick = () => sendChat(t); q.append(b); });
+  $('chatForm').onsubmit = e => { e.preventDefault(); const v = $('chatInput').value; if (v.trim()) sendChat(v); };
+  document.querySelectorAll('.btChat').forEach(b => (b.onclick = openChat));
+  $('btCloseChat').onclick = () => $('chatSheet').classList.remove('on');
+})();
+async function sendChat(text) {
+  const r = await act('chat', { text });
+  if (!r.err) $('chatInput').value = '';
+}
+function openChat() {
+  $('chatSheet').classList.add('on');
+  chatUnread = 0; updateBadge(); renderChat();
+  setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 30);
+}
+function updateBadge() {
+  document.querySelectorAll('.btChat .badge').forEach(b => { b.textContent = chatUnread > 9 ? '9+' : chatUnread; b.classList.toggle('hide', !chatUnread); });
+}
+function renderChat() {
+  if (!S || !$('chatSheet').classList.contains('on')) return;
+  const l = $('chatList');
+  const atBottom = l.scrollHeight - l.scrollTop - l.clientHeight < 60;
+  l.textContent = '';
+  const myName = S.you >= 0 && S.players[S.you] ? S.players[S.you].name : store.get('sam_name', '');
+  (S.chat || []).forEach(m => {
+    const e = h('div', 'cm ' + m.kind);
+    const b = h('div', 'cb');
+    if (m.kind !== 'sys') {
+      const mine = m.kind === (isSpec() ? 'spec' : 'player') && m.name === myName;
+      if (mine) e.classList.add('mine');
+      e.append(h('div', 'ca', m.av || '🙂'));
+      b.append(h('span', 'cn', (m.kind === 'spec' ? '👀 ' : '') + m.name));
+    }
+    b.append(document.createTextNode(m.text));
+    e.append(b); l.append(e);
+  });
+  if (!l.childNodes.length) l.append(h('div', 'empty', 'Chưa có tin nhắn. Người xem cũng chat được.'));
+  if (atBottom) l.scrollTop = l.scrollHeight;
+}
+function onChatState(first) {
+  const msgs = S.chat || [];
+  const last = msgs.length ? msgs[msgs.length - 1].id : 0;
+  if (first || last < chatSeen) { chatSeen = last; return; }   // vào lại phòng: không tính tin cũ là tin mới
+  const fresh = msgs.filter(m => m.id > chatSeen);
+  chatSeen = last;
+  if (!fresh.length) return;
+  const open = $('chatSheet').classList.contains('on');
+  for (const m of fresh) {
+    if (m.kind === 'player' && m.seat >= 0) { taunts[m.seat] = { text: m.text, until: Date.now() + 3500, chat: true }; setTimeout(() => S && render(), 3600); }
+    const mine = m.kind !== 'sys' && m.name === (S.you >= 0 && S.players[S.you] ? S.players[S.you].name : '');
+    if (!open && !mine) chatUnread++;
+  }
+  if (!open) { updateBadge(); if (fresh.some(m => m.kind !== 'sys')) Sound.play('turn'); }
+  renderChat();
+}
+
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on')); }
 
 /* ================= cài đặt ================= */
@@ -1147,7 +1347,9 @@ window.addEventListener('resize', () => { if (S && current === 'sGame') { render
   const c = qRoom || store.get('sam_room', ''), nm = store.get('sam_name', '');
   if (!c) return;
   if (!nm) { $('inCode').value = c; return; }   // người mới mở link mời: nhập tên rồi bấm Vào phòng
-  const j = await api('join', { room: c, name: nm, av: myAv });
+  const wasSpec = store.get('sam_role', '') === 'spec' && store.get('sam_room', '') === c;
+  let j = wasSpec ? await api('watch', { room: c, name: nm, av: myAv }) : await api('join', { room: c, name: nm, av: myAv });
+  if (!j.code && j.canWatch) j = await api('watch', { room: c, name: nm, av: myAv });
   if (j.code) enterRoom(j.code);
   else { if (qRoom) toast(j.err || 'Không vào được phòng'); store.set('sam_room', ''); history.replaceState(null, '', location.pathname); }
 })();
