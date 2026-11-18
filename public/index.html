@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=2.2.0">
+<link rel="stylesheet" href="/style.css?v=2.2.1">
 </head>
 <body>
 
@@ -198,8 +198,9 @@
       <div class="frow"><b>Nhạc nền</b><input type="range" min="0" max="100" id="stMusic"></div>
       <div class="frow"><b>Hiệu ứng</b><input type="range" min="0" max="100" id="stSfx"></div>
       <div class="frow"><div><b>Giọng MC dẫn trò</b><small>Đến lượt, còn 5 giây, báo Sâm, chặt…</small></div><label class="sw"><input type="checkbox" id="stVoice"><i></i></label></div>
+      <div class="frow"><b>Giọng MC</b><div class="seg" id="stMcGender" data-v="nu"><button data-v="nu">👩 Nữ</button><button data-v="nam">👨 Nam</button></div></div>
       <div class="frow"><b>Âm lượng MC</b><input type="range" min="0" max="100" id="stMcVol"></div>
-      <div class="frow"><div><b>Thoại người chơi</b><small>Mỗi người nói theo giọng Nam/Nữ của mình</small></div><label class="sw"><input type="checkbox" id="stPVoice"><i></i></label></div>
+      <div class="frow"><div><b>Thoại người chơi</b><small>Ai ra bài, chặt, báo Sâm thì người đó nói bằng giọng Nam/Nữ của mình</small></div><label class="sw"><input type="checkbox" id="stPVoice"><i></i></label></div>
       <div class="frow"><b>Âm lượng giọng Nam</b><input type="range" min="0" max="100" id="stMaleVol"></div>
       <div class="frow"><b>Âm lượng giọng Nữ</b><input type="range" min="0" max="100" id="stFemaleVol"></div>
       <div class="frow"><b>Âm thanh phòng (ambient)</b><label class="sw"><input type="checkbox" id="stAmbient"><i></i></label></div>
@@ -241,7 +242,7 @@
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/audio.js?v=2.2.0"></script>
-<script src="/app.js?v=2.2.0"></script>
+<script src="/audio.js?v=2.2.1"></script>
+<script src="/app.js?v=2.2.1"></script>
 </body>
 </html>

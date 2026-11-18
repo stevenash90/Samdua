@@ -39,8 +39,8 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 
 ## Giọng đọc
 
-- **MC dẫn trò**: bản thu trong `assets/voice/*.mp3`.
-- **Thoại người chơi Nam/Nữ**: xem `docs/LOI_THOAI.md` (đặt file vào `assets/voice/players/m|f/`).
+- Hai bộ giọng thu sẵn: Nữ (`assets/voice/f/`) và Nam (`assets/voice/m/`).
+- MC chọn giọng Nữ/Nam; người chơi nói bằng giọng theo giới tính của mình. Chi tiết câu nào ai đọc: `docs/LOI_THOAI.md`.
 - Âm lượng riêng cho MC, giọng Nam, giọng Nữ, hiệu ứng, nhạc nền. Một kênh thoại duy nhất: không đọc chồng, câu quan trọng cắt câu thường, đánh bài/bỏ lượt chỉ thỉnh thoảng mới nói.
 
 ## Sao lưu định kỳ & cảnh báo

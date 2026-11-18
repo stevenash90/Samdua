@@ -261,25 +261,20 @@ def main():
             p = os.path.join(td, name + '.wav'); write_wav(p, norm(x, 0.85)); encode(name, p)
         p = os.path.join(td, 'music.wav'); write_wav(p, music_loop()); encode('music', p, True, True)
         p = os.path.join(td, 'ambient.wav'); write_wav(p, ambient_loop()); encode('ambient', p, True, True)
-        recorded = set()
-        if os.path.isdir(VOICE_SRC):
-            for f in sorted(os.listdir(VOICE_SRC)):
-                if (f.endswith('.mp3') or f.endswith('.wav')) and os.path.isfile(os.path.join(VOICE_SRC, f)):
-                    name = os.path.splitext(f)[0]; recorded.add(name)
-                    encode_recorded(name, os.path.join(VOICE_SRC, f))
-        # Thoại người chơi: assets/voice/players/<m|f>/<sự kiện>_<số>.mp3 -> public/audio/p_<m|f>_<sự kiện>_<số>.*
+        # Hai bộ giọng thu sẵn: assets/voice/f/<câu>.mp3 (Nữ) và assets/voice/m/<câu>.mp3 (Nam)
+        # -> public/audio/f_<câu>.*, m_<câu>.* và voices.json liệt kê câu nào bộ nào có.
         import json, re
-        manifest = {'m': {}, 'f': {}}
-        pdir = os.path.join(VOICE_SRC, 'players')
-        for g in ('m', 'f'):
-            d = os.path.join(pdir, g)
+        recorded = set()
+        manifest = {'f': [], 'm': []}
+        for pack in ('f', 'm'):
+            d = os.path.join(VOICE_SRC, pack)
             if not os.path.isdir(d): continue
             for f in sorted(os.listdir(d)):
-                m = re.match(r'^(play|chop|pass|baosam|batsam|win|lose)_(\d+)\.(mp3|wav|m4a|ogg)$', f)
+                m = re.match(r'^([a-z0-9]+)\.(mp3|wav|m4a|ogg)$', f)
                 if not m: continue
-                name = f'p_{g}_{m.group(1)}_{m.group(2)}'
+                name = f'{pack}_{m.group(1)}'
                 encode_recorded(name, os.path.join(d, f))
-                manifest[g].setdefault(m.group(1), []).append(name)
+                manifest[pack].append(m.group(1)); recorded.add(name)
         with open(os.path.join(OUT, 'voices.json'), 'w') as fh:
             json.dump(manifest, fh, ensure_ascii=False)
         if subprocess.run(['which', 'espeak-ng'], capture_output=True).returncode == 0:

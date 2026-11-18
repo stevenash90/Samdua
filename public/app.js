@@ -18,7 +18,7 @@ if (!token || token.length < 16) {
   token = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   store.set('sam_token', token);
 }
-const DEFAULT_SETTINGS = { mute: false, master: 80, music: 30, sfx: 85, voice: false, mcVol: 90, pvoice: false, maleVol: 85, femaleVol: 85, ambient: true, spatial: true, vibrate: true, reduce: false, perf: false };
+const DEFAULT_SETTINGS = { mute: false, master: 80, music: 30, sfx: 85, voice: false, mcGender: 'nu', mcVol: 90, pvoice: false, maleVol: 85, femaleVol: 85, ambient: true, spatial: true, vibrate: true, reduce: false, perf: false };
 let settings = Object.assign({}, DEFAULT_SETTINGS, store.json('sam_settings', {}));
 let myAv = store.get('sam_av') || AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
@@ -999,32 +999,47 @@ function shakeTable() {
 function nameOf(i) { return S && S.players[i] ? S.players[i].name : ''; }
 
 const genderOf = i => (S && S.players[i] ? S.players[i].gender : 'nam');
+/* Giọng đọc: 2 bộ thu sẵn (Nữ 'f', Nam 'm').
+ * - Câu gắn với một người chơi (ra bài, chặt, báo/bắt Sâm…): nếu bật "Thoại người chơi" thì đọc bằng giọng theo giới tính người đó.
+ * - Còn lại (đến lượt, còn 5 giây, mời người tiếp theo…) hoặc khi tắt thoại người chơi: MC đọc, giọng MC chọn trong cài đặt.
+ * Bộ nào thiếu câu thì dùng bộ kia. */
+const mcPack = () => (settings.mcGender === 'nam' ? 'm' : 'f');
+function voiceLine(key, actor, pri, opt = {}) {
+  const gOf = opt.genderOf || genderOf, panOf = opt.pan || seatPan;
+  if (actor !== undefined && actor !== null && actor >= 0 && settings.pvoice) {
+    const pk = gOf(actor) === 'nu' ? 'f' : 'm';
+    if (Sound.line(pk, key, 'player', pri + 1, panOf(actor))) return;
+    if (key === 'play') return;
+  }
+  const pk = mcPack(), alt = pk === 'f' ? 'm' : 'f';
+  Sound.line(Sound.has(pk, key) ? pk : alt, key, 'mc', pri, 0);
+}
 function handleEvents(evs) {
   for (const e of evs) {
     const pan = e.by !== undefined ? seatPan(e.by) : 0;
-    const say = (i, ev) => Sound.say(genderOf(i), ev, seatPan(i));
     switch (e.type) {
       case 'deal': Sound.play('shuffle'); setTimeout(() => Sound.play('deal'), 450); dealAnim = true; break;
       case 'samopen': Sound.play('phase'); break;
       case 'sam':
-        Sound.play('bao_sam', { pan }); Sound.voice('v_sam', 3); say(e.by, 'baosam');
+        Sound.play('bao_sam', { pan }); voiceLine('sam', e.by, 3);
         banner('BÁO SÂM!', 'gold', nameOf(e.by)); vibrate(120);
         break;
       case 'start':
         Sound.play('start');
-        if (e.turn === S.you) { Sound.play('myturn'); Sound.voice('v_invite', 2); vibrate(60); }
+        if (e.turn === S.you) { Sound.play('myturn'); voiceLine('invite', null, 3); vibrate(60); }
+        else voiceLine('start', null, 2);
         break;
       case 'play':
-        if (e.chop === 'chat2') { Sound.play('chop2', { pan }); Sound.voice('v_chop1', 4); banner('CHẶT 2!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 120]); }
-        else if (e.chop === 'chatde') { Sound.play(e.depth >= 3 ? 'chopde2' : 'chopde', { pan }); Sound.voice(e.depth >= 3 ? 'v_chopde2' : 'v_chopde', 5); banner('CHẶT ĐÈ x' + (e.mult || 2) + '!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 60, 40, 160]); }
+        if (e.chop === 'chat2') { Sound.play('chop2', { pan }); voiceLine('chop1', e.by, 4); banner('CHẶT 2!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 120]); }
+        else if (e.chop === 'chatde') { Sound.play(e.depth >= 3 ? 'chopde2' : 'chopde', { pan }); voiceLine(e.depth >= 3 ? 'chopde2' : 'chopde', e.by, 5); banner('CHẶT ĐÈ x' + (e.mult || 2) + '!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 60, 40, 160]); }
         else Sound.play(e.n >= 5 ? 'play_big' : 'play', { pan });
-        say(e.by, e.chop ? 'chop' : 'play');
+        if (!e.chop) voiceLine('play', e.by, 1);
         break;
-      case 'pass': Sound.play('pass', { pan }); if (!e.auto) say(e.by, 'pass'); break;
-      case 'round': Sound.play('collect'); if (e.leader !== S.you) Sound.voice('v_next', 1); break;
+      case 'pass': Sound.play('pass', { pan }); break;
+      case 'round': Sound.play('collect'); if (e.leader !== S.you) voiceLine('next', null, 1); break;
       case 'turn':
         // tới lượt mình: cầm cái thì "Xin mời bạn…", phải chặn thì "Đến lượt bạn rồi"
-        if (e.to === S.you) { Sound.play('myturn'); Sound.voice(S.table ? 'v_turn' : 'v_invite', 2); vibrate(60); }
+        if (e.to === S.you) { Sound.play('myturn'); voiceLine(S.table ? 'turn' : 'invite', null, 2); vibrate(60); }
         else Sound.play('turn', { pan: seatPan(e.to) });
         break;
       case 'chopsettle': Sound.play('coins'); break;
@@ -1041,11 +1056,11 @@ function handleEvents(evs) {
       case 'swap': Sound.play('collect'); banner('ĐỔI CHỖ 🔄', 'gold', 'Giải đen!'); break;
       case 'end': {
         Sound.play('end');
-        say(e.winner, e.kind === 'chan' ? 'batsam' : 'win');
-        if (e.kind === 'sam') { Sound.play('sam_win'); Sound.voice('v_samwin', 6); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
+        if (e.kind === 'sam') { Sound.play('sam_win'); voiceLine('samwin', e.winner, 6); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
         else if (e.kind === 'chan') {
           Sound.play('bat_sam'); banner('BẮT SÂM!', 'red', nameOf(e.winner));
-          Sound.voice(e.samBy === S.you ? 'v_samfail' : 'v_catch', 6);
+          voiceLine('catch', e.winner, 6);
+          const sb = e.samBy; setTimeout(() => voiceLine('samfail', sb, 7), 2400);
           if (e.samBy === S.you) setTimeout(() => Sound.play('sam_fail'), 700);
         }
         else if (e.kind === 'trang') { Sound.play('sam_win'); banner('ĂN TRẮNG!', 'gold', nameOf(e.winner)); }
@@ -1055,8 +1070,6 @@ function handleEvents(evs) {
       case 'result': {
         const r = S.result; if (!r) break;
         const me = r.rows[S.you];
-        const loser = r.rows.reduce((m, x, i) => (x.delta < (r.rows[m] ? r.rows[m].delta : 0) ? i : m), -1);
-        if (loser >= 0 && loser !== r.winner) setTimeout(() => Sound.say(genderOf(loser), 'lose', seatPan(loser)), 1600);
         if (r.winner === S.you) { Sound.play('win'); confetti(); vibrate([80, 50, 80, 50, 200]); }
         else {
           Sound.play('lose');
@@ -1088,7 +1101,7 @@ setInterval(() => {
     const seat = document.querySelector('#table .seat.turn');
     if (seat) seat.classList.toggle('warn', !t.frozen && t.left <= 5000);
     if (S.turn === S.you && !t.frozen && t.left <= 5000 && t.left > 0 && warnedTurn !== S.turnId) {
-      warnedTurn = S.turnId; Sound.play('warn5'); Sound.voice('v_5s', 3); vibrate([40, 40, 40]);
+      warnedTurn = S.turnId; Sound.play('warn5'); voiceLine('5s', null, 3); vibrate([40, 40, 40]);
     }
   }
   document.querySelectorAll('[data-since]').forEach(e => {
@@ -1302,12 +1315,19 @@ function applySettings() {
   store.set('sam_settings', JSON.stringify(settings));
   Account.syncSettings();
 }
+document.getElementById('stMcGender').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  settings.mcGender = b.dataset.v; applySettings();
+  Sound.unlock(); voiceLine('turn', null, 9);
+});
 function openSettings() {
+  setSeg('stMcGender', settings.mcGender || 'nu');
   for (const id in ST_BIND) $(id).checked = !!settings[ST_BIND[id]];
   for (const id in ST_RANGE) $(id).value = settings[ST_RANGE[id]];
   $('settingsSheet').classList.add('on');
 }
-for (const id in ST_BIND) $(id).onchange = () => { settings[ST_BIND[id]] = $(id).checked; applySettings(); if (id === 'stVoice' && settings.voice) { Sound.unlock(); Sound.voice('v_turn', 9); } };
+for (const id in ST_BIND) $(id).onchange = () => { settings[ST_BIND[id]] = $(id).checked; applySettings(); if (id === 'stVoice' && settings.voice) { Sound.unlock(); voiceLine('turn', null, 9); }
+  if (id === 'stPVoice' && settings.pvoice) { Sound.unlock(); Sound.line(myGender() === 'nu' ? 'f' : 'm', 'chop1', 'player', 9, 0); } };
 for (const id in ST_RANGE) $(id).oninput = () => { settings[ST_RANGE[id]] = +$(id).value; applySettings(); };
 $(`stSfx`).onchange = () => Sound.play('play');
 $('btCloseSettings').onclick = () => $('settingsSheet').classList.remove('on');
@@ -1478,10 +1498,12 @@ function replaySound(e, rp) {
   const map = { deal: 'shuffle', sam: 'bao_sam', start: 'start', pass: 'pass', round: 'collect', chopsettle: 'coins', pause: 'pause', resume: 'resume', end: 'end' };
   if (e.type === 'play') Sound.play(e.chop === 'chat2' ? 'chop2' : e.chop === 'chatde' ? (e.depth >= 3 ? 'chopde2' : 'chopde') : e.n >= 5 ? 'play_big' : 'play', { pan });
   else if (map[e.type]) Sound.play(map[e.type], { pan });
-  if (e.type === 'play' && e.chop) Sound.voice(e.chop === 'chat2' ? 'v_chop1' : e.depth >= 3 ? 'v_chopde2' : 'v_chopde', 5);
-  if (e.type === 'sam') Sound.voice('v_sam', 3);
-  if (e.type === 'end' && e.kind === 'chan') Sound.voice('v_catch', 6);
-  if (e.type === 'end' && e.kind === 'sam') Sound.voice('v_samwin', 6);
+  const ro = { genderOf: i => (rp.players[i] && rp.players[i].gender) || 'nam', pan: i => (settings.spatial ? PAN[slot[i]] || 0 : 0) };
+  if (e.type === 'play' && e.chop) voiceLine(e.chop === 'chat2' ? 'chop1' : e.depth >= 3 ? 'chopde2' : 'chopde', e.by, 5, ro);
+  else if (e.type === 'play') voiceLine('play', e.by, 1, ro);
+  if (e.type === 'sam') voiceLine('sam', e.by, 3, ro);
+  if (e.type === 'end' && e.kind === 'chan') voiceLine('catch', e.winner, 6, ro);
+  if (e.type === 'end' && e.kind === 'sam') voiceLine('samwin', e.winner, 6, ro);
   if (e.type === 'play' && e.chop) { banner(e.chop === 'chat2' ? 'CHẶT 2!' : 'CHẶT ĐÈ x' + e.mult + '!', 'red', rp.players[e.by].name); }
   if (e.type === 'sam') banner('BÁO SÂM!', 'gold', rp.players[e.by].name);
   if (e.type === 'end') banner(e.kind === 'chan' ? 'BẮT SÂM!' : e.kind === 'sam' ? 'SÂM THÀNH CÔNG!' : e.kind === 'trang' ? 'ĂN TRẮNG!' : 'HẾT BÀI!', 'gold', rp.players[e.winner].name);

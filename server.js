@@ -202,7 +202,7 @@ async function api(b, ip) {
     return {
       replay: {
         id: g.id, room: g.room, no: g.no, startedAt: g.startedAt, endedAt: g.endedAt, policy, seat,
-        players: g.players.map(p => ({ name: p.name, av: p.av, bot: p.bot })), events, result: g.result,
+        players: g.players.map(p => ({ name: p.name, av: p.av, bot: p.bot, gender: p.gender || 'nam' })), events, result: g.result,
         points: g.settings && g.settings.points,
       },
     };

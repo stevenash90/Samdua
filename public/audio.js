@@ -54,7 +54,7 @@ const Sound = (function () {
     if (wantMusic) music(true);
   }
 
-  function url(name) { return `/audio/${name}.${ext}?v=3`; }
+  function url(name) { return `/audio/${name}.${ext}?v=4`; }
   function load(name) {
     if (buffers.has(name)) return Promise.resolve(buffers.get(name));
     if (loading.has(name)) return loading.get(name);
@@ -145,7 +145,7 @@ const Sound = (function () {
   /* ---------- giọng đọc: MC + người chơi (Nam/Nữ) ----------
    * Một kênh thoại duy nhất: không đọc chồng nhau. Câu có độ ưu tiên cao hơn được cắt ngang câu thấp hơn.
    * Câu đến muộn (> 1,2 giây sau sự kiện) bị bỏ để không lệch với bàn chơi. */
-  let curVoice = null, manifest = {}, lastLine = {}, lastPlayLine = 0;
+  let curVoice = null, manifest = {}, lastPlayLine = 0;
   function speak(name, group, pri, pan) {
     if (!ctx || !unlocked || st.mute) return;
     const now = performance.now();
@@ -167,24 +167,23 @@ const Sound = (function () {
       voiceBusyUntil = performance.now() + b.duration * 1000;
     });
   }
-  /** Giọng MC dẫn trò (mặc định tắt). */
-  function voice(name, pri = 1) { if (st.voice) speak(name, 'mc', pri + 1, 0); }
-  /** Thoại người chơi theo giới tính: event = play | chop | pass | baosam | batsam | win | lose. */
-  const SAY_PRI = { play: 1, pass: 1, lose: 2, chop: 4, baosam: 5, batsam: 6, win: 6 };
-  function say(gender, event, pan = 0) {
-    if (!st.pvoice) return;
-    const g = gender === 'nu' ? 'f' : 'm';
-    const list = (manifest[g] || {})[event];
-    if (!list || !list.length) return;            // chưa có bản thu cho câu này
-    const now = performance.now();
-    if (event === 'play' || event === 'pass') {   // chống spam: đánh bài / bỏ lượt thường chỉ thỉnh thoảng mới nói
-      if (now - lastPlayLine < 6000 || Math.random() > 0.35) return;
+  /** Bộ giọng có câu này không (theo voices.json). pack: 'f' | 'm' */
+  function has(pack, key) { return !!(manifest[pack] && manifest[pack].includes(key)); }
+  /**
+   * Đọc một câu. role 'mc' → nhóm âm lượng MC; role 'player' → nhóm giọng Nam/Nữ theo bộ giọng.
+   * Câu 'play' (ra bài thường) chỉ thỉnh thoảng mới đọc để không spam.
+   */
+  function line(pack, key, role, pri = 1, pan = 0) {
+    if (!has(pack, key)) return false;
+    if (role === 'mc' ? !st.voice : !st.pvoice) return false;
+    if (key === 'play') {
+      const now = performance.now();
+      if (now - lastPlayLine < 6000 || Math.random() > 0.35) return false;
       lastPlayLine = now;
     }
-    let pick = list[Math.floor(Math.random() * list.length)];
-    if (list.length > 1 && pick === lastLine[g + event]) pick = list[(list.indexOf(pick) + 1) % list.length];
-    lastLine[g + event] = pick;
-    speak(pick, g === 'f' ? 'female' : 'male', SAY_PRI[event] || 1, pan);
+    const group = role === 'mc' ? 'mc' : pack === 'f' ? 'female' : 'male';
+    speak(pack + '_' + key, group, pri, role === 'mc' ? 0 : pan);
+    return true;
   }
 
   function loop(name, group) {
@@ -210,5 +209,5 @@ const Sound = (function () {
     if (!ambSrc && st.ambient) { ambSrc = 'pending'; loop('ambient', 'ambient').then(s => { ambSrc = s; if (s && !wantMusic) stopLoops(); }); }
   }
 
-  return { init, unlock, play, voice, say, music, apply, _state: () => ({ ctx: ctx && ctx.state, unlocked, ext, loaded: [...buffers.keys()], failed: [...failed] }) };
+  return { init, unlock, play, line, has, music, apply, _state: () => ({ ctx: ctx && ctx.state, unlocked, ext, loaded: [...buffers.keys()], failed: [...failed] }) };
 })();
