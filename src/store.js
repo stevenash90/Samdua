@@ -129,6 +129,12 @@ class PgStore extends BaseStore {
         } catch (e) { await c.query('ROLLBACK'); throw e; }
       }
     } finally { c.release(); }
+    // đổi vùng máy chủ: chép dữ liệu từ database cũ (xem src/migrate.js)
+    const from = process.env.MIGRATE_FROM_URL;
+    if (from && from !== process.env.DATABASE_URL) {
+      try { await require('./migrate').copyAll(from, this.pool, (...a) => this.log(...a)); }
+      catch (e) { this.log('migrate lỗi (máy chủ vẫn chạy với database mới):', e.message); }
+    }
   }
   async _commit(code, snap, { events = [], gameStart, gameEnd }) {
     const c = await this.pool.connect();

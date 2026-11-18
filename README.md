@@ -114,6 +114,7 @@ Bảng dữ liệu được tạo tự động (migration chạy lúc khởi đ�
 | `PAUSE_LIMIT_MS` | giới hạn tạm dừng mặc định mỗi ván | 600000 |
 | `CROSS_CHOP` | `1` = tứ quý được đè ba đôi thông (chưa xác nhận luật) | 0 |
 | `GOOGLE_CLIENT_ID` | bật nút đăng nhập Google | trống |
+| `MIGRATE_FROM_URL` | chỉ dùng khi đổi database (vd. sang Singapore): đặt = database CŨ, máy chủ tự chép dữ liệu sang database mới nếu còn trống; chép xong thì xoá | trống |
 | `BOT_NEWS` | `0` = không tải tin báo cho máy (chỉ dùng gói tin soạn sẵn) | bật |
 
 Điểm/tiền (chặt 2, hệ số chặt đè, Sâm, ăn trắng, cóng, thối 2) do chủ phòng chỉnh khi tạo phòng.
