@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.1';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -199,6 +199,9 @@ function markActive() {
 }
 document.addEventListener('pointerdown', markActive, { passive: true });
 document.addEventListener('keydown', markActive);
+// iOS chỉ cho mở âm thanh trong touchend/click (pointerdown chưa đủ ở một số bản)
+document.addEventListener('touchend', () => Sound.unlock(), { passive: true });
+document.addEventListener('click', () => Sound.unlock());
 
 /* ================= trang chủ ================= */
 $('inName').value = store.get('sam_name', '');

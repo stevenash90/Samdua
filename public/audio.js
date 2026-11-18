@@ -40,10 +40,30 @@ const Sound = (function () {
     applyGains();
   }
 
+  // iPhone: Web Audio mặc định bị nút gạt im lặng tắt tiếng. Chuyển sang chế độ "phát nhạc" để vẫn nghe được
+  // (Safari 16.4+ có navigator.audioSession; máy cũ hơn: phát kèm 1 thẻ <audio> im lặng lặp vòng).
+  let keepAlive = null;
+  function playbackSession() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (!/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || keepAlive) return;
+    try {
+      // WAV im lặng 0,1 giây
+      const n = 800, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+      const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+      for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+      keepAlive = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+      keepAlive.loop = true; keepAlive.setAttribute('playsinline', ''); keepAlive.volume = 0.01;
+      keepAlive.play().catch(() => { keepAlive = null; });
+    } catch (e) { keepAlive = null; }
+  }
+
   function unlock() {
     if (!ctx) init();
     if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    playbackSession();
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});   // 'suspended' hoặc 'interrupted' (iOS sau khi tắt màn hình)
     if (unlocked) return;
     unlocked = true;
     // iOS: phát 1 buffer rỗng để mở khoá
