@@ -54,7 +54,7 @@ const Sound = (function () {
     if (wantMusic) music(true);
   }
 
-  function url(name) { return `/audio/${name}.${ext}?v=5`; }
+  function url(name) { return `/audio/${name}.${ext}?v=6`; }
   function load(name) {
     if (buffers.has(name)) return Promise.resolve(buffers.get(name));
     if (loading.has(name)) return loading.get(name);

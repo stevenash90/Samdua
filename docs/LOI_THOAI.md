@@ -30,5 +30,8 @@ Chạy `python3 scripts/make_audio.py` để chuẩn hoá âm lượng, cắt kh
 | `chop1` | Chặt 2 (người chặt) | có | có |
 | `chopde` | Chặt đè (người chặt) | có | có |
 | `chopde2` | Chặt đè từ tầng 3 (người chặt) | có | có |
+| `swapreq` | "Đen quá, đổi chỗ phát!" — người thua 10 ván liền xin đổi chỗ | thiếu | có |
+| `swapyes` | "Ok cưng!" — người được xin đồng ý | thiếu | có |
+| `swapno` | Người được xin từ chối (chưa có bản thu; hiện chữ ngẫu nhiên: "Ghế này phong thủy tốt, không đổi đâu!"…) | thiếu | thiếu |
 
 Muốn thêm câu mới (ví dụ bỏ lượt, thắng, thua), gửi file kèm mô tả, Claude sẽ gắn vào sự kiện.

@@ -17,7 +17,10 @@ const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ �
 
 // Bộ bài (kiểu dáng mặt sau / viền) — chủ phòng thay khi có người đề nghị "đổi bộ bài mới"
 const DECKS = ['Đỏ cổ điển', 'Xanh hoàng gia', 'Đen vàng', 'Tím mộng', 'Lục bảo'];
-const LOSE_STREAK_SWAP = 5;      // thua liên tiếp bấy nhiêu ván thì được xin đổi chỗ giải đen
+const LOSE_STREAK_SWAP = 10;     // thua liên tiếp bấy nhiêu ván thì được xin đổi chỗ giải đen
+const SWAP_ASK = 'Đen quá, đổi chỗ phát!';
+const SWAP_YES = 'Ok cưng!';
+const SWAP_NO = ['Ghế này phong thủy tốt, không đổi đâu!', 'Đen thì chịu khó đi cưng!', 'Đổi chỗ chứ đổi vận sao được!', 'Ngồi yên đó, ván sau đỏ lại!', 'Không đổi, tao đang lên tay!'];
 const MAX_SPECTATORS = 20;
 const CHAT_MAX = 60, CHAT_LEN = 200, CHAT_GAP_MS = 700;
 const REQ_TTL_MS = 30000, DECK_COOLDOWN_MS = 60000, SPEC_IDLE_MS = 10 * 60 * 1000;
@@ -76,6 +79,8 @@ class Room {
     this.spectators = [];          // người vào xem: {pid, tokenHash, name, av}
     this.deck = { no: 1, style: 0 };
     this.swap = null;              // lời xin đổi chỗ đang chờ: {from, to, at} (pid)
+    this.swapPlan = null;          // đã đồng ý, đổi khi bắt đầu ván sau: {a: người xin, b: người đồng ý} (pid)
+    this.rstats = {};              // thống kê của bàn theo người chơi (pid)
     this.deckReq = null;           // đề nghị đổi bộ bài đang chờ: {from, at} (pid)
     // tạm thời (không lưu)
     this.lastChatAt = new Map();
@@ -191,8 +196,52 @@ class Room {
     this.players[a] = pb; this.players[b] = pa;
     pa.lose = 0;
     this.swap = null;
+    this.swapPlan = null;
     this.sysChat(`🔄 ${pa.name} đã đổi chỗ với ${pb.name}. Giải đen thôi!`);
     this.emit('swap', { a, b }, false);
+  }
+
+  /* ---------------- thống kê của bàn ---------------- */
+  statOf(pid) {
+    return this.rstats[pid] || (this.rstats[pid] = {
+      games: 0, wins: 0, losses: 0, points: 0, best: 0, worst: 0, streak: 0, bestWin: 0, bestLose: 0,
+      samCalls: 0, samWins: 0, samCaught: 0, chops: 0, chopped: 0, cong: 0, trang: 0,
+    });
+  }
+  recordStats(res, g, entries, d) {
+    this.players.forEach((p, i) => {
+      const st = this.statOf(p.pid);
+      const win = i === res.winner;
+      st.games++;
+      st.points += d[i];
+      st.best = Math.max(st.best, d[i]);
+      st.worst = Math.min(st.worst, d[i]);
+      if (win) { st.wins++; st.streak = st.streak > 0 ? st.streak + 1 : 1; st.bestWin = Math.max(st.bestWin, st.streak); }
+      else { st.losses++; st.streak = st.streak < 0 ? st.streak - 1 : -1; st.bestLose = Math.max(st.bestLose, -st.streak); }
+      if (g.samBy === i) { st.samCalls++; if (res.type === 'sam') st.samWins++; }
+      if (win && res.type === 'chan') st.samCaught++;
+      if (win && res.type === 'trang') st.trang++;
+      for (const e of entries) {
+        if ((e.kind === 'chat2' || e.kind === 'chatde') && e.to === i) st.chops++;
+        if ((e.kind === 'chat2' || e.kind === 'chatde') && e.from === i) st.chopped++;
+        if (e.kind === 'cong' && e.from === i) st.cong++;
+      }
+    });
+  }
+
+  acceptSwap(from, to) {
+    const a = this.players[from], b = this.players[to];
+    this.swapPlan = { a: a.pid, b: b.pid };
+    const when = this.phase === 'lobby' || this.phase === 'over' ? 'khi bắt đầu ván mới' : 'từ ván sau';
+    this.sysChat(`${b.name}: "${SWAP_YES}" — ${a.name} và ${b.name} sẽ đổi chỗ ${when}`);
+    this.emit('swapans', { yes: true, by: to, from, text: SWAP_YES }, false);
+  }
+  applySwapPlan() {
+    const pl = this.swapPlan;
+    if (!pl) return;
+    const a = this.idxOf(pl.a), b = this.idxOf(pl.b);
+    this.swapPlan = null;
+    if (a >= 0 && b >= 0) this.doSwap(a, b);
   }
 
   /* ---------------- đổi bộ bài ---------------- */
@@ -269,6 +318,7 @@ class Room {
 
   /* ---------------- ván mới ---------------- */
   startGame() {
+    this.applySwapPlan();
     const n = this.players.length;
     let hands;
     if (this.deps.deal) hands = this.deps.deal(n);   // dùng cho test
@@ -438,6 +488,7 @@ class Room {
     const entries = g.ledger.concat(end);
     const d = S.deltasOf(entries, n);
     this.players.forEach((p, i) => { p.score += d[i]; p.lose = i === res.winner ? 0 : (p.lose || 0) + 1; });
+    this.recordStats(res, g, entries, d);
     const wn = this.players[res.winner].name;
     const title = {
       thuong: `${wn} về nhất!`,
@@ -621,16 +672,17 @@ class Room {
     switch (a) {
       case 'leave': this.removePlayer(i, 'leave'); return {};
       case 'chat': return this.userChat(me.pid, 'player', me.name, me.av, i, msg.text);
+      // Xin đổi chỗ: được xin cả khi đang chơi; người kia đồng ý thì đổi từ ván tiếp theo
       case 'swapReq': {
-        if (!idle) return { err: 'Chỉ đổi chỗ được giữa các ván' };
         if ((me.lose || 0) < LOSE_STREAK_SWAP) return { err: `Thua ${LOSE_STREAK_SWAP} ván liên tiếp mới được xin đổi chỗ (bạn đang thua ${me.lose || 0} ván)` };
         const k = msg.idx | 0, t = this.players[k];
         if (!t || k === i) return { err: 'Chọn người muốn đổi chỗ' };
         if (this.swap) return { err: 'Đang có một lời xin đổi chỗ khác' };
-        if (t.bot) { this.doSwap(i, k); return {}; }   // máy luôn đồng ý
+        if (this.swapPlan) return { err: 'Đã có một lần đổi chỗ chờ ván sau' };
+        this.sysChat(`🔄 ${me.name} thua ${me.lose} ván liền: "${SWAP_ASK}" (xin đổi với ${t.name})`);
+        this.emit('swapreq', { from: i, to: k, text: SWAP_ASK }, false);
+        if (t.bot) { this.acceptSwap(i, k); return {}; }   // máy luôn đồng ý
         this.swap = { from: me.pid, to: t.pid, at: this.now() };
-        this.sysChat(`🔄 ${me.name} thua ${me.lose} ván liền, xin đổi chỗ với ${t.name} để giải đen`);
-        this.emit('swapreq', { from: i, to: k }, false);
         return {};
       }
       case 'swapAns': {
@@ -639,10 +691,12 @@ class Room {
         const from = this.idxOf(sw.from);
         this.swap = null;
         if (from < 0) return {};
-        if (msg.yes) {
-          if (!idle) return { err: 'Ván đã bắt đầu, không đổi chỗ được nữa' };
-          this.doSwap(from, i);
-        } else this.sysChat(`${me.name} không đổi chỗ với ${this.players[from].name}`);
+        if (msg.yes) this.acceptSwap(from, i);
+        else {
+          const text = SWAP_NO[crypto.randomInt(SWAP_NO.length)];
+          this.sysChat(`${me.name}: "${text}" — không đổi chỗ với ${this.players[from].name}`);
+          this.emit('swapans', { yes: false, by: i, from, text }, false);
+        }
         return {};
       }
       case 'deckReq': {
@@ -768,6 +822,7 @@ class Room {
   removePlayer(i, reason) {
     const p = this.players[i];
     if (this.swap && (this.swap.from === p.pid || this.swap.to === p.pid)) this.swap = null;
+    if (this.swapPlan && (this.swapPlan.a === p.pid || this.swapPlan.b === p.pid)) this.swapPlan = null;
     if (this.deckReq && this.deckReq.from === p.pid) this.deckReq = null;
     const wasHost = p.pid === this.hostPid;
     this.conns.delete(p.pid);
@@ -813,7 +868,7 @@ class Room {
     return {
       v: 2, code: this.code, created: this.created, touched: this.touched, settings: this.settings,
       players: this.players.map(p => ({ pid: p.pid, tokenHash: p.tokenHash, name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: p.auto, score: p.score, lose: p.lose || 0 })),
-      chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, deckReq: this.deckReq,
+      chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, swapPlan: this.swapPlan, deckReq: this.deckReq, rstats: this.rstats,
       hostPid: this.hostPid, phase: this.phase, g: gs, result: this.result, log: this.log,
       lastWinnerPid: this.lastWinnerPid, gameNo: this.gameNo, hostLog: this.hostLog,
     };
@@ -826,7 +881,7 @@ class Room {
       players: s.players, hostPid: s.hostPid, phase: s.phase, g: s.g, result: s.result, log: s.log || '',
       lastWinnerPid: s.lastWinnerPid, gameNo: s.gameNo || 0, hostLog: s.hostLog || [],
       chat: s.chat || [], chatSeq: s.chatSeq || 0, spectators: s.spectators || [], deck: s.deck || { no: 1, style: 0 },
-      swap: s.swap || null, deckReq: s.deckReq || null,
+      swap: s.swap || null, swapPlan: s.swapPlan || null, deckReq: s.deckReq || null, rstats: s.rstats || {},
     });
     r.spectators.forEach(x => r.offlineSince.set(x.pid, r.now()));
     const g = r.g;
@@ -891,6 +946,8 @@ class Room {
       chat: this.chat.slice(-CHAT_MAX),
       deck: { no: this.deck.no, style: this.deck.style, name: DECKS[this.deck.style] },
       swap: this.swap ? { from: this.idxOf(this.swap.from), to: this.idxOf(this.swap.to), at: this.swap.at } : null,
+      swapPlan: this.swapPlan ? { a: this.idxOf(this.swapPlan.a), b: this.idxOf(this.swapPlan.b) } : null,
+      rstats: this.players.map(p => this.rstats[p.pid] || null),
       deckReq: this.deckReq ? { from: this.idxOf(this.deckReq.from), at: this.deckReq.at } : null,
       hand: !spec && inGame && g ? g.hands[i] : [],
       turn: this.phase === 'play' && g ? g.turn : -1,

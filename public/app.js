@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.3.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -520,6 +520,12 @@ function onState(s, evs, first) {
   render();
   onChatState(first);
   checkRequests();
+  if ($('rsSheet').classList.contains('on')) renderRstats();
+  const meP = S.players[S.you];
+  if (meP && !isSpec() && meP.lose >= (S.swapNeed || 10) && !first && store.get('sam_swaphint', '') !== S.code + meP.lose) {
+    store.set('sam_swaphint', S.code + meP.lose);
+    toast(`😵 Thua ${meP.lose} ván liền — mở ⋯ để xin đổi chỗ giải đen`, 4000);
+  }
   if ($('hostSheet').classList.contains('on') && !$('hostBody').querySelector('.hp .btn.gold')) renderHostSheet();
   Sound.music(!!S && S.phase !== 'lobby');
 }
@@ -1018,6 +1024,8 @@ function voiceLine(key, actor, pri, opt = {}) {
   if (actor !== undefined && actor !== null && actor >= 0 && settings.pvoice) {
     const pk = gOf(actor) === 'nu' ? 'f' : 'm';
     if (Sound.line(pk, key, 'player', pri + 1, panOf(actor))) return;
+    // câu riêng của người chơi (xin đổi chỗ, đồng ý…) chỉ có một bộ giọng thì dùng bộ đó
+    if (opt.anyPack && Sound.line(pk === 'f' ? 'm' : 'f', key, 'player', pri + 1, panOf(actor))) return;
     if (key === 'play' || key === 'pass') return;   // không có câu theo giọng người này thì im, không để MC đọc thay
   }
   const pk = mcPack(), alt = pk === 'f' ? 'm' : 'f';
@@ -1063,6 +1071,15 @@ function handleEvents(evs) {
       case 'settings': toast(e.ai ? 'Chủ phòng đã bật gợi ý AI' : 'Chủ phòng đã tắt gợi ý AI'); break;
       case 'deck': Sound.play('shuffle'); banner('BỘ BÀI MỚI 🃏', 'gold', S.deck ? S.deck.name : ''); break;
       case 'swap': Sound.play('collect'); banner('ĐỔI CHỖ 🔄', 'gold', 'Giải đen!'); break;
+      case 'swapreq':
+        taunts[e.from] = { text: e.text, until: Date.now() + 4000, chat: true }; setTimeout(() => S && render(), 4100);
+        voiceLine('swapreq', e.from, 5, { anyPack: true });
+        break;
+      case 'swapans':
+        taunts[e.by] = { text: e.text, until: Date.now() + 4000, chat: true }; setTimeout(() => S && render(), 4100);
+        if (e.yes) { voiceLine('swapyes', e.by, 5, { anyPack: true }); if (e.from === S.you) toast('Đã đồng ý! Đổi chỗ từ ván sau'); }
+        else { Sound.play('notify'); voiceLine('swapno', e.by, 5, { anyPack: true }); }
+        break;
       case 'end': {
         Sound.play('end');
         if (e.kind === 'sam') { Sound.play('sam_win'); voiceLine('samwin', e.winner, 6); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
@@ -1202,28 +1219,80 @@ function peopleList(isHost) {
   return pl;
 }
 
+/* ---------- thống kê bàn ---------- */
+document.querySelectorAll('.btRstats').forEach(b => (b.onclick = () => { renderRstats(); $('rsSheet').classList.add('on'); }));
+$('btCloseRs').onclick = () => $('rsSheet').classList.remove('on');
+function streakBadge(st) {
+  if (!st || !st.streak) return h('span', 'streak-b z', 'chưa có');
+  return st.streak > 0 ? h('span', 'streak-b g', `🟢 xanh ${st.streak}`) : h('span', 'streak-b r', `🔴 đỏ ${-st.streak}`);
+}
+function renderRstats() {
+  const b = $('rsBody'); b.textContent = '';
+  if (!S) return;
+  const rows = S.players.map((p, i) => ({ p, i, st: (S.rstats || [])[i] }));
+  const played = rows.filter(r => r.st && r.st.games);
+  if (!played.length) { b.append(h('div', 'empty', 'Chưa có ván nào kết thúc. Đánh xong ván đầu là có số liệu.')); return; }
+  const top = (f, cmp = (a, b) => b - a) => played.slice().sort((a, b) => cmp(f(a), f(b)))[0];
+  const hl = h('div', 'rs-hl');
+  const card = (label, r, val) => { const d = h('div', ''); d.append(h('small', '', label), h('b', '', r ? `${r.p.av} ${r.p.name}` : '—')); if (r) d.append(h('em', '', val)); hl.append(d); };
+  const w = top(r => r.st.wins); card('🏆 Thắng nhiều nhất', w, `${w.st.wins} ván`);
+  const l = top(r => r.st.losses); card('💸 Thua nhiều nhất', l, `${l.st.losses} ván`);
+  const g = top(r => r.st.streak); card('🔥 Đang xanh nhất', g.st.streak > 0 ? g : null, g.st.streak > 0 ? `thắng ${g.st.streak} ván liền` : '');
+  const rd = top(r => -r.st.streak); card('🥶 Đang đỏ nhất', rd.st.streak < 0 ? rd : null, rd.st.streak < 0 ? `thua ${-rd.st.streak} ván liền` : '');
+  const ch = top(r => r.st.chops); card('🪓 Vua chặt', ch.st.chops ? ch : null, ch.st.chops ? `${ch.st.chops} lần` : '');
+  const pt = top(r => r.st.points); card('💰 Lãi nhiều nhất', pt, sc(pt.st.points) + ' đ');
+  b.append(hl);
+  rows.sort((a, b2) => ((b2.st && b2.st.points) || 0) - ((a.st && a.st.points) || 0)).forEach(({ p, i, st }) => {
+    const c = h('div', 'rs-p');
+    const hd = h('div', 'hd');
+    hd.append(h('span', '', p.av), h('span', 'nm', p.name + (i === S.you ? ' (bạn)' : '')), streakBadge(st));
+    const pts = st ? st.points : 0;
+    hd.append(h('span', 'pt ' + (pts > 0 ? 'p' : pts < 0 ? 'n' : ''), sc(pts)));
+    c.append(hd);
+    if (st && st.games) {
+      const rate = Math.round((st.wins / st.games) * 100);
+      const bar = h('div', 'rs-bar'); const fill = h('i', ''); fill.style.width = rate + '%'; bar.append(fill); c.append(bar);
+      const gr = h('div', 'rs-grid');
+      const cell = (k, v) => { const d = h('div', ''); d.append(h('small', '', k), h('b', '', String(v))); gr.append(d); };
+      cell('Ván', st.games); cell('Thắng', `${st.wins} · ${rate}%`); cell('Thua', `${st.losses} · ${100 - rate}%`); cell('Báo Sâm', `${st.samWins}/${st.samCalls}`);
+      cell('Bắt Sâm', st.samCaught); cell('Chặt', st.chops); cell('Bị chặt', st.chopped); cell('Cóng', st.cong);
+      cell('Xanh dài nhất', st.bestWin); cell('Đỏ dài nhất', st.bestLose); cell('Ván ngon', sc(st.best)); cell('Ván đen', sc(st.worst));
+      c.append(gr);
+    } else c.append(h('p', 'muted', 'Chưa chơi ván nào ở bàn này'));
+    b.append(c);
+  });
+  b.append(h('p', 'muted center', 'Tính từ khi bàn này bắt đầu. Lịch sử lâu dài xem ở mục Thống kê của tài khoản.'));
+}
+
 /* ---------- xin đổi chỗ giải đen ---------- */
 function setupSwapButton(btn) {
   const me = S && S.players[S.you];
-  const idle = S && (S.phase === 'over' || S.phase === 'lobby');
   btn.hidden = true; btn.classList.add('hide');
-  if (!me || isSpec() || !idle || (me.lose || 0) < (S.swapNeed || 5) || S.players.length < 2) return;
+  if (!me || isSpec() || S.players.length < 2) return;
+  const plan = S.swapPlan, mine = plan && (plan.a === S.you || plan.b === S.you);
+  if ((me.lose || 0) < (S.swapNeed || 10) && !mine) return;
   btn.hidden = false; btn.classList.remove('hide');
   btn.className = 'btn swap-btn';
-  btn.textContent = S.swap && S.swap.from === S.you ? '⏳ Đang chờ đồng ý đổi chỗ…' : `😵 Thua ${me.lose} ván liền — Xin đổi chỗ giải đen`;
-  btn.disabled = !!S.swap;
+  if (mine) {
+    const other = S.players[plan.a === S.you ? plan.b : plan.a];
+    btn.textContent = `✅ Sẽ đổi chỗ với ${other ? other.name : ''} từ ván sau`;
+    btn.disabled = true;
+  } else {
+    btn.textContent = S.swap && S.swap.from === S.you ? '⏳ Đang chờ đồng ý đổi chỗ…' : `😵 Thua ${me.lose} ván liền — Xin đổi chỗ giải đen`;
+    btn.disabled = !!S.swap || !!plan;
+  }
   btn.onclick = () => openSwapPicker();
 }
 function openSwapPicker() {
   const b = $('hostBody'); b.textContent = '';
-  b.append(h('p', 'muted', 'Chọn người muốn đổi chỗ. Máy luôn đồng ý, người thì phải bấm chấp nhận (30 giây).'));
+  b.append(h('p', 'muted', 'Chọn người muốn đổi chỗ. Máy luôn đồng ý; người thì có 30 giây để trả lời. Đồng ý thì đổi chỗ từ ván sau.'));
   const pl = h('div', 'card-panel');
   S.players.forEach((p, i) => {
     if (i === S.you) return;
     const r = h('div', 'hp');
     r.append(h('span', '', p.av), h('span', 'nm', p.name + (p.bot ? ' (máy)' : '')));
     const go = h('button', 'btn slim gold', 'Đổi chỗ');
-    go.onclick = async () => { const res = await act('swapReq', { idx: i }); if (!res.err) { $('hostSheet').classList.remove('on'); toast(p.bot ? 'Đã đổi chỗ!' : `Đã gửi lời xin đổi chỗ tới ${p.name}`); } };
+    go.onclick = async () => { const res = await act('swapReq', { idx: i }); if (!res.err) { $('hostSheet').classList.remove('on'); toast(p.bot ? `${p.name} đồng ý — đổi chỗ từ ván sau` : `Đã gửi lời xin đổi chỗ tới ${p.name}`); } };
     r.append(go); pl.append(r);
   });
   b.append(pl);
@@ -1247,7 +1316,7 @@ function checkRequests() {
   if (!S || isSpec()) return;
   if (S.swap && S.swap.to === S.you && S.players[S.swap.from]) {
     const p = S.players[S.swap.from];
-    ask('swap' + S.swap.at, '🔄', `${p.name} thua ${p.lose} ván liền, xin đổi chỗ ngồi với bạn để giải đen. Đồng ý không?`, 'Đổi chỗ', 'Không',
+    ask('swap' + S.swap.at, '🔄', `${p.name}: "Đen quá, đổi chỗ phát!" — thua ${p.lose} ván liền, xin đổi chỗ với bạn từ ván sau. Đồng ý không?`, 'Ok cưng', 'Không đổi',
       () => act('swapAns', { yes: true }), () => act('swapAns', { yes: false }));
   } else if (S.deckReq && S.you === S.host && S.players[S.deckReq.from]) {
     ask('deck' + S.deckReq.at, '🃏', `${S.players[S.deckReq.from].name} đề nghị đổi bộ bài mới.`, 'Đổi bộ mới', 'Giữ bộ cũ',

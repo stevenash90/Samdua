@@ -19,7 +19,8 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - Lịch sử ván, thống kê cá nhân, cài đặt (rung, giảm hiệu ứng, tiết kiệm hiệu năng).
 - **Chat** trong phòng (người chơi và người xem), có câu nhanh; tin của người chơi hiện thành bong bóng cạnh ghế.
 - **Người xem**: vào phòng bằng nút 👀 Xem (hoặc khi phòng đang chơi dở). Chỉ thấy bài công khai, chat được, không thao tác ván, không xem lại được ván. Còn chỗ thì bấm "Vào chơi" giữa các ván.
-- **Đổi chỗ giải đen**: thua 5 ván liên tiếp thì được xin đổi chỗ với người khác (giữa các ván). Máy luôn đồng ý; người thì có 30 giây chấp nhận/từ chối.
+- **Đổi chỗ giải đen**: thua 10 ván liên tiếp thì được xin đổi chỗ (kể cả lúc đang chơi, nút trong menu ⋯). Người kia có 30 giây trả lời; đồng ý thì đổi chỗ từ ván sau. Có thoại "Đen quá, đổi chỗ phát!" / "Ok cưng!"; từ chối thì hiện câu đáp ngẫu nhiên.
+- **Thống kê bàn** (nút 📊, mở được giữa ván): thắng/thua nhiều nhất, tỉ lệ thắng thua, báo Sâm, bắt Sâm, chặt, bị chặt, cóng, chuỗi xanh/đỏ hiện tại và dài nhất, lãi lỗ.
 - **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.
 
 ## Tài khoản thành viên

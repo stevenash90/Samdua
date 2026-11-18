@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=2.2.2">
+<link rel="stylesheet" href="/style.css?v=2.3.0">
 </head>
 <body>
 
@@ -73,7 +73,7 @@
 <!-- ============ PHÒNG CHỜ ============ -->
 <section class="screen" id="sLobby">
   <header class="bar"><button class="icon" id="btLobbyLeave">←</button><h2>Phòng chờ</h2>
-    <div class="gr"><button class="icon sm btMenu" title="Bàn chơi">⋯</button><button class="icon sm" data-go="settings">⚙️</button></div></header>
+    <div class="gr"><button class="icon sm btRstats" title="Thống kê bàn">📊</button><button class="icon sm btMenu" title="Bàn chơi">⋯</button><button class="icon sm" data-go="settings">⚙️</button></div></header>
   <div class="wrap">
     <div class="code-box">
       <small>Mã phòng</small>
@@ -101,6 +101,7 @@
     <div class="gl"><span class="rc"><span class="lb">Phòng </span><b id="gCode"></b></span><span class="chip" id="gNo"></span><span class="chip hide" id="gSpec"></span></div>
     <div class="gr">
       <button class="icon sm hide" id="btPause" title="Tạm dừng">⏸</button>
+      <button class="icon sm btRstats" title="Thống kê bàn">📊</button>
       <button class="icon sm btMenu" title="Bàn chơi">⋯</button>
       <button class="icon sm" data-go="settings" title="Cài đặt">⚙️</button>
       <button class="icon sm" id="btGameLeave" title="Rời phòng">✕</button>
@@ -228,6 +229,14 @@
   </div>
 </div>
 
+<!-- ============ THỐNG KÊ BÀN ============ -->
+<div class="sheet" id="rsSheet">
+  <div class="sheet-body">
+    <div class="sheet-head"><h2>📊 Thống kê bàn</h2><button class="icon" id="btCloseRs">✕</button></div>
+    <div id="rsBody"></div>
+  </div>
+</div>
+
 <!-- ============ TÀI KHOẢN ============ -->
 <div class="sheet" id="accSheet">
   <div class="sheet-body">
@@ -243,7 +252,7 @@
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/audio.js?v=2.2.2"></script>
-<script src="/app.js?v=2.2.2"></script>
+<script src="/audio.js?v=2.3.0"></script>
+<script src="/app.js?v=2.3.0"></script>
 </body>
 </html>
