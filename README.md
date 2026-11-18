@@ -21,6 +21,7 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Người xem**: vào phòng bằng nút 👀 Xem (hoặc khi phòng đang chơi dở). Chỉ thấy bài công khai, chat được, không thao tác ván, không xem lại được ván. Còn chỗ thì bấm "Vào chơi" giữa các ván.
 - **Đổi chỗ giải đen**: thua 10 ván liên tiếp thì được xin đổi chỗ (kể cả lúc đang chơi, nút trong menu ⋯). Người kia có 30 giây trả lời; đồng ý thì đổi chỗ từ ván sau. Có thoại "Đen quá, đổi chỗ phát!" / "Ok cưng!"; từ chối thì hiện câu đáp ngẫu nhiên.
 - **Thống kê bàn** (nút 📊, mở được giữa ván): thắng/thua nhiều nhất, tỉ lệ thắng thua, báo Sâm, bắt Sâm, chặt, bị chặt, cóng, chuỗi xanh/đỏ hiện tại và dài nhất, lãi lỗ.
+- **Máy nói chuyện**: mỗi máy có tính cách riêng (`src/botchat.js`) và chém gió trên chat khi vào ván, chặt/bị chặt, có người báo Sâm, thắng/thua, hoặc khi bị gọi tên. Mỗi máy nói 2–5 câu/ván, các câu cách nhau để không loạn bàn. Chủ phòng tắt được trong cài đặt hoặc menu ⋯.
 - **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.
 
 ## Tài khoản thành viên
@@ -58,6 +59,7 @@ src/config.js        cấu hình (biến môi trường)
 src/rules.js         luật bài thuần (nhận diện bộ, chặn, chặt, ăn trắng)
 src/scoring.js       tính tiền: chặt 2, chặt đè, Sâm, cóng, thối 2, ăn trắng
 src/ai.js            gợi ý nước đi / não của máy (chỉ thông tin công khai)
+src/botchat.js       tính cách & câu thoại chat của từng máy
 src/room.js          state machine phòng & ván, tạm dừng, AFK, chủ phòng, event log
 src/store.js         lưu trữ: PostgreSQL (migration) hoặc file JSON
 src/accounts.js      tài khoản: đăng ký, đăng nhập, Google, phiên, hồ sơ

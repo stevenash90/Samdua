@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -429,6 +429,7 @@ function openCreate(cur) {
   editMode = !!cur;
   const s = cur || store.json('sam_room_defaults', null) || {};
   $('fAi').checked = s.ai !== undefined ? s.ai : true;
+  $('fBotChat').checked = s.botChat !== undefined ? s.botChat : true;
   setSeg('fTurn', s.turnMs || 30000);
   setSeg('fPause', s.pauseLimitMs !== undefined ? s.pauseLimitMs : 600000);
   setSeg('fReplay', s.replayPolicy || 'all');
@@ -441,7 +442,7 @@ function openCreate(cur) {
 }
 function formSettings() {
   return {
-    ai: $('fAi').checked, turnMs: +segVal('fTurn'), pauseLimitMs: +segVal('fPause'), replayPolicy: segVal('fReplay'),
+    ai: $('fAi').checked, botChat: $('fBotChat').checked, turnMs: +segVal('fTurn'), pauseLimitMs: +segVal('fPause'), replayPolicy: segVal('fReplay'),
     points: Object.assign({}, formPts, { chainMode: segVal('fChain') }),
   };
 }
@@ -1174,6 +1175,11 @@ function renderHostSheet() {
   const sw = h('label', 'sw'); const inp = document.createElement('input'); inp.type = 'checkbox'; inp.checked = S.settings.ai; inp.disabled = !isHost;
   inp.onchange = () => act('settings', { settings: { ai: inp.checked } });
   sw.append(inp, h('i', '')); aiRow.append(lab, sw); panel.append(aiRow);
+  const bcRow = h('div', 'frow');
+  const bcLab = h('div', ''); bcLab.append(h('b', '', 'Máy nói chuyện trên chat'));
+  const bcSw = h('label', 'sw'); const bcIn = document.createElement('input'); bcIn.type = 'checkbox'; bcIn.checked = S.settings.botChat !== false;
+  bcIn.onchange = () => act('settings', { settings: { botChat: bcIn.checked } });
+  bcSw.append(bcIn, h('i', '')); bcRow.append(bcLab, bcSw); panel.append(bcRow);
   const pr = h('div', 'frow');
   pr.append(h('b', '', 'Tạm dừng ván'), h('span', 'muted', S.settings.pauseLimitMs ? `đã dùng ${fmtTime(S.pauseUsed || 0)} / ${fmtTime(S.settings.pauseLimitMs)}` : `đã dùng ${fmtTime(S.pauseUsed || 0)} · không giới hạn`));
   panel.append(pr);

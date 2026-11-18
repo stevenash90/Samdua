@@ -238,6 +238,59 @@ test('mô phỏng 300 ván toàn máy: không lỗi, tổng điểm bằng 0, m�
   }
 });
 
+test('máy nói chuyện: mỗi máy 2–5 câu/ván, đúng tính cách, tắt được', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 7_000_000 });
+  const { PERSONAS } = require('../src/botchat');
+  const { BOTS } = require('../src/room');
+  for (const [nm] of BOTS) assert.ok(PERSONAS[nm], 'thiếu tính cách cho ' + nm);
+  assert.ok(BOTS.some(b => b[0] === 'Phương Oanh') && !BOTS.some(b => b[0] === 'Tún'));
+  const room = new Room('BCH', { store: mkStore(), send() {} });
+  const h = room.addHuman('bc-token', 'Người', '🙂', { gender: 'nu' });
+  room.connect(h.pid);
+  for (let k = 0; k < 4; k++) room.handle(h.pid, { a: 'addBot' });
+  const play = () => {
+    room.handle(h.pid, { a: 'start' });
+    room.players[0].auto = true;
+    room.handle(h.pid, { a: 'sam', yes: false });
+    let guard = 0;
+    while (room.phase !== 'over' && guard++ < 500) { room.commit(); tick(t, 4000); room.players[0].auto = true; }
+    for (let k = 0; k < 60; k++) tick(t, 1000);   // chờ máy nói hết hàng đợi
+  };
+  for (let gno = 0; gno < 30; gno++) {
+    const from = room.chatSeq;
+    play();
+    const lines = room.chat.filter(m => m.id > from && m.bot);
+    for (const p of room.players.filter(x => x.bot)) {
+      const c = lines.filter(m => m.name === p.name);
+      assert.ok(c.length >= 2 && c.length <= 5, `${p.name} nói ${c.length} câu`);
+      assert.ok(c.every(m => !/\{\w+\}/.test(m.text)), 'còn biến chưa thay');
+      assert.ok(c.every(m => m.kind === 'player' && m.seat === room.idxOf(p.pid)));
+    }
+  }
+  // gọi tên máy → máy đáp
+  const bi = room.players.findIndex(p => p.bot);
+  const key = PERSONAS[room.players[bi].name].keys[0];
+  let replied = 0;
+  for (let k = 0; k < 10; k++) {
+    room.botTalk = {};
+    const from = room.chatSeq;
+    tick(t, 1000);
+    room.handle(h.pid, { a: 'chat', text: 'ê ' + key + ' ơi' });
+    for (let j = 0; j < 6; j++) tick(t, 1000);
+    if (room.chat.some(m => m.id > from && m.bot && m.name === room.players[bi].name)) replied++;
+  }
+  assert.ok(replied >= 3, 'máy phải đáp khi bị gọi tên');
+  // tắt → im lặng
+  room.handle(h.pid, { a: 'settings', settings: { botChat: false } });
+  assert.strictEqual(room.settings.botChat, false);
+  const from = room.chatSeq;
+  play();
+  room.handle(h.pid, { a: 'chat', text: key });
+  for (let j = 0; j < 10; j++) tick(t, 1000);
+  assert.strictEqual(room.chat.filter(m => m.id > from && m.bot).length, 0);
+  room.close();
+});
+
 /* ---------------- chat, người xem, đổi chỗ, đổi bộ bài ---------------- */
 test('chat: lọc nội dung, giới hạn tốc độ, giữ tối đa 60 tin, lưu qua restart', t => {
   const { room, act } = setup(t, 2, H3.slice(0, 2));
