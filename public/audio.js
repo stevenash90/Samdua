@@ -54,7 +54,7 @@ const Sound = (function () {
     if (wantMusic) music(true);
   }
 
-  function url(name) { return `/audio/${name}.${ext}?v=4`; }
+  function url(name) { return `/audio/${name}.${ext}?v=5`; }
   function load(name) {
     if (buffers.has(name)) return Promise.resolve(buffers.get(name));
     if (loading.has(name)) return loading.get(name);
@@ -176,9 +176,9 @@ const Sound = (function () {
   function line(pack, key, role, pri = 1, pan = 0) {
     if (!has(pack, key)) return false;
     if (role === 'mc' ? !st.voice : !st.pvoice) return false;
-    if (key === 'play') {
+    if (key === 'play' || key === 'pass') {        // câu thường: không nói liên tục
       const now = performance.now();
-      if (now - lastPlayLine < 6000 || Math.random() > 0.35) return false;
+      if (now - lastPlayLine < 3500 || Math.random() > 0.6) return false;
       lastPlayLine = now;
     }
     const group = role === 'mc' ? 'mc' : pack === 'f' ? 'female' : 'male';

@@ -40,8 +40,8 @@ function broadcast(room) {
   if (!set) return;
   for (const ws of set) {
     const i = room.idxOf(ws.pid);
-    if (i >= 0) { sendJson(ws, { t: 'state', s: room.view(i), ev: room.eventsFor(i) }); continue; }
-    if (room.specIdx(ws.pid) >= 0) { sendJson(ws, { t: 'state', s: room.view(-1, 'spec'), ev: room.eventsFor(-1) }); continue; }
+    if (i >= 0) { sendJson(ws, { t: 'state', v: VERSION, s: room.view(i), ev: room.eventsFor(i) }); continue; }
+    if (room.specIdx(ws.pid) >= 0) { sendJson(ws, { t: 'state', v: VERSION, s: room.view(-1, 'spec'), ev: room.eventsFor(-1) }); continue; }
     sendJson(ws, { t: 'gone' }); ws.close();
   }
 }

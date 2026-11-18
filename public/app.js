@@ -1,6 +1,14 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
+const APP_VERSION = '2.2.2';
+function showUpdateBar() {
+  if (document.querySelector('.update-bar')) return;
+  const b = document.createElement('div'); b.className = 'update-bar';
+  const t = document.createElement('span'); t.textContent = 'Đã có phiên bản mới của game';
+  const r = document.createElement('button'); r.textContent = 'Tải lại'; r.onclick = () => location.reload();
+  b.append(t, r); document.body.append(b);
+}
 const RANKS = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
 const SUITS = ['♠', '♣', '♦', '♥'];
 const AVATARS = ['😎', '🤠', '🥸', '😈', '🤡', '👻', '🤖', '👽', '🐯', '🐵', '🐷', '🦊', '🐸', '🐼', '🦁', '🐙'];
@@ -136,6 +144,7 @@ const Net = {
     ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', token, room }));
     ws.onmessage = e => {
       let m; try { m = JSON.parse(e.data); } catch (x) { return; }
+      if (m.v && m.v !== APP_VERSION) showUpdateBar();
       if (m.t === 'state') {
         this.tries = 0; $('netbar').classList.remove('on'); clearTimeout(this.netTimer);
         const first = this.fresh; this.fresh = false;
@@ -1009,7 +1018,7 @@ function voiceLine(key, actor, pri, opt = {}) {
   if (actor !== undefined && actor !== null && actor >= 0 && settings.pvoice) {
     const pk = gOf(actor) === 'nu' ? 'f' : 'm';
     if (Sound.line(pk, key, 'player', pri + 1, panOf(actor))) return;
-    if (key === 'play') return;
+    if (key === 'play' || key === 'pass') return;   // không có câu theo giọng người này thì im, không để MC đọc thay
   }
   const pk = mcPack(), alt = pk === 'f' ? 'm' : 'f';
   Sound.line(Sound.has(pk, key) ? pk : alt, key, 'mc', pri, 0);
@@ -1035,7 +1044,7 @@ function handleEvents(evs) {
         else Sound.play(e.n >= 5 ? 'play_big' : 'play', { pan });
         if (!e.chop) voiceLine('play', e.by, 1);
         break;
-      case 'pass': Sound.play('pass', { pan }); break;
+      case 'pass': Sound.play('pass', { pan }); if (!e.auto) voiceLine('pass', e.by, 1); break;
       case 'round': Sound.play('collect'); if (e.leader !== S.you) voiceLine('next', null, 1); break;
       case 'turn':
         // tới lượt mình: cầm cái thì "Xin mời bạn…", phải chặn thì "Đến lượt bạn rồi"
@@ -1271,9 +1280,29 @@ async function sendChat(text) {
   return !r.err;
 }
 function myChatName() { return S && S.you >= 0 && S.players[S.you] ? S.players[S.you].name : store.get('sam_name', ''); }
+let ovSig = '', ovSeen = 0;
+function renderChatOverlay(msgs, me) {
+  const ov = $('chatOv'); if (!ov) return;
+  const last = msgs.slice(-5);
+  const sig = last.map(m => m.id).join(',');
+  if (sig === ovSig) return;              // không vẽ lại khi tin nhắn không đổi (tránh nhấp nháy)
+  ovSig = sig;
+  ov.textContent = '';
+  last.forEach((m, k) => {
+    const ln = h('div', 'ln ' + m.kind + (k < last.length - 3 ? ' old' : '') + (m.id > ovSeen ? ' new' : ''));
+    if (m.kind === 'sys') ln.textContent = m.text;
+    else {
+      if (m.name === me && m.kind === (isSpec() ? 'spec' : 'player')) ln.classList.add('mine');
+      ln.append(h('b', '', (m.kind === 'spec' ? '👀 ' : '') + m.name + ': '), document.createTextNode(m.text));
+    }
+    ov.append(ln);
+  });
+  if (last.length) ovSeen = Math.max(ovSeen, last[last.length - 1].id);
+}
 function renderChat() {
   if (!S) return;
   const msgs = (S.chat || []).slice(-40), me = myChatName();
+  renderChatOverlay(msgs, me);
   document.querySelectorAll('[data-chat] .cb-list').forEach(l => {
     const atBottom = l.scrollHeight - l.scrollTop - l.clientHeight < 30;
     l.textContent = '';
