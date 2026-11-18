@@ -386,3 +386,51 @@ body[data-deck="2"] .card{background:linear-gradient(160deg,#fffdf2 0%,#f6ecd0 7
 .slot-br .bub{transform:translateY(-100%)}
 .slot-tl .bub::after,.slot-bl .bub::after{left:28px}
 .slot-tr .bub::after,.slot-br .bub::after{left:auto;right:22px}
+
+/* ---------- tài khoản ---------- */
+.accbar{display:flex;justify-content:flex-end;margin-bottom:-8px}
+.acc-chip{display:flex;align-items:center;gap:6px;background:#ffffff12;border:1px solid var(--line);border-radius:99px;padding:6px 12px 6px 8px;font-size:13px;font-weight:700}
+.acc-chip .ai{font-size:18px}
+.acc-chip.guest{color:var(--gold)}
+.seg.gender{display:inline-flex}
+.seg.gender button{padding:7px 14px;font-size:13.5px}
+.acc-tabs{display:flex;gap:6px;background:#00000040;border-radius:12px;padding:4px}
+.acc-tabs button{flex:1;padding:9px;border-radius:9px;font-weight:700;color:var(--mute)}
+.acc-tabs button.on{background:var(--gold);color:#2c1d00}
+.acc-form{display:flex;flex-direction:column;gap:10px}
+.acc-form input{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid #ffffff26;background:#00000055;color:var(--cream);outline:0}
+.acc-form label.ck{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute)}
+.acc-or{text-align:center;color:var(--mute);font-size:12px}
+#gBtn{display:flex;justify-content:center;min-height:44px}
+.acc-who{display:flex;align-items:center;gap:12px}
+.acc-who .big{font-size:40px}
+.acc-who b{font-size:18px;display:block}
+.acc-who small{color:var(--mute)}
+.who-line{text-align:center;color:var(--mute);font-size:12.5px;margin:-4px 0 4px}
+
+/* ---------- chat box nằm sẵn, không viền ---------- */
+.chatbox{position:relative;z-index:6;margin-top:6px}
+.cb-list{max-height:62px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;padding:0 4px;font-size:12.5px;line-height:1.35;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 14px);mask-image:linear-gradient(to bottom,transparent 0,#000 14px);user-select:text;-webkit-user-select:text}
+.cb-list .ln{text-shadow:0 1px 2px #000;word-break:break-word}
+.cb-list .ln b{color:var(--gold);font-weight:700}
+.cb-list .ln.spec b{color:#7fd1ff}
+.cb-list .ln.sys{color:var(--mute);font-style:italic;font-size:11.5px}
+.cb-list .ln.mine b{color:#7bf0a8}
+.cb-list .empty{padding:2px 0;color:#ffffff55;font-size:11.5px;text-align:left}
+.cb-form{display:flex;gap:6px;align-items:center;margin-top:4px}
+.cb-form input{flex:1;min-width:0;padding:8px 12px;border-radius:99px;border:0;background:#ffffff14;color:var(--cream);outline:0;font-size:14px}
+.cb-form input:focus{background:#ffffff22}
+.cb-form button{flex:none;width:34px;height:34px;border-radius:50%;background:#ffffff14;font-size:15px;display:grid;place-items:center}
+.cb-form button.send{background:var(--gold);color:#2c1d00}
+.cb-quick{display:flex;gap:5px;overflow-x:auto;padding-top:5px}
+.cb-quick button{flex:none;background:#ffffff12;border-radius:99px;padding:5px 10px;font-size:12.5px;white-space:nowrap}
+.chatbox.lobby{padding:4px 16px calc(8px + var(--sab));max-width:460px;width:100%;margin:0 auto}
+.chatbox.lobby .cb-list{max-height:96px}
+@media (min-width:700px) and (min-height:760px){ #sGame .chatbox .cb-list{max-height:84px} }
+@media (max-height:680px){ .cb-list{max-height:44px} }
+.cb-in{padding:10px 12px;border-radius:10px;border:1.5px solid #ffffff26;background:#00000055;color:var(--cream);outline:0;width:100%}
+
+.acc-form label.ck input{width:auto;padding:0;flex:none;accent-color:var(--gold)}
+.join-row input{letter-spacing:3px;min-width:0}
+.join-row .btn{padding:13px 12px}

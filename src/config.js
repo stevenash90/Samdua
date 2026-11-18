@@ -24,4 +24,7 @@ module.exports = {
   // Luật chặt (không đổi luật đã thống nhất; cấu hình chỉ để mở rộng)
   // Cho phép tứ quý và ba đôi thông chặt chéo nhau. Chưa được xác nhận nên mặc định TẮT.
   CROSS_CHOP: str('CROSS_CHOP', '0') === '1',
+
+  // Đăng nhập Google: OAuth Client ID (loại Web application) tạo trong Google Cloud Console
+  GOOGLE_CLIENT_ID: str('GOOGLE_CLIENT_ID', ''),
 };

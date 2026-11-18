@@ -18,7 +18,7 @@ if (!token || token.length < 16) {
   token = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   store.set('sam_token', token);
 }
-const DEFAULT_SETTINGS = { mute: false, master: 80, music: 30, sfx: 85, voice: false, ambient: true, spatial: true, vibrate: true, reduce: false, perf: false };
+const DEFAULT_SETTINGS = { mute: false, master: 80, music: 30, sfx: 85, voice: false, mcVol: 90, pvoice: false, maleVol: 85, femaleVol: 85, ambient: true, spatial: true, vibrate: true, reduce: false, perf: false };
 let settings = Object.assign({}, DEFAULT_SETTINGS, store.json('sam_settings', {}));
 let myAv = store.get('sam_av') || AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
@@ -114,7 +114,9 @@ document.addEventListener('click', e => {
 /* ================= API & mạng ================= */
 async function api(a, extra = {}) {
   try {
-    const r = await fetch('/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ a, token }, extra)) });
+    const sess = store.get('sam_session', '');
+    const body = Object.assign({ a, token, gender: myGender() }, sess ? { session: sess } : {}, extra);
+    const r = await fetch('/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     return await r.json();
   } catch (e) { return { err: 'Không kết nối được máy chủ' }; }
 }
@@ -201,9 +203,168 @@ $('inCode').value = qRoom;
     box.append(b);
   });
 })();
+/* ================= tài khoản thành viên ================= */
+function myGender() { return (Account && Account.user && Account.user.gender) || store.get('sam_gender', 'nam'); }
+const Account = {
+  user: store.json('sam_user', null),
+  cfg: null, syncT: null, mode: 'login',
+  logged() { return !!(this.user && store.get('sam_session', '')); },
+  set(user, session) {
+    this.user = user;
+    if (session !== undefined) store.set('sam_session', session || '');
+    store.set('sam_user', user ? JSON.stringify(user) : '');
+    if (user) {
+      if (user.name) { $('inName').value = user.name; store.set('sam_name', user.name); }
+      if (user.av) { myAv = user.av; store.set('sam_av', myAv); markAvatar(); }
+      store.set('sam_gender', user.gender || 'nam');
+    }
+    setSeg('fGender', myGender());
+    this.renderChip();
+  },
+  renderChip() {
+    const c = $('accChip'); c.textContent = '';
+    if (this.logged()) { c.className = 'acc-chip'; c.append(h('span', 'ai', this.user.av || '🙂'), h('span', '', this.user.name + ' · Hồ sơ')); }
+    else { c.className = 'acc-chip guest'; c.append(h('span', 'ai', '👤'), h('span', '', 'Khách · Đăng nhập / Đăng ký')); }
+  },
+  async refresh() {
+    if (!store.get('sam_session', '')) return this.set(null);
+    const j = await api('me');
+    if (j.err) return;                         // mất mạng: giữ nguyên
+    if (!j.user) { this.set(null, ''); return; }
+    this.set(j.user);
+    if (j.user.settings) { settings = Object.assign({}, DEFAULT_SETTINGS, j.user.settings); this._noSync = true; applySettings(); this._noSync = false; }
+  },
+  async loggedIn(j, verb) {
+    this.set(j.user, j.session);
+    if (j.user.settings) { settings = Object.assign({}, DEFAULT_SETTINGS, j.user.settings); this._noSync = true; applySettings(); this._noSync = false; }
+    else this.syncSettings();
+    $('accSheet').classList.remove('on');
+    toast(`${verb} ${j.user.name}` + (j.claimed ? ` · đã gộp ${j.claimed} ván chơi trên máy này` : ''));
+  },
+  syncSettings() {
+    if (this._noSync || !this.logged()) return;
+    clearTimeout(this.syncT);
+    this.syncT = setTimeout(() => api('profile', { settings }), 1500);   // lưu cấu hình âm thanh/giọng theo tài khoản
+  },
+  async save(f) {
+    const j = await api('profile', f);
+    if (j.err) return toast(j.err);
+    this.set(j.user); toast('Đã lưu hồ sơ');
+  },
+  async logout() {
+    await api('logout');
+    this.set(null, '');
+    toast('Đã đăng xuất. Bạn đang chơi với tư cách khách');
+    this.open();
+  },
+  open() { this.render(); $('accSheet').classList.add('on'); },
+  render() {
+    const b = $('accBody'); b.textContent = '';
+    $('accTitle').textContent = this.logged() ? 'Hồ sơ thành viên' : 'Tài khoản';
+    if (this.logged()) return this.renderProfile(b);
+    const tabs = h('div', 'acc-tabs');
+    [['login', 'Đăng nhập'], ['register', 'Đăng ký']].forEach(([m, t]) => {
+      const x = h('button', this.mode === m ? 'on' : '', t); x.onclick = () => { this.mode = m; this.render(); }; tabs.append(x);
+    });
+    b.append(tabs);
+    const f = h('form', 'acc-form');
+    const inp = (ph, type, val) => { const i = document.createElement('input'); i.placeholder = ph; i.type = type || 'text'; i.autocomplete = type === 'password' ? (this.mode === 'login' ? 'current-password' : 'new-password') : 'username'; if (val) i.value = val; f.append(i); return i; };
+    const u = inp('Tên đăng nhập (chữ thường, số, _ .)');
+    u.autocapitalize = 'none';
+    const pw = inp('Mật khẩu (ít nhất 6 ký tự)', 'password');
+    let nick = null;
+    if (this.mode === 'register') nick = inp('Nickname hiển thị', 'text', $('inName').value.trim());
+    const ckl = h('label', 'ck'); const ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = true;
+    ckl.append(ck, h('span', '', 'Gộp các ván đã chơi trên máy này vào tài khoản')); f.append(ckl);
+    const go = h('button', 'btn gold big', this.mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'); go.type = 'submit'; f.append(go);
+    f.onsubmit = async e => {
+      e.preventDefault(); go.disabled = true;
+      const body = { username: u.value.trim(), password: pw.value, claim: ck.checked };
+      if (this.mode === 'register') Object.assign(body, { name: (nick.value.trim() || u.value.trim()), av: myAv, gender: myGender() });
+      const j = await api(this.mode, body);
+      go.disabled = false;
+      if (j.err) return toast(j.err);
+      this.loggedIn(j, this.mode === 'login' ? 'Chào mừng trở lại,' : 'Đã tạo tài khoản cho');
+    };
+    b.append(f);
+    const gwrap = h('div', '');
+    if (this.cfg && this.cfg.googleClientId) {
+      gwrap.append(h('div', 'acc-or', '— hoặc —'));
+      const gb = h('div', ''); gb.id = 'gBtn'; gwrap.append(gb);
+      b.append(gwrap);
+      this.google(gb, ck);
+    }
+    const guest = h('button', 'btn', 'Chơi tiếp với tư cách khách');
+    guest.onclick = () => $('accSheet').classList.remove('on');
+    b.append(guest, h('p', 'muted center', 'Khách vẫn chơi bình thường, nhưng lịch sử chỉ lưu trên máy này. Có tài khoản thì đăng nhập máy nào cũng thấy lịch sử, thống kê và cài đặt giọng đọc.'));
+  },
+  google(el, ck) {
+    const init = () => {
+      if (!window.google || !google.accounts || !google.accounts.id) return setTimeout(init, 300);
+      google.accounts.id.initialize({
+        client_id: this.cfg.googleClientId,
+        callback: async resp => {
+          const j = await api('google', { credential: resp.credential, claim: ck ? ck.checked : true, av: myAv, gender: myGender(), name: $('inName').value.trim() || undefined });
+          if (j.err) return toast(j.err);
+          this.loggedIn(j, 'Chào');
+        },
+      });
+      google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', locale: 'vi', width: 280 });
+    };
+    init();
+  },
+  renderProfile(b) {
+    const u = this.user;
+    const who = h('div', 'acc-who');
+    const t = h('div', ''); t.append(h('b', '', u.name), h('small', '', u.google ? 'Google · ' + (u.email || '') : '@' + u.username));
+    who.append(h('div', 'big', u.av || '🙂'), t);
+    b.append(who);
+    const f = h('div', 'card-panel form');
+    const r1 = h('div', 'frow'); r1.append(h('b', '', 'Nickname'));
+    const nick = document.createElement('input'); nick.value = u.name; nick.maxLength = 16; nick.style.width = '55%'; nick.className = 'cb-in';
+    r1.append(nick); f.append(r1);
+    const r2 = h('div', ''); r2.append(h('div', 'lbl', 'Avatar'));
+    const grid = h('div', 'avpick'); let av = u.av;
+    AVATARS.forEach(a => { const x = h('button', a === av ? 'on' : '', a); x.onclick = () => { av = a; grid.querySelectorAll('button').forEach(y => y.classList.toggle('on', y === x)); }; grid.append(x); });
+    r2.append(grid); f.append(r2);
+    const r3 = h('div', 'frow'); r3.append(h('b', '', 'Giới tính (giọng nói)'));
+    const seg = h('div', 'seg'); let gd = u.gender || 'nam';
+    [['nam', '👨 Nam'], ['nu', '👩 Nữ']].forEach(([v, tx]) => { const x = h('button', gd === v ? 'on' : '', tx); x.onclick = () => { gd = v; seg.querySelectorAll('button').forEach(y => y.classList.toggle('on', y === x)); }; seg.append(x); });
+    r3.append(seg); f.append(r3);
+    const sv = h('button', 'btn gold', 'Lưu hồ sơ');
+    sv.onclick = () => this.save({ name: nick.value.trim(), av, gender: gd });
+    f.append(sv);
+    b.append(f);
+    if (!u.google) {
+      const pf = h('div', 'card-panel form');
+      pf.append(h('b', '', 'Đổi mật khẩu'));
+      const o = document.createElement('input'); o.type = 'password'; o.placeholder = 'Mật khẩu hiện tại'; o.className = 'cb-in';
+      const n = document.createElement('input'); n.type = 'password'; n.placeholder = 'Mật khẩu mới'; n.className = 'cb-in';
+      const cb = h('button', 'btn', 'Đổi mật khẩu');
+      cb.onclick = async () => { const j = await api('password', { old: o.value, new: n.value }); toast(j.err || 'Đã đổi mật khẩu'); if (!j.err) { o.value = n.value = ''; } };
+      pf.append(o, n, cb); b.append(pf);
+    }
+    const nav = h('div', 'row');
+    const hb = h('button', 'btn', '🕘 Lịch sử'); hb.onclick = () => { $('accSheet').classList.remove('on'); openHistory(); };
+    const sb = h('button', 'btn', '📊 Thống kê'); sb.onclick = () => { $('accSheet').classList.remove('on'); openStats(); };
+    nav.append(hb, sb); b.append(nav);
+    const lo = h('button', 'btn red', 'Đăng xuất'); lo.onclick = () => this.logout(); b.append(lo);
+  },
+};
+$('accChip').onclick = () => Account.open();
+$('btCloseAcc').onclick = () => $('accSheet').classList.remove('on');
+function markAvatar() { $('avpick').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.textContent === myAv)); }
+document.getElementById('fGender').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  store.set('sam_gender', b.dataset.v);
+  if (Account.logged()) Account.save({ gender: b.dataset.v });
+});
+
 function myName() {
-  const n = $('inName').value.trim();
+  let n = $('inName').value.trim();
+  if (!n && Account.logged()) n = Account.user.name;
   if (!n) { toast('Nhập tên đã nhé'); $('inName').focus(); return null; }
+  if (Account.logged() && n !== Account.user.name) Account.save({ name: n });
   store.set('sam_name', n); return n;
 }
 $('btGoCreate').onclick = () => { if (!myName()) return; openCreate(null); };
@@ -837,14 +998,16 @@ function shakeTable() {
 }
 function nameOf(i) { return S && S.players[i] ? S.players[i].name : ''; }
 
+const genderOf = i => (S && S.players[i] ? S.players[i].gender : 'nam');
 function handleEvents(evs) {
   for (const e of evs) {
     const pan = e.by !== undefined ? seatPan(e.by) : 0;
+    const say = (i, ev) => Sound.say(genderOf(i), ev, seatPan(i));
     switch (e.type) {
       case 'deal': Sound.play('shuffle'); setTimeout(() => Sound.play('deal'), 450); dealAnim = true; break;
       case 'samopen': Sound.play('phase'); break;
       case 'sam':
-        Sound.play('bao_sam', { pan }); Sound.voice('v_sam', 3);
+        Sound.play('bao_sam', { pan }); Sound.voice('v_sam', 3); say(e.by, 'baosam');
         banner('BÁO SÂM!', 'gold', nameOf(e.by)); vibrate(120);
         break;
       case 'start':
@@ -855,8 +1018,9 @@ function handleEvents(evs) {
         if (e.chop === 'chat2') { Sound.play('chop2', { pan }); Sound.voice('v_chop1', 4); banner('CHẶT 2!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 120]); }
         else if (e.chop === 'chatde') { Sound.play(e.depth >= 3 ? 'chopde2' : 'chopde', { pan }); Sound.voice(e.depth >= 3 ? 'v_chopde2' : 'v_chopde', 5); banner('CHẶT ĐÈ x' + (e.mult || 2) + '!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 60, 40, 160]); }
         else Sound.play(e.n >= 5 ? 'play_big' : 'play', { pan });
+        say(e.by, e.chop ? 'chop' : 'play');
         break;
-      case 'pass': Sound.play('pass', { pan }); break;
+      case 'pass': Sound.play('pass', { pan }); if (!e.auto) say(e.by, 'pass'); break;
       case 'round': Sound.play('collect'); if (e.leader !== S.you) Sound.voice('v_next', 1); break;
       case 'turn':
         // tới lượt mình: cầm cái thì "Xin mời bạn…", phải chặn thì "Đến lượt bạn rồi"
@@ -877,6 +1041,7 @@ function handleEvents(evs) {
       case 'swap': Sound.play('collect'); banner('ĐỔI CHỖ 🔄', 'gold', 'Giải đen!'); break;
       case 'end': {
         Sound.play('end');
+        say(e.winner, e.kind === 'chan' ? 'batsam' : 'win');
         if (e.kind === 'sam') { Sound.play('sam_win'); Sound.voice('v_samwin', 6); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
         else if (e.kind === 'chan') {
           Sound.play('bat_sam'); banner('BẮT SÂM!', 'red', nameOf(e.winner));
@@ -890,6 +1055,8 @@ function handleEvents(evs) {
       case 'result': {
         const r = S.result; if (!r) break;
         const me = r.rows[S.you];
+        const loser = r.rows.reduce((m, x, i) => (x.delta < (r.rows[m] ? r.rows[m].delta : 0) ? i : m), -1);
+        if (loser >= 0 && loser !== r.winner) setTimeout(() => Sound.say(genderOf(loser), 'lose', seatPan(loser)), 1600);
         if (r.winner === S.you) { Sound.play('win'); confetti(); vibrate([80, 50, 80, 50, 200]); }
         else {
           Sound.play('lose');
@@ -1066,76 +1233,74 @@ function checkRequests() {
   } else if ($('ask').classList.contains('on') && !S.swap && !S.deckReq) $('ask').classList.remove('on');
 }
 
-/* ---------- chat ---------- */
+/* ---------- chat box (luôn hiện, gõ trực tiếp ở dưới) ---------- */
 const QUICK = ['Đánh nhanh lên!', 'Ngon! 👍', 'Cay thế 😤', 'Đen quá 😭', 'Hehe 😏', 'Bài xấu quá', 'Chờ tí', 'GG'];
-let chatSeen = 0, chatUnread = 0;
-(function chatInit() {
-  const q = $('chatQuick');
-  QUICK.forEach(t => { const b = h('button', '', t); b.onclick = () => sendChat(t); q.append(b); });
-  $('chatForm').onsubmit = e => { e.preventDefault(); const v = $('chatInput').value; if (v.trim()) sendChat(v); };
-  document.querySelectorAll('.btChat').forEach(b => (b.onclick = openChat));
-  $('btCloseChat').onclick = () => $('chatSheet').classList.remove('on');
-})();
+let chatSeen = 0;
+document.querySelectorAll('[data-chat]').forEach(box => {
+  const list = h('div', 'cb-list');
+  const form = h('form', 'cb-form');
+  const qb = h('button', '', '⚡'); qb.type = 'button'; qb.title = 'Câu nhanh';
+  const inp = document.createElement('input'); inp.maxLength = 200; inp.placeholder = 'Nhắn cả bàn…'; inp.autocomplete = 'off'; inp.enterKeyHint = 'send';
+  const send = h('button', 'send', '➤'); send.type = 'submit';
+  form.append(qb, inp, send);
+  const quick = h('div', 'cb-quick hide');
+  QUICK.forEach(t => { const b = h('button', '', t); b.type = 'button'; b.onclick = () => { sendChat(t); quick.classList.add('hide'); }; quick.append(b); });
+  qb.onclick = () => quick.classList.toggle('hide');
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const v = inp.value.trim(); if (!v) return;
+    if (await sendChat(v)) inp.value = '';
+  };
+  box.append(list, quick, form);
+});
 async function sendChat(text) {
   const r = await act('chat', { text });
-  if (!r.err) $('chatInput').value = '';
+  return !r.err;
 }
-function openChat() {
-  $('chatSheet').classList.add('on');
-  chatUnread = 0; updateBadge(); renderChat();
-  setTimeout(() => { const l = $('chatList'); l.scrollTop = l.scrollHeight; }, 30);
-}
-function updateBadge() {
-  document.querySelectorAll('.btChat .badge').forEach(b => { b.textContent = chatUnread > 9 ? '9+' : chatUnread; b.classList.toggle('hide', !chatUnread); });
-}
+function myChatName() { return S && S.you >= 0 && S.players[S.you] ? S.players[S.you].name : store.get('sam_name', ''); }
 function renderChat() {
-  if (!S || !$('chatSheet').classList.contains('on')) return;
-  const l = $('chatList');
-  const atBottom = l.scrollHeight - l.scrollTop - l.clientHeight < 60;
-  l.textContent = '';
-  const myName = S.you >= 0 && S.players[S.you] ? S.players[S.you].name : store.get('sam_name', '');
-  (S.chat || []).forEach(m => {
-    const e = h('div', 'cm ' + m.kind);
-    const b = h('div', 'cb');
-    if (m.kind !== 'sys') {
-      const mine = m.kind === (isSpec() ? 'spec' : 'player') && m.name === myName;
-      if (mine) e.classList.add('mine');
-      e.append(h('div', 'ca', m.av || '🙂'));
-      b.append(h('span', 'cn', (m.kind === 'spec' ? '👀 ' : '') + m.name));
-    }
-    b.append(document.createTextNode(m.text));
-    e.append(b); l.append(e);
+  if (!S) return;
+  const msgs = (S.chat || []).slice(-40), me = myChatName();
+  document.querySelectorAll('[data-chat] .cb-list').forEach(l => {
+    const atBottom = l.scrollHeight - l.scrollTop - l.clientHeight < 30;
+    l.textContent = '';
+    if (!msgs.length) { l.append(h('div', 'empty', 'Chat với cả bàn ở đây — người xem cũng chat được')); return; }
+    msgs.forEach(m => {
+      const ln = h('div', 'ln ' + m.kind);
+      if (m.kind === 'sys') ln.textContent = m.text;
+      else {
+        if (m.name === me && m.kind === (isSpec() ? 'spec' : 'player')) ln.classList.add('mine');
+        ln.append(h('b', '', (m.kind === 'spec' ? '👀 ' : '') + m.name + ': '), document.createTextNode(m.text));
+      }
+      l.append(ln);
+    });
+    if (atBottom || l.dataset.init !== '1') { l.scrollTop = l.scrollHeight; l.dataset.init = '1'; }
   });
-  if (!l.childNodes.length) l.append(h('div', 'empty', 'Chưa có tin nhắn. Người xem cũng chat được.'));
-  if (atBottom) l.scrollTop = l.scrollHeight;
 }
 function onChatState(first) {
   const msgs = S.chat || [];
   const last = msgs.length ? msgs[msgs.length - 1].id : 0;
-  if (first || last < chatSeen) { chatSeen = last; return; }   // vào lại phòng: không tính tin cũ là tin mới
+  renderChat();
+  if (first || last < chatSeen) { chatSeen = last; return; }   // vào lại phòng: không coi tin cũ là tin mới
   const fresh = msgs.filter(m => m.id > chatSeen);
   chatSeen = last;
-  if (!fresh.length) return;
-  const open = $('chatSheet').classList.contains('on');
   for (const m of fresh) {
     if (m.kind === 'player' && m.seat >= 0) { taunts[m.seat] = { text: m.text, until: Date.now() + 3500, chat: true }; setTimeout(() => S && render(), 3600); }
-    const mine = m.kind !== 'sys' && m.name === (S.you >= 0 && S.players[S.you] ? S.players[S.you].name : '');
-    if (!open && !mine) chatUnread++;
   }
-  if (!open) { updateBadge(); if (fresh.some(m => m.kind !== 'sys')) Sound.play('turn'); }
-  renderChat();
+  if (fresh.some(m => m.kind !== 'sys' && m.name !== myChatName())) Sound.play('turn');
 }
 
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on')); }
 
 /* ================= cài đặt ================= */
-const ST_BIND = { stMute: 'mute', stVoice: 'voice', stAmbient: 'ambient', stSpatial: 'spatial', stVibrate: 'vibrate', stReduce: 'reduce', stPerf: 'perf' };
-const ST_RANGE = { stMaster: 'master', stMusic: 'music', stSfx: 'sfx' };
+const ST_BIND = { stMute: 'mute', stVoice: 'voice', stPVoice: 'pvoice', stAmbient: 'ambient', stSpatial: 'spatial', stVibrate: 'vibrate', stReduce: 'reduce', stPerf: 'perf' };
+const ST_RANGE = { stMaster: 'master', stMusic: 'music', stSfx: 'sfx', stMcVol: 'mcVol', stMaleVol: 'maleVol', stFemaleVol: 'femaleVol' };
 function applySettings() {
   document.body.classList.toggle('reduce', !!settings.reduce);
   document.body.classList.toggle('perf', !!settings.perf);
   Sound.apply(settings);
   store.set('sam_settings', JSON.stringify(settings));
+  Account.syncSettings();
 }
 function openSettings() {
   for (const id in ST_BIND) $(id).checked = !!settings[ST_BIND[id]];
@@ -1154,6 +1319,7 @@ async function openHistory() {
   const box = $('histList'); box.textContent = ''; box.append(h('div', 'empty', 'Đang tải…'));
   const j = await api('history');
   box.textContent = '';
+  box.append(whoLine());
   if (j.err) return box.append(h('div', 'empty', j.err));
   if (!j.games.length) return box.append(h('div', 'empty', 'Chưa có ván nào.\nChơi xong một ván là lịch sử hiện ở đây.'));
   j.games.forEach(g => {
@@ -1172,6 +1338,7 @@ async function openStats() {
   const box = $('statsBox'); box.textContent = ''; box.append(h('div', 'empty', 'Đang tải…'));
   const j = await api('stats');
   box.textContent = '';
+  box.append(whoLine());
   if (j.err) return box.append(h('div', 'empty', j.err));
   const s = j.stats;
   if (!s.games) return box.append(h('div', 'empty', 'Chưa có số liệu. Chơi vài ván đã nhé!'));
@@ -1188,7 +1355,13 @@ async function openStats() {
   tile('Bị chặt', `${s.chopped}`);
   tile('Cóng', `${s.cong}`);
   tile('Ăn trắng', `${s.trang}`);
-  box.append(grid, h('p', 'muted center', 'Số liệu gắn với trình duyệt này.'));
+  box.append(grid);
+}
+
+function whoLine() {
+  const e = h('p', 'who-line', Account.logged() ? `Tài khoản ${Account.user.name} — xem được trên mọi thiết bị` : 'Chơi khách: chỉ lưu trên máy này. ');
+  if (!Account.logged()) { const a = h('a', '', 'Đăng nhập để lưu theo tài khoản'); a.href = '#'; a.style.color = 'var(--gold)'; a.onclick = ev => { ev.preventDefault(); Account.open(); }; e.append(a); }
+  return e;
 }
 
 /* ================= xem lại ================= */
@@ -1341,6 +1514,10 @@ $('rpScore').onclick = () => {
 };
 
 /* ================= khởi động ================= */
+setSeg('fGender', myGender());
+Account.renderChip();
+api('config').then(c => { Account.cfg = c; });
+Account.refresh();
 applySettings();
 window.addEventListener('resize', () => { if (S && current === 'sGame') { renderHand(); } });
 (async function boot() {

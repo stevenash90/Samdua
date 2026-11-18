@@ -98,7 +98,7 @@ test.before(async () => {
     const { Client: PgClient } = require('pg');
     const c = new PgClient({ connectionString: PG });
     await c.connect();
-    await c.query('DROP TABLE IF EXISTS game_events, games, rooms, room_events, schema_migrations CASCADE');
+    await c.query('DROP TABLE IF EXISTS game_events, games, rooms, room_events, sessions, users, schema_migrations CASCADE');
     await c.end();
   }
   const h = await startServer();
@@ -280,6 +280,52 @@ test('người xem: vào giữa ván, không nhận bài kín, chat được, kh
   await s.act('leave');
   await a.until(st => !st.spectators.length);
   await s.close(); await a.close();
+});
+
+test('tài khoản: đăng ký, chơi ở máy 1, đăng nhập máy 2 thấy lịch sử và vào lại đúng ghế', async () => {
+  const D1 = 'e2e-device-ONE-11111111', D2 = 'e2e-device-TWO-22222222';
+  const reg = await api({ a: 'register', token: D1, username: 'e2e_user', password: 'matkhau123', name: 'Thành viên', gender: 'nu', claim: true });
+  assert.ok(reg.session, JSON.stringify(reg));
+  assert.strictEqual((await api({ a: 'register', token: D1, username: 'E2E_USER', password: 'xxxxxx' })).err.includes('đã có'), true);
+  const me = await api({ a: 'me', token: D1, session: reg.session });
+  assert.strictEqual(me.user.gender, 'nu');
+  const c = await api({ a: 'create', token: D1, session: reg.session });
+  const p1 = new Client(D1, 'm1');
+  await p1.connect(c.code);
+  assert.strictEqual(p1.S.players[0].name, 'Thành viên', 'tên lấy từ tài khoản');
+  assert.strictEqual(p1.S.players[0].gender, 'nu');
+  assert.strictEqual(p1.S.players[0].member, true);
+  await p1.act('addBot');
+  await p1.act('start');
+  await p1.until(s => s.gameNo === 1);
+  const S = await playUntilOver([p1]);
+  assert.strictEqual(S.phase, 'over');
+  await sleep(300);
+  // máy 2: đăng nhập cùng tài khoản
+  const lg = await api({ a: 'login', token: D2, username: 'e2e_user', password: 'matkhau123' });
+  assert.ok(lg.session);
+  const h = await api({ a: 'history', token: D2, session: lg.session });
+  assert.strictEqual(h.games.length, 1, 'lịch sử theo tài khoản, không theo máy');
+  const st = await api({ a: 'stats', token: D2, session: lg.session });
+  assert.strictEqual(st.stats.games, 1);
+  const rp = await api({ a: 'replay', token: D2, session: lg.session, game: h.games[0].id });
+  assert.ok(rp.replay);
+  // khách trên máy 2 (không đăng nhập) thì không thấy
+  assert.strictEqual((await api({ a: 'history', token: D2 })).games.length, 0);
+  // vào lại phòng từ máy 2: nhận lại đúng ghế cũ
+  const j = await api({ a: 'join', token: D2, session: lg.session, room: c.code });
+  assert.strictEqual(j.code, c.code);
+  const p2 = new Client(D2, 'm2');
+  await p2.connect(c.code);
+  assert.strictEqual(p2.S.you, 0);
+  assert.strictEqual(p2.S.players.length, 2, 'không tạo ghế mới');
+  // cập nhật hồ sơ + cấu hình giọng
+  const pr = await api({ a: 'profile', token: D2, session: lg.session, settings: { voice: true, mcVol: 40 }, gender: 'nam' });
+  assert.deepStrictEqual(pr.user.settings, { voice: true, mcVol: 40 });
+  assert.strictEqual(pr.user.gender, 'nam');
+  await api({ a: 'logout', token: D2, session: lg.session });
+  assert.strictEqual((await api({ a: 'me', token: D2, session: lg.session })).user, null);
+  await p1.close(); await p2.close();
 });
 
 test('health check', async () => {

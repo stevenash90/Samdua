@@ -44,7 +44,36 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    version: 2,
+    sql: `
+      CREATE TABLE IF NOT EXISTS users (
+        id text PRIMARY KEY,
+        username text NOT NULL UNIQUE,
+        display_name text NOT NULL,
+        avatar text,
+        gender text,
+        settings jsonb,
+        pass_hash text,
+        google_sub text UNIQUE,
+        email text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS sessions (
+        token_hash text PRIMARY KEY,
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
+    `,
+  },
 ];
+
+const userRow = r => r && {
+  id: r.id, username: r.username, name: r.display_name, av: r.avatar, gender: r.gender, settings: r.settings,
+  passHash: r.pass_hash, googleSub: r.google_sub, email: r.email, createdAt: +r.created_at,
+};
 
 class BaseStore {
   constructor(log) {
@@ -165,10 +194,46 @@ class PgStore extends BaseStore {
       players: g.players, result: g.result, deltas: g.deltas,
     }));
   }
+  /* ---- tài khoản ---- */
+  async createUser(u) {
+    try {
+      await this.pool.query('INSERT INTO users (id, username, display_name, avatar, gender, pass_hash, google_sub, email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [u.id, u.username, u.name, u.av, u.gender || null, u.passHash || null, u.googleSub || null, u.email || null]);
+      return true;
+    } catch (e) { if (e.code === '23505') return false; throw e; }
+  }
+  async userByName(username) { return userRow((await this.pool.query('SELECT * FROM users WHERE username = $1', [username])).rows[0]); }
+  async userById(id) { return userRow((await this.pool.query('SELECT * FROM users WHERE id = $1', [id])).rows[0]); }
+  async userByGoogle(sub) { return userRow((await this.pool.query('SELECT * FROM users WHERE google_sub = $1', [sub])).rows[0]); }
+  async updateUser(id, f) {
+    await this.pool.query(
+      `UPDATE users SET display_name = COALESCE($2, display_name), avatar = COALESCE($3, avatar), pass_hash = COALESCE($4, pass_hash),
+         gender = COALESCE($5, gender), settings = COALESCE($6::jsonb, settings) WHERE id = $1`,
+      [id, f.name || null, f.av || null, f.passHash || null, f.gender || null, f.settings ? JSON.stringify(f.settings) : null]);
+  }
+  async createSession(hash, userId, expiresAt) {
+    await this.pool.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1,$2,to_timestamp($3/1000.0))', [hash, userId, expiresAt]);
+  }
+  async sessionUser(hash) {
+    const { rows } = await this.pool.query('SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > now()', [hash]);
+    return rows.length ? rows[0].user_id : null;
+  }
+  async deleteSession(hash) { await this.pool.query('DELETE FROM sessions WHERE token_hash = $1', [hash]); }
+  // gộp các ván đã chơi bằng danh tính thiết bị vào tài khoản
+  async claimGames(oldPid, newPid) {
+    const r = await this.pool.query(
+      `UPDATE games SET players = (
+         SELECT jsonb_agg(CASE WHEN e->>'pid' = $1 THEN jsonb_set(e, '{pid}', to_jsonb($2::text)) ELSE e END ORDER BY ord)
+         FROM jsonb_array_elements(players) WITH ORDINALITY AS t(e, ord))
+       WHERE players @> $3::jsonb AND NOT players @> $4::jsonb`,
+      [oldPid, newPid, JSON.stringify([{ pid: oldPid }]), JSON.stringify([{ pid: newPid }])]);
+    return r.rowCount;
+  }
+
   async ping() { await this.pool.query('SELECT 1'); }
   async dump() {
     const out = {};
-    for (const t of ['schema_migrations', 'rooms', 'games', 'game_events', 'room_events']) {
+    for (const t of ['schema_migrations', 'rooms', 'games', 'game_events', 'room_events', 'users']) {   // không sao lưu phiên đăng nhập
       out[t] = (await this.pool.query(`SELECT * FROM ${t}`)).rows;
     }
     return out;
@@ -232,9 +297,52 @@ class FileStore extends BaseStore {
     }
     return out.sort((a, b) => b.endedAt - a.endedAt).slice(0, limit);
   }
+  /* ---- tài khoản ---- */
+  accounts() { return this.readJson(this.p('accounts.json'), { users: [], sessions: [] }); }
+  saveAccounts(a) { this.writeJson(this.p('accounts.json'), a); }
+  async createUser(u) {
+    const a = this.accounts();
+    if (a.users.some(x => x.username === u.username)) return false;
+    a.users.push(Object.assign({ createdAt: Date.now() }, u));
+    this.saveAccounts(a);
+    return true;
+  }
+  async userByName(username) { return this.accounts().users.find(x => x.username === username) || null; }
+  async userById(id) { return this.accounts().users.find(x => x.id === id) || null; }
+  async userByGoogle(sub) { return this.accounts().users.find(x => x.googleSub === sub) || null; }
+  async updateUser(id, f) {
+    const a = this.accounts(), u = a.users.find(x => x.id === id);
+    if (!u) return;
+    for (const k of ['name', 'av', 'passHash', 'gender', 'settings']) if (f[k]) u[k] = f[k];
+    this.saveAccounts(a);
+  }
+  async createSession(hash, userId, expiresAt) {
+    const a = this.accounts();
+    a.sessions = a.sessions.filter(x => x.expiresAt > Date.now());
+    a.sessions.push({ hash, userId, expiresAt });
+    this.saveAccounts(a);
+  }
+  async sessionUser(hash) {
+    const x = this.accounts().sessions.find(s => s.hash === hash && s.expiresAt > Date.now());
+    return x ? x.userId : null;
+  }
+  async deleteSession(hash) { const a = this.accounts(); a.sessions = a.sessions.filter(x => x.hash !== hash); this.saveAccounts(a); }
+  async claimGames(oldPid, newPid) {
+    let n = 0;
+    for (const f of fs.readdirSync(this.p('games'))) {
+      if (!f.endsWith('.json')) continue;
+      const file = this.p('games', f), g = this.readJson(file);
+      if (!g || !g.players.some(p => p.pid === oldPid) || g.players.some(p => p.pid === newPid)) continue;
+      g.players.forEach(p => { if (p.pid === oldPid) p.pid = newPid; });
+      this.writeJson(file, g); n++;
+    }
+    return n;
+  }
+
   async ping() { fs.accessSync(this.dir, fs.constants.W_OK); }
   async dump() {
     return {
+      users: this.accounts().users,
       rooms: await this.loadRooms(),
       games: fs.readdirSync(this.p('games')).map(f => this.readJson(this.p('games', f))),
     };

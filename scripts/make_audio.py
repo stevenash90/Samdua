@@ -264,9 +264,24 @@ def main():
         recorded = set()
         if os.path.isdir(VOICE_SRC):
             for f in sorted(os.listdir(VOICE_SRC)):
-                if f.endswith('.mp3') or f.endswith('.wav'):
+                if (f.endswith('.mp3') or f.endswith('.wav')) and os.path.isfile(os.path.join(VOICE_SRC, f)):
                     name = os.path.splitext(f)[0]; recorded.add(name)
                     encode_recorded(name, os.path.join(VOICE_SRC, f))
+        # Thoại người chơi: assets/voice/players/<m|f>/<sự kiện>_<số>.mp3 -> public/audio/p_<m|f>_<sự kiện>_<số>.*
+        import json, re
+        manifest = {'m': {}, 'f': {}}
+        pdir = os.path.join(VOICE_SRC, 'players')
+        for g in ('m', 'f'):
+            d = os.path.join(pdir, g)
+            if not os.path.isdir(d): continue
+            for f in sorted(os.listdir(d)):
+                m = re.match(r'^(play|chop|pass|baosam|batsam|win|lose)_(\d+)\.(mp3|wav|m4a|ogg)$', f)
+                if not m: continue
+                name = f'p_{g}_{m.group(1)}_{m.group(2)}'
+                encode_recorded(name, os.path.join(d, f))
+                manifest[g].setdefault(m.group(1), []).append(name)
+        with open(os.path.join(OUT, 'voices.json'), 'w') as fh:
+            json.dump(manifest, fh, ensure_ascii=False)
         if subprocess.run(['which', 'espeak-ng'], capture_output=True).returncode == 0:
             for name, text in VOICES.items():
                 if name in recorded: continue

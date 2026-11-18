@@ -22,6 +22,33 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Đổi chỗ giải đen**: thua 5 ván liên tiếp thì được xin đổi chỗ với người khác (giữa các ván). Máy luôn đồng ý; người thì có 30 giây chấp nhận/từ chối.
 - **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.
 
+## Tài khoản thành viên
+
+- Đăng ký / đăng nhập bằng tên đăng nhập + mật khẩu (băm scrypt), hoặc **Google** (khi đã cấu hình `GOOGLE_CLIENT_ID`).
+- Không đăng nhập vẫn chơi được (chế độ khách); lịch sử của khách gắn với trình duyệt.
+- Hồ sơ: nickname, avatar, giới tính (quyết định giọng thoại). Cấu hình âm thanh/giọng đọc lưu theo tài khoản.
+- Đăng nhập máy khác: thấy đủ lịch sử, thống kê, xem lại ván; đang ngồi trong phòng thì vào lại đúng ghế.
+- Khi đăng ký/đăng nhập có thể gộp các ván đã chơi trên máy đó vào tài khoản.
+
+### Bật đăng nhập Google
+
+1. console.cloud.google.com → tạo project (ví dụ `samdua`).
+2. **APIs & Services → OAuth consent screen**: chọn External, điền tên app và email → lưu (để chế độ Testing thì thêm email bạn bè vào Test users, hoặc bấm Publish).
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID** → Application type: **Web application** → Authorized JavaScript origins: `https://samdua.onrender.com` → Create.
+4. Copy **Client ID** (dạng `xxxx.apps.googleusercontent.com`) → Render → Environment → thêm `GOOGLE_CLIENT_ID`.
+
+## Giọng đọc
+
+- **MC dẫn trò**: bản thu trong `assets/voice/*.mp3`.
+- **Thoại người chơi Nam/Nữ**: xem `docs/LOI_THOAI.md` (đặt file vào `assets/voice/players/m|f/`).
+- Âm lượng riêng cho MC, giọng Nam, giọng Nữ, hiệu ứng, nhạc nền. Một kênh thoại duy nhất: không đọc chồng, câu quan trọng cắt câu thường, đánh bài/bỏ lượt chỉ thỉnh thoảng mới nói.
+
+## Sao lưu định kỳ & cảnh báo
+
+- `.github/workflows/backup.yml` chạy 02:00 mỗi ngày, xuất toàn bộ database, **mã hoá** rồi lưu 30 ngày ở GitHub → Actions → Artifacts. Cần 2 secret của repo: `DATABASE_URL`, `BACKUP_PASSWORD`. Chạy tay: Actions → "Sao lưu database" → Run workflow.
+- Render → Settings → **Health Check Path** = `/health` (máy chủ trả 503 khi DB lỗi, Render tự khởi động lại và báo email).
+- Cảnh báo khi web sập: tạo monitor miễn phí trên UptimeRobot trỏ vào `https://samdua.onrender.com/health` (5 phút/lần, báo email). Monitor này cũng giữ cho Render không ngủ.
+
 ## Cấu trúc
 
 ```
@@ -32,6 +59,7 @@ src/scoring.js       tính tiền: chặt 2, chặt đè, Sâm, cóng, thối 2,
 src/ai.js            gợi ý nước đi / não của máy (chỉ thông tin công khai)
 src/room.js          state machine phòng & ván, tạm dừng, AFK, chủ phòng, event log
 src/store.js         lưu trữ: PostgreSQL (migration) hoặc file JSON
+src/accounts.js      tài khoản: đăng ký, đăng nhập, Google, phiên, hồ sơ
 public/              giao diện (index.html, style.css, app.js, audio.js, audio/)
 scripts/backup.js    sao lưu toàn bộ dữ liệu ra JSON
 scripts/make_audio.py tạo lại toàn bộ âm thanh (numpy + espeak-ng)
@@ -80,6 +108,7 @@ Bảng dữ liệu được tạo tự động (migration chạy lúc khởi đ�
 | `HOST_GRACE_MS` | chủ phòng mất kết nối bao lâu thì chuyển quyền | 20000 |
 | `PAUSE_LIMIT_MS` | giới hạn tạm dừng mặc định mỗi ván | 600000 |
 | `CROSS_CHOP` | `1` = tứ quý được đè ba đôi thông (chưa xác nhận luật) | 0 |
+| `GOOGLE_CLIENT_ID` | bật nút đăng nhập Google | trống |
 
 Điểm/tiền (chặt 2, hệ số chặt đè, Sâm, ăn trắng, cóng, thối 2) do chủ phòng chỉnh khi tạo phòng.
 

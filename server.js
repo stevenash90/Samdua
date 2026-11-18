@@ -9,10 +9,12 @@ const { WebSocketServer } = require('ws');
 const C = require('./src/config');
 const { Room, pidOf, cleanName, cleanAv, normalizeSettings } = require('./src/room');
 const { createStore } = require('./src/store');
+const { createAccounts } = require('./src/accounts');
 const VERSION = require('./package.json').version;
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const store = createStore(C, log);
+const accounts = createAccounts(store, { googleClientId: C.GOOGLE_CLIENT_ID });
 const rooms = new Map();
 const started = Date.now();
 let ready = false;
@@ -112,12 +114,37 @@ async function api(b, ip) {
   if (token.length < 16 || token.length > 100) return { err: 'Thiếu mã người chơi' };
   if (!ready) return { err: 'Máy chủ đang khởi động, thử lại sau vài giây' };
   if ((a === 'create' || a === 'join') && limited(ip)) return { err: 'Thao tác quá nhanh, đợi một chút' };
-  const pid = pidOf(token);
+  if (['register', 'login', 'google', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
+  if (a === 'config') return { googleClientId: C.GOOGLE_CLIENT_ID || null };
+
+  /* ---- tài khoản ---- */
+  if (a === 'register' || a === 'login' || a === 'google') {
+    const r = a === 'register' ? await accounts.register(b) : a === 'login' ? await accounts.login(b) : await accounts.google(b);
+    if (r.err) return r;
+    if (b.claim) r.claimed = await store.claimGames(pidOf(token), r.user.pid);   // gộp các ván đã chơi trên máy này
+    return r;
+  }
+  const user = b.session ? await accounts.resolve(String(b.session)) : null;
+  if (a === 'me') return user ? { user } : { user: null };
+  if (a === 'logout') { await accounts.logout(String(b.session || '')); return {}; }
+  if (a === 'profile') {
+    if (!user) return { err: 'Bạn chưa đăng nhập' };
+    return { user: await accounts.update(user.id, b) };
+  }
+  if (a === 'password') {
+    if (!user) return { err: 'Bạn chưa đăng nhập' };
+    return accounts.changePassword(user.id, b.old, b.new);
+  }
+
+  const pid = user ? user.pid : pidOf(token);
+  const ident = { pid: user ? user.pid : undefined, gender: b.gender || (user && user.gender) };
+  const nameOf = () => b.name || (user && user.name);
+  const avOf = () => b.av || (user && user.av);
   if (a === 'create') {
     const code = newCode();
     const room = new Room(code, deps());
     room.settings = normalizeSettings(b.settings, room.settings);
-    room.addHuman(token, b.name, b.av);
+    room.addHuman(token, nameOf(), avOf(), ident);
     rooms.set(code, room);
     room.commit();
     return { code };
@@ -125,6 +152,8 @@ async function api(b, ip) {
   if (a === 'join') {
     const room = rooms.get(String(b.room || '').toUpperCase());
     if (!room || room.closed) return { err: 'Không tìm thấy phòng' };
+    // tài khoản đang ngồi trong phòng từ thiết bị khác: chuyển ghế sang thiết bị này
+    if (user && room.auth(token) < 0 && room.players.some(p => p.pid === user.pid && !p.bot)) { room.rebind(user.pid, token); room.commit(); }
     const i = room.auth(token);
     if (i >= 0) {
       // vào lại: cập nhật tên/avatar nếu đang không chơi
@@ -136,7 +165,8 @@ async function api(b, ip) {
     if (room.phase !== 'lobby' && room.phase !== 'over') return { err: 'Phòng đang chơi dở, đợi hết ván rồi vào', canWatch: true };
     if (room.players.length >= C.MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người', canWatch: true };
     room.removeSpectator(pid, true);   // đang xem thì chuyển sang ngồi chơi
-    room.addHuman(token, b.name, b.av);
+    room.removeSpectator(pidOf(token), true);
+    room.addHuman(token, nameOf(), avOf(), ident);
     room.log = `${room.players[room.players.length - 1].name} vào phòng`;
     room.commit();
     return { code: room.code };
@@ -144,8 +174,9 @@ async function api(b, ip) {
   if (a === 'watch') {
     const room = rooms.get(String(b.room || '').toUpperCase());
     if (!room || room.closed) return { err: 'Không tìm thấy phòng' };
+    if (user) room.rebind(user.pid, token);
     if (room.auth(token) >= 0) return { code: room.code };   // đã là người chơi
-    if (!room.addSpectator(token, b.name, b.av)) return { err: 'Phòng đã đủ người xem' };
+    if (!room.addSpectator(token, nameOf(), avOf(), ident)) return { err: 'Phòng đã đủ người xem' };
     room.commit();
     return { code: room.code, spectator: true };
   }
@@ -160,7 +191,8 @@ async function api(b, ip) {
   if (a === 'replay') {
     const g = await store.getGame(String(b.game || ''));
     if (!g || !g.endedAt) return { err: 'Không tìm thấy ván hoặc ván chưa kết thúc' };
-    const seat = g.players.findIndex(p => p.pid === pid);
+    let seat = g.players.findIndex(p => p.pid === pid);
+    if (seat < 0) seat = g.players.findIndex(p => p.pid === pidOf(token));
     if (seat < 0) return { err: 'Bạn không có trong ván này nên không xem lại được' };
     const policy = (g.settings && g.settings.replayPolicy) || 'all';
     const events = g.events.map(e => {

@@ -7,10 +7,12 @@ const R = require('./rules');
 const S = require('./scoring');
 const AI = require('./ai');
 
+// [tên, avatar, giọng] — Mai Thúy, Cô Tiên, Tún giọng nữ; các máy khác giọng nam
 const BOTS = [
-  ['Chị Phiến', '💅'], ['Thành Cry', '😭'], ['A Long River', '🐉'], ['Ri Đỗ', '🎲'], ['Shark Bình', '🦈'],
-  ['Tô Tổng', '🍜'], ['Mai Thúy', '🌼'], ['Cô Tiên', '🧚'], ['Hà Linh', '💄'], ['Tún', '🐥'],
+  ['Chị Phiến', '💅', 'nam'], ['Thành Cry', '😭', 'nam'], ['A Long River', '🐉', 'nam'], ['Ri Đỗ', '🎲', 'nam'], ['Shark Bình', '🦈', 'nam'],
+  ['Tô Tổng', '🍜', 'nam'], ['Mai Thúy', '🌼', 'nu'], ['Cô Tiên', '🧚', 'nu'], ['Hà Linh', '💄', 'nam'], ['Tún', '🐥', 'nu'],
 ];
+const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
 // Bộ bài (kiểu dáng mặt sau / viền) — chủ phòng thay khi có người đề nghị "đổi bộ bài mới"
@@ -107,10 +109,10 @@ class Room {
 
   rosterChanged() { if (this.phase === 'over') this.g = null; }
 
-  addHuman(token, name, av) {
+  addHuman(token, name, av, opt = {}) {
     this.rosterChanged();
-    const pid = pidOf(token);
-    const p = { pid, tokenHash: hashToken(token), name: cleanName(name), av: cleanAv(av), bot: false, auto: false, score: 0 };
+    const pid = opt.pid || pidOf(token);
+    const p = { pid, tokenHash: hashToken(token), name: cleanName(name), av: cleanAv(av), gender: cleanGender(opt.gender), member: !!opt.pid, bot: false, auto: false, score: 0 };
     this.players.push(p);
     if (!this.hostPid || this.hostIdx() < 0) this.setHost(pid, 'create');
     this.lastActive.set(pid, this.now());
@@ -124,6 +126,15 @@ class Room {
     return this.players.findIndex(p => p.tokenHash && p.tokenHash === h);
   }
 
+  /** Tài khoản đăng nhập ở thiết bị khác: gắn token thiết bị mới vào đúng ghế cũ. */
+  rebind(pid, token) {
+    const p = this.players.find(x => x.pid === pid && !x.bot);
+    if (p) { p.tokenHash = hashToken(token); return true; }
+    const sp = this.spectators.find(x => x.pid === pid);
+    if (sp) { sp.tokenHash = hashToken(token); return true; }
+    return false;
+  }
+
   /** Token này là ai trong phòng: người chơi, người xem, hoặc không ai. */
   who(token) {
     const i = this.auth(token);
@@ -134,8 +145,8 @@ class Room {
     return sp ? { role: 'spec', pid: sp.pid } : null;
   }
   specIdx(pid) { return this.spectators.findIndex(x => x.pid === pid); }
-  addSpectator(token, name, av) {
-    const pid = pidOf(token);
+  addSpectator(token, name, av, opt = {}) {
+    const pid = opt.pid || pidOf(token);
     let sp = this.spectators.find(x => x.pid === pid);
     if (sp) { sp.name = cleanName(name); sp.av = cleanAv(av); return sp; }
     if (this.spectators.length >= MAX_SPECTATORS) return null;
@@ -279,7 +290,7 @@ class Room {
       passed: Array(n).fill(false), played: Array(n).fill(false),
       samAns: this.players.map(p => (p.bot ? false : null)),
       chain: null, ledger: [], timer: null, pause: null, pauseUsed: 0, wait: null, reveal: null,
-      roster: this.players.map(p => ({ pid: p.pid, name: p.name, av: p.av, bot: p.bot })),
+      roster: this.players.map(p => ({ pid: p.pid, name: p.name, av: p.av, bot: p.bot, gender: p.gender || 'nam' })),
     };
     this.players.forEach(p => { if (!p.bot) p.auto = false; });
     this.result = null;
@@ -658,9 +669,9 @@ class Room {
         if (this.players.length >= C.MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người' };
         const used = this.players.map(p => p.name);
         const free = BOTS.filter(x => !used.includes(x[0]));
-        const [nm, av] = free[crypto.randomInt(free.length)];
+        const [nm, av, gender] = free[crypto.randomInt(free.length)];
         this.rosterChanged();
-        this.players.push({ pid: 'bot-' + rid(), tokenHash: null, name: nm, av, bot: true, auto: false, score: 0 });
+        this.players.push({ pid: 'bot-' + rid(), tokenHash: null, name: nm, av, gender, bot: true, auto: false, score: 0 });
         this.log = `${nm} vào bàn`;
         return {};
       }
@@ -801,7 +812,7 @@ class Room {
     }
     return {
       v: 2, code: this.code, created: this.created, touched: this.touched, settings: this.settings,
-      players: this.players.map(p => ({ pid: p.pid, tokenHash: p.tokenHash, name: p.name, av: p.av, bot: p.bot, auto: p.auto, score: p.score, lose: p.lose || 0 })),
+      players: this.players.map(p => ({ pid: p.pid, tokenHash: p.tokenHash, name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: p.auto, score: p.score, lose: p.lose || 0 })),
       chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, deckReq: this.deckReq,
       hostPid: this.hostPid, phase: this.phase, g: gs, result: this.result, log: this.log,
       lastWinnerPid: this.lastWinnerPid, gameNo: this.gameNo, hostLog: this.hostLog,
@@ -868,7 +879,7 @@ class Room {
       gameId: g ? g.id : null, gameNo: this.gameNo,
       settings: { ai: this.settings.ai, pauseLimitMs: this.settings.pauseLimitMs, replayPolicy: this.settings.replayPolicy, turnMs: this.settings.turnMs, points: this.settings.points },
       players: this.players.map((p, k) => ({
-        name: p.name, av: p.av, bot: p.bot, auto: !!p.auto, score: p.score,
+        name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: !!p.auto, score: p.score,
         online: this.online(p), afk: this.isAfk(p),
         count: inGame && g ? g.hands[k].length : 0,
         passed: !!(inGame && g && this.phase === 'play' && g.passed[k]),

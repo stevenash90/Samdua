@@ -10,13 +10,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=2.1.0">
+<link rel="stylesheet" href="/style.css?v=2.2.0">
 </head>
 <body>
 
 <!-- ============ TRANG CHỦ ============ -->
 <section class="screen on" id="sHome">
   <div class="wrap">
+    <div class="accbar"><button class="acc-chip" id="accChip"></button></div>
     <div class="brand">
       <div class="logo">🍍</div>
       <h1>Sâm Dứa</h1>
@@ -27,6 +28,8 @@
       <input id="inName" maxlength="16" placeholder="Nhập tên" autocomplete="off">
       <div class="lbl">Avatar</div>
       <div class="avpick" id="avpick"></div>
+      <div class="lbl" style="margin-top:10px">Giọng nói của bạn</div>
+      <div class="seg gender" id="fGender" data-v="nam"><button data-v="nam">👨 Nam</button><button data-v="nu">👩 Nữ</button></div>
     </div>
     <button class="btn gold big" id="btGoCreate">Tạo phòng mới</button>
     <div class="join-row">
@@ -70,7 +73,7 @@
 <!-- ============ PHÒNG CHỜ ============ -->
 <section class="screen" id="sLobby">
   <header class="bar"><button class="icon" id="btLobbyLeave">←</button><h2>Phòng chờ</h2>
-    <div class="gr"><button class="icon sm btChat" title="Chat">💬<i class="badge hide"></i></button><button class="icon sm btMenu" title="Bàn chơi">⋯</button><button class="icon sm" data-go="settings">⚙️</button></div></header>
+    <div class="gr"><button class="icon sm btMenu" title="Bàn chơi">⋯</button><button class="icon sm" data-go="settings">⚙️</button></div></header>
   <div class="wrap">
     <div class="code-box">
       <small>Mã phòng</small>
@@ -89,6 +92,7 @@
     <p class="muted center" id="lbWait">Chờ chủ phòng bắt đầu…</p>
     <button class="btn gold big hide" id="btSitLobby">🪑 Vào chơi</button>
   </div>
+  <div class="chatbox lobby" data-chat></div>
 </section>
 
 <!-- ============ BÀN CHƠI ============ -->
@@ -97,7 +101,6 @@
     <div class="gl"><span class="rc"><span class="lb">Phòng </span><b id="gCode"></b></span><span class="chip" id="gNo"></span><span class="chip hide" id="gSpec"></span></div>
     <div class="gr">
       <button class="icon sm hide" id="btPause" title="Tạm dừng">⏸</button>
-      <button class="icon sm btChat" title="Chat">💬<i class="badge hide"></i></button>
       <button class="icon sm btMenu" title="Bàn chơi">⋯</button>
       <button class="icon sm" data-go="settings" title="Cài đặt">⚙️</button>
       <button class="icon sm" id="btGameLeave" title="Rời phòng">✕</button>
@@ -110,6 +113,7 @@
     <div class="hint-line" id="hintLine"></div>
     <div class="hand" id="hand"></div>
     <div class="acts" id="acts"></div>
+    <div class="chatbox" data-chat></div>
   </div>
   <div class="banner-layer" id="bannerLayer"></div>
 </section>
@@ -193,7 +197,11 @@
       <div class="frow"><b>Âm lượng chung</b><input type="range" min="0" max="100" id="stMaster"></div>
       <div class="frow"><b>Nhạc nền</b><input type="range" min="0" max="100" id="stMusic"></div>
       <div class="frow"><b>Hiệu ứng</b><input type="range" min="0" max="100" id="stSfx"></div>
-      <div class="frow"><div><b>Giọng đọc tiếng Việt</b><small>Đến lượt, còn 5 giây, báo Sâm, chặt…</small></div><label class="sw"><input type="checkbox" id="stVoice"><i></i></label></div>
+      <div class="frow"><div><b>Giọng MC dẫn trò</b><small>Đến lượt, còn 5 giây, báo Sâm, chặt…</small></div><label class="sw"><input type="checkbox" id="stVoice"><i></i></label></div>
+      <div class="frow"><b>Âm lượng MC</b><input type="range" min="0" max="100" id="stMcVol"></div>
+      <div class="frow"><div><b>Thoại người chơi</b><small>Mỗi người nói theo giọng Nam/Nữ của mình</small></div><label class="sw"><input type="checkbox" id="stPVoice"><i></i></label></div>
+      <div class="frow"><b>Âm lượng giọng Nam</b><input type="range" min="0" max="100" id="stMaleVol"></div>
+      <div class="frow"><b>Âm lượng giọng Nữ</b><input type="range" min="0" max="100" id="stFemaleVol"></div>
       <div class="frow"><b>Âm thanh phòng (ambient)</b><label class="sw"><input type="checkbox" id="stAmbient"><i></i></label></div>
       <div class="frow"><div><b>Âm thanh theo vị trí</b><small>Nhà bên trái nghe lệch trái…</small></div><label class="sw"><input type="checkbox" id="stSpatial"><i></i></label></div>
     </div>
@@ -218,13 +226,11 @@
   </div>
 </div>
 
-<!-- ============ CHAT ============ -->
-<div class="sheet" id="chatSheet">
-  <div class="sheet-body chat-body">
-    <div class="sheet-head"><h2>💬 Chat</h2><button class="icon" id="btCloseChat">✕</button></div>
-    <div class="chat-list" id="chatList"></div>
-    <div class="chat-quick" id="chatQuick"></div>
-    <form class="chat-form" id="chatForm"><input id="chatInput" maxlength="200" placeholder="Nhắn gì đó…" autocomplete="off"><button class="btn gold" type="submit">Gửi</button></form>
+<!-- ============ TÀI KHOẢN ============ -->
+<div class="sheet" id="accSheet">
+  <div class="sheet-body">
+    <div class="sheet-head"><h2 id="accTitle">Tài khoản</h2><button class="icon" id="btCloseAcc">✕</button></div>
+    <div id="accBody"></div>
   </div>
 </div>
 
@@ -234,7 +240,8 @@
 <div class="toast" id="toast"></div>
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
-<script src="/audio.js?v=2.1.0"></script>
-<script src="/app.js?v=2.1.0"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="/audio.js?v=2.2.0"></script>
+<script src="/app.js?v=2.2.0"></script>
 </body>
 </html>

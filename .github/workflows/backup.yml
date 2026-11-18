@@ -1,0 +1,36 @@
+# Sao lưu database hằng ngày (02:00 giờ Việt Nam) thành file JSON, giữ 30 ngày trong mục Actions → Artifacts.
+# Cần 2 secret (GitHub repo → Settings → Secrets and variables → Actions → New repository secret):
+#   DATABASE_URL     chuỗi kết nối Neon
+#   BACKUP_PASSWORD  mật khẩu mã hoá file sao lưu (repo đang Public nên file luôn được mã hoá)
+# Giải mã: openssl enc -d -aes-256-cbc -pbkdf2 -in backup.json.gz.enc -out backup.json.gz -pass pass:<BACKUP_PASSWORD>
+name: Sao lưu database
+
+on:
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --omit=dev
+      - name: Xuất dữ liệu
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSWORD" ]; then echo "Thiếu secret DATABASE_URL hoặc BACKUP_PASSWORD"; exit 1; fi
+          node scripts/backup.js backup.json
+          gzip -9 backup.json
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in backup.json.gz -out backup.json.gz.enc -pass env:BACKUP_PASSWORD
+          rm backup.json.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: samdua-backup-${{ github.run_number }}
+          path: backup.json.gz.enc
+          retention-days: 30

@@ -35,7 +35,7 @@ const Sound = (function () {
     if (!AC) return;
     ctx = new AC();
     master = ctx.createGain(); master.connect(ctx.destination);
-    for (const g of ['music', 'ambient', 'sfx', 'voice']) { groups[g] = ctx.createGain(); groups[g].connect(master); }
+    for (const g of ['music', 'ambient', 'sfx', 'mc', 'male', 'female']) { groups[g] = ctx.createGain(); groups[g].connect(master); }
     pickExt();
     applyGains();
   }
@@ -50,6 +50,7 @@ const Sound = (function () {
     try { const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); } catch (e) {}
     // tải trước âm quan trọng
     Object.keys(CAT).filter(k => CAT[k][2]).forEach(load);
+    fetch('/audio/voices.json?v=' + Date.now().toString(36).slice(0, 5)).then(r => (r.ok ? r.json() : {})).then(j => { manifest = j || {}; }).catch(() => {});
     if (wantMusic) music(true);
   }
 
@@ -73,7 +74,9 @@ const Sound = (function () {
     const m = st.mute ? 0 : (st.master ?? 80) / 100;
     master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(m, t);
     groups.sfx.gain.setValueAtTime((st.sfx ?? 85) / 100, t);
-    groups.voice.gain.setValueAtTime(st.voice ? Math.max(0.6, (st.sfx ?? 85) / 100) : 0, t);
+    groups.mc.gain.setValueAtTime(st.voice ? (st.mcVol ?? 90) / 100 : 0, t);
+    groups.male.gain.setValueAtTime(st.pvoice ? (st.maleVol ?? 85) / 100 : 0, t);
+    groups.female.gain.setValueAtTime(st.pvoice ? (st.femaleVol ?? 85) / 100 : 0, t);
     // nhạc nền luôn nhỏ hơn rõ rệt so với hiệu ứng
     groups.music.gain.setValueAtTime(st.perf ? 0 : ((st.music ?? 30) / 100) * 0.35, t);
     groups.ambient.gain.setValueAtTime(st.ambient && !st.perf ? ((st.music ?? 30) / 100) * 0.3 + 0.05 : 0, t);
@@ -139,23 +142,49 @@ const Sound = (function () {
     });
   }
 
-  /** Giọng đọc tiếng Việt (mặc định tắt). Không đọc chồng nhau: câu quan trọng hơn (pri cao) cắt câu đang đọc. */
-  let curVoice = null;
-  function voice(name, pri = 1) {
-    if (!ctx || !unlocked || st.mute || !st.voice) return;
+  /* ---------- giọng đọc: MC + người chơi (Nam/Nữ) ----------
+   * Một kênh thoại duy nhất: không đọc chồng nhau. Câu có độ ưu tiên cao hơn được cắt ngang câu thấp hơn.
+   * Câu đến muộn (> 1,2 giây sau sự kiện) bị bỏ để không lệch với bàn chơi. */
+  let curVoice = null, manifest = {}, lastLine = {}, lastPlayLine = 0;
+  function speak(name, group, pri, pan) {
+    if (!ctx || !unlocked || st.mute) return;
     const now = performance.now();
     if (now < voiceBusyUntil && curVoice && curVoice.pri >= pri) return;
-    voiceBusyUntil = now + 600;
     const asked = now;
+    const prev = curVoice;
+    curVoice = { src: prev && now < voiceBusyUntil ? prev.src : null, pri, name };   // giữ chỗ ngay để câu thấp hơn không chen vào
+    voiceBusyUntil = Math.max(voiceBusyUntil, now + 700);
     load(name).then(b => {
       if (!b || performance.now() - asked > 1200) return;
-      if (curVoice && performance.now() < voiceBusyUntil && curVoice.pri >= pri && curVoice.name !== name) return;
+      if (curVoice && curVoice.name !== name && curVoice.pri >= pri && performance.now() < voiceBusyUntil) return;
       if (curVoice && curVoice.src) try { curVoice.src.stop(); } catch (e) {}
       const s = ctx.createBufferSource(), g = ctx.createGain();
-      s.buffer = b; s.connect(g); g.connect(groups.voice); s.start();
+      s.buffer = b; s.connect(g);
+      let node = g;
+      if (pan && st.spatial !== false && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
+      node.connect(groups[group]); s.start();
       curVoice = { src: s, pri, name };
       voiceBusyUntil = performance.now() + b.duration * 1000;
     });
+  }
+  /** Giọng MC dẫn trò (mặc định tắt). */
+  function voice(name, pri = 1) { if (st.voice) speak(name, 'mc', pri + 1, 0); }
+  /** Thoại người chơi theo giới tính: event = play | chop | pass | baosam | batsam | win | lose. */
+  const SAY_PRI = { play: 1, pass: 1, lose: 2, chop: 4, baosam: 5, batsam: 6, win: 6 };
+  function say(gender, event, pan = 0) {
+    if (!st.pvoice) return;
+    const g = gender === 'nu' ? 'f' : 'm';
+    const list = (manifest[g] || {})[event];
+    if (!list || !list.length) return;            // chưa có bản thu cho câu này
+    const now = performance.now();
+    if (event === 'play' || event === 'pass') {   // chống spam: đánh bài / bỏ lượt thường chỉ thỉnh thoảng mới nói
+      if (now - lastPlayLine < 6000 || Math.random() > 0.35) return;
+      lastPlayLine = now;
+    }
+    let pick = list[Math.floor(Math.random() * list.length)];
+    if (list.length > 1 && pick === lastLine[g + event]) pick = list[(list.indexOf(pick) + 1) % list.length];
+    lastLine[g + event] = pick;
+    speak(pick, g === 'f' ? 'female' : 'male', SAY_PRI[event] || 1, pan);
   }
 
   function loop(name, group) {
@@ -181,5 +210,5 @@ const Sound = (function () {
     if (!ambSrc && st.ambient) { ambSrc = 'pending'; loop('ambient', 'ambient').then(s => { ambSrc = s; if (s && !wantMusic) stopLoops(); }); }
   }
 
-  return { init, unlock, play, voice, music, apply, _state: () => ({ ctx: ctx && ctx.state, unlocked, ext, loaded: [...buffers.keys()], failed: [...failed] }) };
+  return { init, unlock, play, voice, say, music, apply, _state: () => ({ ctx: ctx && ctx.state, unlocked, ext, loaded: [...buffers.keys()], failed: [...failed] }) };
 })();
