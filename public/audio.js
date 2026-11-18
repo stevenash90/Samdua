@@ -139,16 +139,22 @@ const Sound = (function () {
     });
   }
 
-  /** Giọng đọc tiếng Việt (mặc định tắt). Không đọc chồng lên nhau. */
-  function voice(name) {
+  /** Giọng đọc tiếng Việt (mặc định tắt). Không đọc chồng nhau: câu quan trọng hơn (pri cao) cắt câu đang đọc. */
+  let curVoice = null;
+  function voice(name, pri = 1) {
     if (!ctx || !unlocked || st.mute || !st.voice) return;
     const now = performance.now();
-    if (now < voiceBusyUntil) return;
-    voiceBusyUntil = now + 900;
+    if (now < voiceBusyUntil && curVoice && curVoice.pri >= pri) return;
+    voiceBusyUntil = now + 600;
+    const asked = now;
     load(name).then(b => {
-      if (!b) return;
+      if (!b || performance.now() - asked > 1200) return;
+      if (curVoice && performance.now() < voiceBusyUntil && curVoice.pri >= pri && curVoice.name !== name) return;
+      if (curVoice && curVoice.src) try { curVoice.src.stop(); } catch (e) {}
+      const s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = b; s.connect(g); g.connect(groups.voice); s.start();
+      curVoice = { src: s, pri, name };
       voiceBusyUntil = performance.now() + b.duration * 1000;
-      start(name, b, 'voice', 8, 0, 1);
     });
   }
 

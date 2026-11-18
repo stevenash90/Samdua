@@ -242,12 +242,18 @@ def encode(name, wav, stereo=False, long=False):
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', wav, '-c:a', 'libvorbis', '-q:a', q, os.path.join(OUT, name + '.ogg')], check=True)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', wav, '-c:a', 'libmp3lame', '-b:a', br, os.path.join(OUT, name + '.mp3')], check=True)
 
-VOICES = {
-    'v_turn': 'Đến lượt bạn', 'v_5s': 'Còn năm giây', 'v_sam': 'Báo Sâm', 'v_chat': 'Chặt!',
-    'v_win': 'Chiến thắng!', 'v_lose': 'Thua rồi',
-    'v_taunt0': 'Chết nè!', 'v_taunt1': 'Mày ngon!', 'v_taunt2': 'Đi đâu hả con?', 'v_taunt3': 'Từ từ đã!',
-    'v_taunt4': 'Ôi bạn ơi!', 'v_taunt5': 'Cay chưa?', 'v_taunt6': 'Nộp điểm đây!', 'v_taunt7': 'Về quê nuôi cá nhé!',
-}
+# Giọng đọc thu sẵn (ElevenLabs) nằm trong assets/voice/<tên>.mp3 — luôn được ưu tiên.
+VOICE_SRC = os.path.join(os.path.dirname(__file__), '..', 'assets', 'voice')
+# Câu chưa có bản thu thì đọc tạm bằng espeak-ng (giọng máy).
+VOICES = {}
+
+def encode_recorded(name, src):
+    # cắt khoảng lặng đầu/cuối, chuẩn hoá độ lớn về cùng mức, mono 44.1k
+    af = ('silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03,'
+          'areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.08,areverse,'
+          'loudnorm=I=-16:TP=-1.5:LRA=11')
+    for ext, codec in (('ogg', ['-c:a', 'libvorbis', '-q:a', '4']), ('mp3', ['-c:a', 'libmp3lame', '-b:a', '96k'])):
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', src, '-af', af, '-ac', '1', '-ar', str(SR)] + codec + [os.path.join(OUT, name + '.' + ext)], check=True)
 
 def main():
     with tempfile.TemporaryDirectory() as td:
@@ -255,8 +261,15 @@ def main():
             p = os.path.join(td, name + '.wav'); write_wav(p, norm(x, 0.85)); encode(name, p)
         p = os.path.join(td, 'music.wav'); write_wav(p, music_loop()); encode('music', p, True, True)
         p = os.path.join(td, 'ambient.wav'); write_wav(p, ambient_loop()); encode('ambient', p, True, True)
+        recorded = set()
+        if os.path.isdir(VOICE_SRC):
+            for f in sorted(os.listdir(VOICE_SRC)):
+                if f.endswith('.mp3') or f.endswith('.wav'):
+                    name = os.path.splitext(f)[0]; recorded.add(name)
+                    encode_recorded(name, os.path.join(VOICE_SRC, f))
         if subprocess.run(['which', 'espeak-ng'], capture_output=True).returncode == 0:
             for name, text in VOICES.items():
+                if name in recorded: continue
                 raw = os.path.join(td, name + '_raw.wav')
                 subprocess.run(['espeak-ng', '-v', 'vi', '-s', '150', '-p', '42', '-a', '180', '-w', raw, text], check=True)
                 with wave.open(raw) as w:

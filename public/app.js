@@ -791,28 +791,28 @@ function handleEvents(evs) {
       case 'deal': Sound.play('shuffle'); setTimeout(() => Sound.play('deal'), 450); dealAnim = true; break;
       case 'samopen': Sound.play('phase'); break;
       case 'sam':
-        Sound.play('bao_sam', { pan }); Sound.voice('v_sam');
+        Sound.play('bao_sam', { pan }); Sound.voice('v_sam', 3);
         banner('BÁO SÂM!', 'gold', nameOf(e.by)); vibrate(120);
         break;
       case 'start':
         Sound.play('start');
-        if (e.turn === S.you) { Sound.play('myturn'); Sound.voice('v_turn'); vibrate(60); }
+        if (e.turn === S.you) { Sound.play('myturn'); Sound.voice('v_invite', 2); vibrate(60); }
         break;
       case 'play':
-        if (e.chop === 'chat2') { Sound.play('chop2', { pan }); Sound.voice('v_chat'); banner('CHẶT 2!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 120]); }
-        else if (e.chop === 'chatde') { Sound.play(e.depth >= 3 ? 'chopde2' : 'chopde', { pan }); Sound.voice('v_chat'); banner('CHẶT ĐÈ x' + (e.mult || 2) + '!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 60, 40, 160]); }
+        if (e.chop === 'chat2') { Sound.play('chop2', { pan }); Sound.voice('v_chop1', 4); banner('CHẶT 2!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 120]); }
+        else if (e.chop === 'chatde') { Sound.play(e.depth >= 3 ? 'chopde2' : 'chopde', { pan }); Sound.voice(e.depth >= 3 ? 'v_chopde2' : 'v_chopde', 5); banner('CHẶT ĐÈ x' + (e.mult || 2) + '!', 'red', nameOf(e.by)); shakeTable(); vibrate([60, 40, 60, 40, 160]); }
         else Sound.play(e.n >= 5 ? 'play_big' : 'play', { pan });
         break;
       case 'pass': Sound.play('pass', { pan }); break;
-      case 'round': Sound.play('collect'); break;
+      case 'round': Sound.play('collect'); if (e.leader !== S.you) Sound.voice('v_next', 1); break;
       case 'turn':
-        if (e.to === S.you) { Sound.play('myturn'); Sound.voice('v_turn'); vibrate(60); }
+        // tới lượt mình: cầm cái thì "Xin mời bạn…", phải chặn thì "Đến lượt bạn rồi"
+        if (e.to === S.you) { Sound.play('myturn'); Sound.voice(S.table ? 'v_turn' : 'v_invite', 2); vibrate(60); }
         else Sound.play('turn', { pan: seatPan(e.to) });
         break;
       case 'chopsettle': Sound.play('coins'); break;
       case 'taunt':
         taunts[e.by] = { text: e.text, until: Date.now() + 2600 };
-        Sound.voice('v_taunt' + e.k);
         setTimeout(() => S && render(), 2650);
         break;
       case 'pause': Sound.play('pause'); banner('TẠM DỪNG', 'dark'); break;
@@ -822,8 +822,12 @@ function handleEvents(evs) {
       case 'settings': toast(e.ai ? 'Chủ phòng đã bật gợi ý AI' : 'Chủ phòng đã tắt gợi ý AI'); break;
       case 'end': {
         Sound.play('end');
-        if (e.kind === 'sam') { Sound.play('sam_win'); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
-        else if (e.kind === 'chan') { Sound.play('bat_sam'); banner('BẮT SÂM!', 'red', nameOf(e.winner)); if (e.samBy === S.you) setTimeout(() => Sound.play('sam_fail'), 700); }
+        if (e.kind === 'sam') { Sound.play('sam_win'); Sound.voice('v_samwin', 6); banner('SÂM THÀNH CÔNG!', 'gold', nameOf(e.winner)); }
+        else if (e.kind === 'chan') {
+          Sound.play('bat_sam'); banner('BẮT SÂM!', 'red', nameOf(e.winner));
+          Sound.voice(e.samBy === S.you ? 'v_samfail' : 'v_catch', 6);
+          if (e.samBy === S.you) setTimeout(() => Sound.play('sam_fail'), 700);
+        }
         else if (e.kind === 'trang') { Sound.play('sam_win'); banner('ĂN TRẮNG!', 'gold', nameOf(e.winner)); }
         else banner('HẾT BÀI!', 'gold', nameOf(e.winner));
         break;
@@ -831,9 +835,9 @@ function handleEvents(evs) {
       case 'result': {
         const r = S.result; if (!r) break;
         const me = r.rows[S.you];
-        if (r.winner === S.you) { Sound.play('win'); Sound.voice('v_win'); confetti(); vibrate([80, 50, 80, 50, 200]); }
+        if (r.winner === S.you) { Sound.play('win'); confetti(); vibrate([80, 50, 80, 50, 200]); }
         else {
-          Sound.play('lose'); Sound.voice('v_lose');
+          Sound.play('lose');
           if (me && me.cong) setTimeout(() => Sound.play('cong'), 900);
           else if ((r.entries || []).some(x => x.kind === 'thoi2' && x.from === S.you)) setTimeout(() => Sound.play('thoi2'), 900);
         }
@@ -862,7 +866,7 @@ setInterval(() => {
     const seat = document.querySelector('#table .seat.turn');
     if (seat) seat.classList.toggle('warn', !t.frozen && t.left <= 5000);
     if (S.turn === S.you && !t.frozen && t.left <= 5000 && t.left > 0 && warnedTurn !== S.turnId) {
-      warnedTurn = S.turnId; Sound.play('warn5'); Sound.voice('v_5s'); vibrate([40, 40, 40]);
+      warnedTurn = S.turnId; Sound.play('warn5'); Sound.voice('v_5s', 3); vibrate([40, 40, 40]);
     }
   }
   document.querySelectorAll('[data-since]').forEach(e => {
@@ -938,7 +942,7 @@ function openSettings() {
   for (const id in ST_RANGE) $(id).value = settings[ST_RANGE[id]];
   $('settingsSheet').classList.add('on');
 }
-for (const id in ST_BIND) $(id).onchange = () => { settings[ST_BIND[id]] = $(id).checked; applySettings(); if (id === 'stVoice' && settings.voice) Sound.voice('v_turn'); };
+for (const id in ST_BIND) $(id).onchange = () => { settings[ST_BIND[id]] = $(id).checked; applySettings(); if (id === 'stVoice' && settings.voice) { Sound.unlock(); Sound.voice('v_turn', 9); } };
 for (const id in ST_RANGE) $(id).oninput = () => { settings[ST_RANGE[id]] = +$(id).value; applySettings(); };
 $(`stSfx`).onchange = () => Sound.play('play');
 $('btCloseSettings').onclick = () => $('settingsSheet').classList.remove('on');
@@ -1101,6 +1105,10 @@ function replaySound(e, rp) {
   const map = { deal: 'shuffle', sam: 'bao_sam', start: 'start', pass: 'pass', round: 'collect', chopsettle: 'coins', pause: 'pause', resume: 'resume', end: 'end' };
   if (e.type === 'play') Sound.play(e.chop === 'chat2' ? 'chop2' : e.chop === 'chatde' ? (e.depth >= 3 ? 'chopde2' : 'chopde') : e.n >= 5 ? 'play_big' : 'play', { pan });
   else if (map[e.type]) Sound.play(map[e.type], { pan });
+  if (e.type === 'play' && e.chop) Sound.voice(e.chop === 'chat2' ? 'v_chop1' : e.depth >= 3 ? 'v_chopde2' : 'v_chopde', 5);
+  if (e.type === 'sam') Sound.voice('v_sam', 3);
+  if (e.type === 'end' && e.kind === 'chan') Sound.voice('v_catch', 6);
+  if (e.type === 'end' && e.kind === 'sam') Sound.voice('v_samwin', 6);
   if (e.type === 'play' && e.chop) { banner(e.chop === 'chat2' ? 'CHẶT 2!' : 'CHẶT ĐÈ x' + e.mult + '!', 'red', rp.players[e.by].name); }
   if (e.type === 'sam') banner('BÁO SÂM!', 'gold', rp.players[e.by].name);
   if (e.type === 'end') banner(e.kind === 'chan' ? 'BẮT SÂM!' : e.kind === 'sam' ? 'SÂM THÀNH CÔNG!' : e.kind === 'trang' ? 'ĂN TRẮNG!' : 'HẾT BÀI!', 'gold', rp.players[e.winner].name);
