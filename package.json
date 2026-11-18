@@ -1,9 +1,19 @@
 {
-  "name": "sam-loc-online",
-  "version": "1.0.0",
-  "description": "Game bài Sâm Lốc chơi online theo phòng",
+  "name": "sam-dua",
+  "version": "2.0.0",
+  "description": "Sâm Dứa — game bài Sâm Lốc online chơi theo phòng",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=16" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node --test test/e2e/*.test.js",
+    "backup": "node scripts/backup.js",
+    "audio": "python3 scripts/make_audio.py"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "pg": "^8.13.0",
+    "ws": "^8.18.0"
+  },
   "license": "MIT"
 }
