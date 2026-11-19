@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.6.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -102,7 +102,9 @@ function comboName(cb, cards) {
 /* ================= điều hướng ================= */
 let current = 'sHome';
 function show(id) {
+  const wasHome = current === 'sHome';
   current = id;
+  if (id === 'sHome' && !wasHome && typeof loadRooms === 'function') setTimeout(loadRooms, 0);
   if (id !== 'sGame') { $('resultOv').classList.remove('on'); const pk = document.querySelector('.peek'); if (pk) pk.remove(); }
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
   if (id !== 'sReplay') Replay.stop();
@@ -402,6 +404,53 @@ $('btWatch').onclick = () => {
   if (c.length !== 4) return toast('Nhập mã phòng muốn xem');
   watchRoom(c, n);
 };
+/* ---- danh sách phòng đang mở: bấm là vào, không cần mã ---- */
+const PHASE_TXT = { lobby: 'Đang chờ', sam: 'Đang báo Sâm', play: 'Đang chơi', reveal: 'Đang chơi', over: 'Vừa xong ván' };
+let roomsTimer = null, roomsBusy = false;
+async function loadRooms() {
+  if (roomsBusy || current !== 'sHome' || document.hidden) return;
+  roomsBusy = true;
+  try {
+    const j = await api('rooms', {});
+    if (!j.err) renderRooms(j.rooms || []);
+  } finally { roomsBusy = false; }
+}
+function renderRooms(list) {
+  const box = $('roomList'); box.textContent = '';
+  if (!list.length) { box.append(h('div', 'pr-empty', 'Chưa có phòng nào đang mở. Tạo phòng rồi rủ hội vào nhé!')); return; }
+  list.forEach(r => {
+    const row = h('div', 'pr-row');
+    const avs = h('div', 'pr-avs');
+    r.players.slice(0, 5).forEach(p => { const a = h('span', 'pr-av' + (p.bot ? ' bot' : ''), p.av || '🙂'); a.title = p.name + (p.bot ? ' (máy)' : ''); avs.append(a); });
+    const info = h('div', 'pr-info');
+    info.append(h('b', '', 'Phòng của ' + (r.host || '…')));
+    const meta = [`${PHASE_TXT[r.phase] || ''}${r.phase !== 'lobby' && r.gameNo ? ' ván ' + r.gameNo : ''}`, `${r.players.length}/${r.max} người`];
+    if (r.spectators) meta.push(`👀 ${r.spectators}`);
+    info.append(h('small', '', meta.join(' · ')));
+    const acts = h('div', 'pr-acts');
+    if (r.canJoin) {
+      const bj = h('button', 'btn gold sm', 'Vào chơi');
+      bj.onclick = async () => {
+        const n = myName(); if (!n) return;
+        const j = await api('join', { room: r.code, name: n, av: myAv });
+        if (j.err && j.canWatch && (await confirmBox(j.err + '. Vào xem ván không?'))) return watchRoom(r.code, n);
+        if (j.err) return toast(j.err);
+        store.set('sam_role', 'player'); enterRoom(j.code);
+      };
+      acts.append(bj);
+    }
+    const bw = h('button', 'btn sm', '👀 Xem');
+    bw.onclick = () => { const n = myName(); if (n) watchRoom(r.code, n); };
+    acts.append(bw);
+    row.append(avs, info, acts);
+    box.append(row);
+  });
+}
+$('btRoomsRef').onclick = () => loadRooms();
+function startRoomsPoll() { clearInterval(roomsTimer); loadRooms(); roomsTimer = setInterval(loadRooms, 8000); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadRooms(); });
+startRoomsPoll();
+
 $('btSitLobby').onclick = async () => {
   const j = await api('join', { room: S.code, name: store.get('sam_name', 'Khách'), av: myAv });
   if (j.err) toast(j.err); else store.set('sam_role', 'player');
@@ -433,6 +482,7 @@ function openCreate(cur) {
   const s = cur || store.json('sam_room_defaults', null) || {};
   $('fAi').checked = s.ai !== undefined ? s.ai : true;
   $('fBotChat').checked = s.botChat !== undefined ? s.botChat : true;
+  $('fPrivate').checked = !!s.private;
   setSeg('fTurn', s.turnMs || 30000);
   setSeg('fPause', s.pauseLimitMs !== undefined ? s.pauseLimitMs : 600000);
   setSeg('fReplay', s.replayPolicy || 'all');
@@ -445,7 +495,7 @@ function openCreate(cur) {
 }
 function formSettings() {
   return {
-    ai: $('fAi').checked, botChat: $('fBotChat').checked, turnMs: +segVal('fTurn'), pauseLimitMs: +segVal('fPause'), replayPolicy: segVal('fReplay'),
+    ai: $('fAi').checked, botChat: $('fBotChat').checked, private: $('fPrivate').checked, turnMs: +segVal('fTurn'), pauseLimitMs: +segVal('fPause'), replayPolicy: segVal('fReplay'),
     points: Object.assign({}, formPts, { chainMode: segVal('fChain') }),
   };
 }
@@ -1183,6 +1233,11 @@ function renderHostSheet() {
   const bcSw = h('label', 'sw'); const bcIn = document.createElement('input'); bcIn.type = 'checkbox'; bcIn.checked = S.settings.botChat !== false;
   bcIn.onchange = () => act('settings', { settings: { botChat: bcIn.checked } });
   bcSw.append(bcIn, h('i', '')); bcRow.append(bcLab, bcSw); panel.append(bcRow);
+  const pvRow = h('div', 'frow');
+  const pvLab = h('div', ''); pvLab.append(h('b', '', 'Phòng riêng tư'), h('small', '', 'Ẩn khỏi danh sách phòng ở trang chủ'));
+  const pvSw = h('label', 'sw'); const pvIn = document.createElement('input'); pvIn.type = 'checkbox'; pvIn.checked = !!S.settings.private; pvIn.disabled = !isHost;
+  pvIn.onchange = () => act('settings', { settings: { private: pvIn.checked } });
+  pvSw.append(pvIn, h('i', '')); pvRow.append(pvLab, pvSw); panel.append(pvRow);
   const pr = h('div', 'frow');
   pr.append(h('b', '', 'Tạm dừng ván'), h('span', 'muted', S.settings.pauseLimitMs ? `đã dùng ${fmtTime(S.pauseUsed || 0)} / ${fmtTime(S.settings.pauseLimitMs)}` : `đã dùng ${fmtTime(S.pauseUsed || 0)} · không giới hạn`));
   panel.append(pr);

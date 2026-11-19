@@ -11,6 +11,7 @@ const News = require('./news');
 
 // [tên, avatar, giọng] — lấy từ hồ sơ nhân vật (src/botchat.js)
 const BOTS = BC.BOT_LIST;
+const BOT_MIN_GAP = 2000;   // máy chat cách nhau tối thiểu 2 giây
 const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
@@ -34,6 +35,7 @@ const rid = () => crypto.randomBytes(8).toString('hex');
 const DEFAULT_SETTINGS = () => ({
   ai: true,                       // cho phép người chơi bấm Gợi ý
   botChat: true,                  // máy nói chuyện trên chat theo tính cách
+  private: false,                 // phòng riêng tư: không hiện trong danh sách phòng ở trang chủ
   pauseLimitMs: C.PAUSE_LIMIT_MS, // 0 = không giới hạn (phòng riêng)
   replayPolicy: 'all',            // 'all': người trong ván xem toàn bộ bài khi xem lại; 'own': chỉ bài của mình
   turnMs: C.TURN_MS,
@@ -48,6 +50,7 @@ function normalizeSettings(s, base) {
   return {
     ai: s.ai !== undefined ? !!s.ai : d.ai,
     botChat: s.botChat !== undefined ? !!s.botChat : d.botChat !== false,
+    private: s.private !== undefined ? !!s.private : !!d.private,
     pauseLimitMs: pl,
     replayPolicy: s.replayPolicy !== undefined ? (s.replayPolicy === 'own' ? 'own' : 'all') : d.replayPolicy,
     turnMs: Number.isFinite(turnMs) ? turnMs : d.turnMs,
@@ -198,6 +201,22 @@ class Room {
     return {};
   }
 
+  /* ---------------- danh sách phòng ở trang chủ ---------------- */
+  // null = không hiện (phòng riêng tư, đã đóng, hoặc không còn người thật nào online)
+  listing() {
+    if (this.closed || this.settings.private) return null;
+    const humans = this.players.filter(p => !p.bot && this.online(p)).length;
+    if (!humans) return null;
+    const host = this.players.find(p => p.pid === this.hostPid) || this.players.find(p => !p.bot);
+    const open = this.phase === 'lobby' || this.phase === 'over';
+    return {
+      code: this.code, host: host ? host.name : '', phase: this.phase, gameNo: this.gameNo,
+      players: this.players.map(p => ({ name: p.name, av: p.av, bot: !!p.bot })),
+      max: C.MAX_PLAYERS, humans, spectators: this.spectators.length,
+      canJoin: open && this.players.length < C.MAX_PLAYERS,
+    };
+  }
+
   /* ---------------- máy nói chuyện ---------------- */
   // Nguyên tắc: ít mà đúng lúc. Máy nói khi có chuyện (chặt, báo Sâm, thắng thua, bị gọi tên, có người chat),
   // đáp nhau theo quan hệ, thỉnh thoảng khơi chuyện thời sự. Trong một bàn không máy nào nói lại câu đã nói.
@@ -263,7 +282,8 @@ class Room {
     if (this.botTimer || !this.botQ.length || this.closed) return;
     const head = this.botQ[0];
     const inPlay = this.phase === 'sam' || this.phase === 'play';
-    const gap = head.prio ? 1200 : inPlay ? 5000 : 2600;
+    // khoảng nghỉ giữa hai câu máy: tối thiểu BOT_MIN_GAP (2s), lúc đang đánh thì 5s (trừ khi đáp người chơi)
+    const gap = Math.max(BOT_MIN_GAP, head.prio ? 0 : inPlay ? 5000 : 2600);
     const first = head.prio ? 1100 + crypto.randomInt(1000) : 1400 + crypto.randomInt(1400);
     const wait = Math.max(first, this.lastBotAt + gap - this.now());
     this.botTimer = setTimeout(() => {
@@ -510,7 +530,8 @@ class Room {
     };
     this.emit('deal', { hands: hands.map(h => h.slice()), lead, names: this.players.map(p => p.name) });
     this.botTalk = {};
-    this.botQ = this.botQ.filter(q => q.force || q.prio);
+    // câu thắng/thua của ván trước chưa kịp nói thì bỏ, không dồn vào đầu ván mới; chỉ giữ câu đáp người chơi
+    this.botQ = this.botQ.filter(q => q.prio).slice(0, 1);
     { const bots = this.botIdx();
       this.botGame = { lines: 0, budget: 2 + 2 * bots.length, news: 0 };
       if (bots.length) this.maybeBot(BC.pick(bots), 'start', 0.6); }
@@ -921,6 +942,7 @@ class Room {
           // trong ván chỉ được bật/tắt gợi ý
           if (msg.settings && msg.settings.ai !== undefined) this.settings.ai = !!msg.settings.ai;
           if (msg.settings && msg.settings.botChat !== undefined) this.settings.botChat = !!msg.settings.botChat;
+          if (msg.settings && msg.settings.private !== undefined) this.settings.private = !!msg.settings.private;
           if (!this.settings.botChat) this.botQ = [];
           this.emit('settings', { ai: this.settings.ai, botChat: this.settings.botChat }, false);
           return {};
@@ -1120,7 +1142,7 @@ class Room {
     return {
       code: this.code, phase: this.phase, you: i, host, log: this.log,
       gameId: g ? g.id : null, gameNo: this.gameNo,
-      settings: { ai: this.settings.ai, botChat: this.settings.botChat, pauseLimitMs: this.settings.pauseLimitMs, replayPolicy: this.settings.replayPolicy, turnMs: this.settings.turnMs, points: this.settings.points },
+      settings: { ai: this.settings.ai, botChat: this.settings.botChat, private: !!this.settings.private, pauseLimitMs: this.settings.pauseLimitMs, replayPolicy: this.settings.replayPolicy, turnMs: this.settings.turnMs, points: this.settings.points },
       players: this.players.map((p, k) => ({
         name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: !!p.auto, score: p.score,
         online: this.online(p), afk: this.isAfk(p),

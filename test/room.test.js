@@ -305,6 +305,9 @@ test('máy nói chuyện: tiết chế, không lặp câu trong cả bàn, đáp
     assert.ok(lines.length <= 2 + 2 * 4 + 4 + 2, `cả bàn nói ${lines.length} câu/ván là quá nhiều`);
   }
   assert.ok(total >= 12, 'máy phải có nói');
+  // không bao giờ có hai câu máy cách nhau dưới 2 giây
+  const at = room.chat.filter(m => m.bot).map(m => m.at);
+  for (let k = 1; k < at.length; k++) assert.ok(at[k] - at[k - 1] >= 2000, `hai câu máy cách nhau ${at[k] - at[k - 1]}ms`);
   // không nói lại câu nào trong cả bàn (trừ câu khơi tin: mỗi tin chỉ một lần)
   const all = room.chat.filter(m => m.bot).map(m => m.name + '|' + m.text);
   assert.strictEqual(new Set(all).size, all.length, 'có câu bị lặp');
@@ -512,4 +515,18 @@ test('thống kê của bàn: thắng/thua, chuỗi xanh đỏ, Sâm, bắt Sâm
   assert.strictEqual(r2.reduce((a, x) => a + x.points, 0), 0);
   const back = Room.restore(JSON.parse(JSON.stringify(room.snapshot())), { send() {} });
   assert.deepStrictEqual(back.view(0).rstats, r2);
+});
+
+test('danh sách phòng: ẩn phòng riêng tư và phòng không còn ai online', () => {
+  const room = new Room('LIST', { store: mkStore(), send() {} });
+  const h = room.addHuman('list-token-1234567', 'Steve', '🙂');
+  assert.strictEqual(room.listing(), null, 'chưa ai online');
+  room.connect(h.pid);
+  room.handle(h.pid, { a: 'addBot' });
+  const l = room.listing();
+  assert.strictEqual(l.code, 'LIST'); assert.strictEqual(l.host, 'Steve'); assert.strictEqual(l.canJoin, true);
+  assert.strictEqual(l.players.length, 2); assert.ok(l.players[1].bot);
+  room.handle(h.pid, { a: 'settings', settings: { private: true } });
+  assert.strictEqual(room.listing(), null, 'phòng riêng tư');
+  room.close();
 });

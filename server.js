@@ -120,6 +120,13 @@ async function api(b, ip) {
   if (NEWS_ON && (a === 'create' || a === 'join' || a === 'watch')) News.freshen(log);   // mở app: tin cũ quá 20 phút thì tải lại
   if (['register', 'login', 'google', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
   if (a === 'config') return { googleClientId: C.GOOGLE_CLIENT_ID || null };
+  if (a === 'rooms') {
+    // phòng công khai đang có người: phòng còn ghế lên trước, rồi phòng đông người
+    const list = [...rooms.values()].map(r => r.listing()).filter(Boolean)
+      .sort((x, y) => (y.canJoin - x.canJoin) || (y.humans + y.spectators - x.humans - x.spectators))
+      .slice(0, 30);
+    return { rooms: list };
+  }
 
   /* ---- tài khoản ---- */
   if (a === 'register' || a === 'login' || a === 'google') {
