@@ -6,6 +6,7 @@ const { ROLES, roleSet, teamOf } = require('./roles');
 const { BaseRoom } = require('../../platform/room-base');
 const { BOT_LIST } = require('../../platform/bots/personas');
 const AI = require('./ai');
+const NARR = require('./narration.json');   // thời lượng (ms) từng câu dẫn truyện: { key: [ms câu 1, ms câu 2…] }
 
 const DISCUSS = [60000, 90000, 120000, 180000, 300000];
 const DEFAULT_SETTINGS = () => ({ discussMs: 120000, revealRole: true, botChat: true, private: false });
@@ -38,7 +39,27 @@ class Room extends BaseRoom {
   aliveIdx() { return this.players.map((_, k) => k).filter(k => this.alive(k)); }
   isWolf(i) { return this.role(i) === 'wolf'; }
   humansAlive() { return this.players.some((p, k) => !p.bot && this.alive(k)); }
-  dur(ms) { return this.humansAlive() ? ms : Math.min(ms, C.FAST_MS); }
+  // mode 'add': cộng thêm thời gian lời dẫn còn đọc (bước cần thao tác) · 'hold': chờ đọc xong (bước chỉ để nghe)
+  dur(ms, mode) {
+    if (!this.humansAlive()) return Math.min(ms, C.FAST_MS);
+    const left = this.narrLeft();
+    return mode === 'add' ? ms + left : mode === 'hold' ? Math.max(ms, left + 500) : ms;
+  }
+
+  /* ---------- người dẫn truyện (file thu sẵn, phát ở trình duyệt theo hàng đợi) ---------- */
+  narrLeft() { return this.g ? Math.max(0, (this.g.narrUntil || 0) - this.now()) : 0; }
+  say(key) {
+    const g = this.g, list = NARR[key];
+    if (!g || !list || !list.length) return;
+    if (!this.humansAlive() && !key.startsWith('win')) return;   // máy tự chơi với nhau: không đọc
+    g.narrLast = g.narrLast || {};
+    let n = rnd(list.length);
+    if (list.length > 1 && n === g.narrLast[key]) n = (n + 1 + rnd(list.length - 1)) % list.length;   // không lặp câu vừa đọc
+    g.narrLast[key] = n;
+    const at = Math.max(this.now(), g.narrUntil || 0);
+    g.narrUntil = at + list[n] + 400;
+    this.outbox.push({ type: 'narr', key, n: n + 1 });
+  }
   botDelay() { return this.humansAlive() ? C.BOT_MIN_MS + rnd(Math.max(1, C.BOT_MAX_MS - C.BOT_MIN_MS)) : 200 + rnd(500); }
   inGame() { return this.g && this.phase !== 'lobby' && this.phase !== 'over'; }
 
@@ -78,6 +99,7 @@ class Room extends BaseRoom {
     this.players.forEach((p, i) => { if (p.bot) this.g.mind[i] = AI.newMind(this, i); });
     const counts = {};
     roles.forEach(r => { counts[r] = (counts[r] || 0) + 1; });
+    this.say('intro');
     this.sysChat(`🎭 Ván ${this.gameNo} bắt đầu: ${Object.keys(ROLES).filter(r => counts[r]).map(r => `${counts[r]} ${ROLES[r].name}`).join(', ')}`);
     this.beginNight(true);
   }
@@ -89,7 +111,8 @@ class Room extends BaseRoom {
     g.night = { wolf: {}, seer: null, guard: null, witch: null, victim: null };
     g.votes = {}; g.ready = [];
     this.sysChat(`🌙 Đêm ${g.day} buông xuống. Cả làng đi ngủ…`);
-    this.setPhase('night', this.dur(C.NIGHT_MS));
+    this.say('night');
+    this.setPhase('night', this.dur(C.NIGHT_MS, 'add'));
     AI.scheduleNight(this);
   }
   nightActors() {
@@ -144,12 +167,23 @@ class Room extends BaseRoom {
     const max = Math.max(0, ...Object.values(tally));
     const top = Object.keys(tally).filter(k => tally[k] === max).map(Number);
     n.victim = max > 0 ? pick(top) : null;
+    // hết giờ mà bầy Sói không ai chọn (người chơi treo máy): bầy vẫn đi săn, vồ ngẫu nhiên một người
+    if (n.victim === null && !Object.keys(n.wolf).length) {
+      const prey = this.aliveIdx().filter(k => !this.isWolf(k));
+      if (prey.length && this.aliveIdx().some(k => this.isWolf(k))) n.victim = pick(prey);
+    }
+    // Ván có Phù thủy thì đêm nào cũng có lượt Phù thủy, kể cả khi bà đã chết/hết thuốc
+    // (giả vờ chờ một lúc như thật) để không ai đoán được bà còn sống hay không.
+    if (!g.roles.includes('witch')) return this.resolveNight();
     const wi = this.players.findIndex((_, k) => this.alive(k) && g.roles[k] === 'witch');
-    if (wi >= 0 && (g.potions.heal || g.potions.poison)) {
-      n.witch = null;
-      this.setPhase('witch', this.dur(C.WITCH_MS));
-      AI.scheduleWitch(this, wi);
-    } else this.resolveNight();
+    n.witch = null;
+    this.say('witch');
+    this.setPhase('witch', this.dur(C.WITCH_MS, 'add'));
+    if (wi >= 0 && (g.potions.heal || g.potions.poison)) AI.scheduleWitch(this, wi);
+    else {
+      const day = g.day;
+      this.later(this.narrLeft() + this.botDelay(), () => { if (this.phase === 'witch' && this.g && this.g.day === day) { this.resolveNight(); this.commit(); } });
+    }
   }
   witchAct(i, heal, poison) {
     const g = this.g, n = g.night;
@@ -176,8 +210,9 @@ class Room extends BaseRoom {
     if (!deaths.length) this.sysChat(`☀️ Trời sáng. Đêm qua bình yên, không ai chết.`);
     else this.sysChat(`☀️ Trời sáng. Đêm qua ${deaths.map(([i]) => this.deadName(i)).join(' và ')} đã chết.`);
     this.outbox.push({ type: 'dawn', deaths: deaths.map(d => d[0]) });
+    this.say(deaths.length === 0 ? 'dawn_peace' : deaths.length === 1 ? 'dawn_death' : 'dawn_multi');
     if (this.checkWin()) return;
-    this.setPhase('dawn', this.dur(C.DAWN_MS));
+    this.setPhase('dawn', this.dur(C.DAWN_MS, 'hold'));
     AI.onDawn(this, deaths.map(d => d[0]));
   }
   deadName(i) { const r = this.g.roles[i]; return this.settings.revealRole ? `${this.players[i].name} (${ROLES[r].icon} ${ROLES[r].name})` : this.players[i].name; }
@@ -197,7 +232,8 @@ class Room extends BaseRoom {
       const h = g.pendingHunter.shift();
       g.hunter = { i: h, next };
       this.sysChat(`🏹 ${this.players[h].name} là Thợ săn! Được bắn chết theo một người.`);
-      this.setPhase('hunter', this.dur(C.HUNTER_MS));
+      this.say('hunter');
+      this.setPhase('hunter', this.dur(C.HUNTER_MS, 'add'));
       AI.scheduleHunter(this, h);
       return;
     }
@@ -221,7 +257,14 @@ class Room extends BaseRoom {
     const g = this.g;
     g.ready = [];
     this.sysChat(`🗣️ Ngày ${g.day}: thảo luận tìm Sói. Bấm "Sẵn sàng bỏ phiếu" khi xong.`);
-    this.setPhase('discuss', this.dur(this.settings.discussMs));
+    this.say('discuss');
+    const ms = this.dur(this.settings.discussMs, 'add');
+    this.setPhase('discuss', ms);
+    // còn ~12 giây: nhắc sắp hết giờ
+    if (this.humansAlive() && ms > 25000) {
+      const day = g.day;
+      this.later(ms - 12000, () => { if (this.phase === 'discuss' && this.g && this.g.day === day) { this.say('discuss_end'); this.commit(); } });
+    }
     AI.scheduleDiscuss(this);
   }
   setReady(i, on) {
@@ -237,7 +280,8 @@ class Room extends BaseRoom {
     const g = this.g;
     g.votes = {};
     this.sysChat('🗳️ Bỏ phiếu treo cổ! Chọn người nghi là Sói (hoặc bỏ qua).');
-    this.setPhase('vote', this.dur(C.VOTE_MS));
+    this.say('vote');
+    this.setPhase('vote', this.dur(C.VOTE_MS, 'add'));
     AI.scheduleVotes(this);
   }
   vote(i, t) {
@@ -267,12 +311,14 @@ class Room extends BaseRoom {
       this.kill(t, 'vote');
       this.sysChat(`⚖️ Làng treo cổ ${this.deadName(t)} với ${max} phiếu.`);
       this.outbox.push({ type: 'exec', t });
+      this.say('exec');
     } else {
       this.sysChat(top.length > 1 && max > 0 ? '⚖️ Hoà phiếu — không ai bị treo cổ.' : '⚖️ Không đủ phiếu — không ai bị treo cổ.');
       this.outbox.push({ type: 'exec', t: null });
+      this.say('exec_none');
     }
     if (this.checkWin()) return;
-    this.setPhase('exec', this.dur(C.EXEC_MS));
+    this.setPhase('exec', this.dur(C.EXEC_MS, 'hold'));
   }
 
   /* ---------- kết thúc ---------- */
@@ -291,6 +337,7 @@ class Room extends BaseRoom {
     this.sysChat(winner === 'wolf' ? '🐺 BẦY SÓI THẮNG! Làng đã bị thôn tính.' : '🎉 DÂN LÀNG THẮNG! Đã tiêu diệt hết Ma Sói.');
     this.sysChat('Vai: ' + this.players.map((p, k) => `${p.name} ${ROLES[g.roles[k]].icon}`).join(', '));
     this.outbox.push({ type: 'over', winner });
+    this.say(winner === 'wolf' ? 'win_wolf' : 'win_village');
     AI.onOver(this);
     return true;
   }

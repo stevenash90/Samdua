@@ -20,6 +20,17 @@ function roleSet(n) {
   while (out.length < n) out.push('villager');
   return out.slice(0, n);
 }
+// Ảnh + truyện của vai (bộ Core 6). Ảnh vuông 480×480 ở public/games/masoi/roles/<id>.webp
+const LORE = {
+  "wolf": "Ẩn mình giữa dân làng, Sói thường chỉ bộc lộ bản năng săn mồi khi màn đêm buông xuống. Chúng phối hợp với đồng loại để tìm con mồi.",
+  "seer": "Được ban cho khả năng nhìn xuyên màn sương dối trá, Tiên tri âm thầm tìm ra những kẻ mang dòng máu Sói trước khi ngôi làng bị diệt vong.",
+  "guard": "Người canh giữ cuối cùng của ngôi làng, luôn đứng giữa bóng tối và những người vô tội. Mỗi đêm, họ chọn một sinh mạng để che chở.",
+  "witch": "Người nắm giữ những bí thuật cổ xưa, có thể níu một sinh mạng khỏi cửa tử hoặc kết liễu kẻ khác bằng độc dược.",
+  "hunter": "Một thợ săn dày dạn sống ngoài rìa làng, quen lần theo dấu chân quái thú. Ngay cả khi gục ngã, phát súng cuối cùng của họ vẫn có thể đổi cục diện.",
+  "villager": "Một cư dân bình thường của ngôi làng, không sở hữu phép thuật hay vũ khí đặc biệt. Sức mạnh của họ nằm ở quan sát, lập luận và sự đoàn kết."
+};
+for (const k of Object.keys(ROLES)) { ROLES[k].art = `/games/masoi/roles/${k}.webp?v=1`; ROLES[k].lore = LORE[k] || ''; }
+
 const teamOf = r => (ROLES[r] ? ROLES[r].team : 'village');
 
 module.exports = { ROLES, roleSet, wolvesFor, teamOf };

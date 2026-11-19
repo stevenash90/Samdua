@@ -81,7 +81,7 @@ function threatToWolves(room, prey) {
 }
 function scheduleWitch(room, wi) {
   if (!room.players[wi].bot) return;
-  room.later(room.botDelay(), () => {
+  room.later(room.narrLeft() + room.botDelay(), () => {   // nghe xong lời dẫn mới quyết, như lượt giả khi Phù thủy đã chết
     if (room.phase !== 'witch') return;
     const g = room.g, v = g.night.victim;
     let heal = false, poison = null;

@@ -9,13 +9,28 @@ const MS = (() => {
   const inGame = () => S.phase !== 'lobby' && S.phase !== 'over';
   const spec = () => S.role === 'spec';
 
+  /* ---------- âm thanh: người dẫn truyện + nhạc nền (bật/tắt riêng, nhớ trên máy) ---------- */
+  const VOICE = k => `/games/masoi/voice/${k}.mp3?v=1`;
+  const BGM = ['/games/masoi/bgm/bg_1.mp3?v=1'];
+  const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch (e) { return d; } };
+  const setPref = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch (e) {} };
+  let narrOn = pref('ms_narr', true), bgmOn = pref('ms_bgm', true), bgmPick = null, preloaded = false;
+  function syncAudio() {
+    $('btMsNarr').classList.toggle('off', !narrOn);
+    $('btMsBgm').classList.toggle('off', !bgmOn);
+    const want = bgmOn && S && S.game === 'masoi' && S.phase !== 'lobby';
+    if (want) { if (!bgmPick) bgmPick = BGM[Math.floor(Math.random() * BGM.length)]; Sound.bgm(bgmPick); }
+    else { Sound.bgm(null); if (S && S.phase === 'lobby') bgmPick = null; }
+    if (narrOn && !preloaded) { preloaded = true; Sound.preload(['intro_1', 'intro_2', 'night_1', 'night_2', 'night_3'].map(VOICE)); }
+  }
+
   function onState(s, evs, first) {
     S = s;
     const away = ['sHistory', 'sStats', 'sReplay', 'sRules'].includes(current);
     if (!away) show('sMasoi');
     const g = S.g;
     base = g && g.timer ? { at: performance.now(), left: g.timer.left, total: g.timer.total || 1 } : { at: 0, left: 0, total: 1 };
-    if (g && g.no !== lastGameNo) { lastGameNo = g.no; if (!first && me()) revealCard(me().role); witchHeal = false; witchPoison = null; }
+    if (g && g.no !== lastGameNo) { lastGameNo = g.no; if (!first && me()) revealCard(me().role); witchHeal = false; witchPoison = null; if (!first) bgmPick = null; }
     if (S.phase !== lastPhase) {
       if (!first && lastPhase) { try { navigator.vibrate && navigator.vibrate(S.phase === 'night' ? [60, 60, 60] : 40); } catch (e) {} }
       lastPhase = S.phase; poisonMode = false;
@@ -26,13 +41,15 @@ const MS = (() => {
     onChatState(first);
     try { Voice.forceMute(inGame() && !spec() && (S.phase === 'night' || S.phase === 'witch' || (me() && !me().alive))); } catch (e) {}
     if (!ticker) ticker = setInterval(tickTimer, 250);
+    syncAudio();
   }
   function handleEvent(e) {
+    if (e.type === 'narr' && narrOn) Sound.narrate(VOICE(e.key + '_' + e.n));
     if (e.type === 'dawn' && e.deaths && me() && e.deaths.length && !alive(S.you)) toast('💀 Bạn đã chết. Giờ bạn ở kênh hồn ma 👻', 3500);
     if (e.type === 'exec' && e.t === S.you) toast('⚖️ Bạn bị làng treo cổ!', 3000);
     if (e.type === 'over') { try { Sound.play(S.g && me() && ((S.g.winner === 'wolf') === (me().role === 'wolf')) ? 'win' : 'lose'); } catch (x) {} }
   }
-  function leave() { clearInterval(ticker); ticker = null; lastGameNo = 0; lastPhase = ''; try { Voice.forceMute(false); } catch (e) {} }
+  function leave() { clearInterval(ticker); ticker = null; lastGameNo = 0; lastPhase = ''; bgmPick = null; try { Voice.forceMute(false); } catch (e) {} try { Sound.narrStop(); Sound.bgm(null); } catch (e) {} }
 
   /* ---------- banner + đồng hồ ---------- */
   function phaseText() {
@@ -103,7 +120,9 @@ const MS = (() => {
     S.players.forEach((p, k) => {
       const c = h('div', 'mcard' + (p.alive ? '' : ' dead') + (k === S.you ? ' me' : '') + (p.role === 'wolf' && m && m.role === 'wolf' && k !== S.you ? ' mate' : ''));
       c.dataset.seat = k;
-      const av = h('div', 'mav', p.av);
+      const showArt = p.role && R()[p.role] && R()[p.role].art && (S.phase === 'over' || !p.alive);
+      const av = h('div', 'mav' + (showArt ? ' art' : ''), showArt ? '' : p.av);
+      if (showArt) av.style.backgroundImage = `url(${R()[p.role].art})`;
       av.append(h('i', 'dot ' + (p.bot || p.online ? (p.afk ? 'afk' : 'on') : '')));
       if (!p.alive) av.append(h('span', 'skull', '💀'));
       c.append(av, h('div', 'mnm', p.name));
@@ -151,7 +170,8 @@ const MS = (() => {
     if (m && m.role && R()[m.role]) {
       const ri = R()[m.role];
       const rc = h('div', 'mrolecard r-' + m.role + (m.alive ? '' : ' dead'));
-      rc.append(h('div', 'ic', ri.icon), h('div', 'tx'));
+      const pic = h('div', 'pic'); if (ri.art) pic.style.backgroundImage = `url(${ri.art})`; else pic.textContent = ri.icon;
+      rc.append(pic, h('div', 'tx'));
       rc.lastChild.append(h('b', '', 'Bạn là ' + ri.name + (m.alive ? '' : ' (đã chết)')), h('small', '', ri.desc));
       if (m.mates && m.mates.length) rc.lastChild.append(h('small', 'mates', '🐺 Đồng bọn: ' + m.mates.map(nm).join(', ')));
       if (m.role === 'witch' && m.potions) rc.lastChild.append(h('small', 'mates', `Bình cứu: ${m.potions.heal ? 'còn' : 'hết'} · Bình độc: ${m.potions.poison ? 'còn' : 'hết'}`));
@@ -224,18 +244,24 @@ const MS = (() => {
     const ri = R()[role]; if (!ri) return;
     const ov = h('div', 'ms-reveal r-' + role);
     const card = h('div', 'rcard');
-    card.append(h('div', 'ic', ri.icon), h('b', '', 'Bạn là ' + ri.name), h('small', '', ri.desc), h('em', '', 'Chạm để đóng'));
+    const pic = h('div', 'pic'); if (ri.art) pic.style.backgroundImage = `url(${ri.art})`; else pic.textContent = ri.icon;
+    const tx = h('div', 'tx');
+    tx.append(h('b', '', 'Bạn là ' + ri.name), h('small', '', ri.desc));
+    if (ri.lore) tx.append(h('i', 'lore', ri.lore));
+    tx.append(h('em', '', 'Chạm để đóng'));
+    card.append(pic, tx);
     ov.append(card);
     ov.onclick = () => ov.remove();
     document.body.append(ov);
-    setTimeout(() => ov.remove(), 6000);
+    setTimeout(() => ov.remove(), 12000);
   }
   function renderRolesSheet() {
     const box = $('msRoles'); box.textContent = '';
     const card = h('div', 'rsheet');
     card.append(h('b', 'ttl', '📜 Các vai trong làng'));
-    for (const [k, r] of Object.entries(R())) { const it = h('div', 'it'); it.append(h('span', 'ic', r.icon), h('div', '')); it.lastChild.append(h('b', '', r.name + (r.team === 'wolf' ? ' · phe Sói' : '')), h('small', '', r.desc)); card.append(it); }
+    for (const [k, r] of Object.entries(R())) { const it = h('div', 'it'); const pic = h('span', 'pic'); if (r.art) pic.style.backgroundImage = `url(${r.art})`; else pic.textContent = r.icon; it.append(pic, h('div', '')); it.lastChild.append(h('b', '', r.name + (r.team === 'wolf' ? ' · phe Sói' : '')), h('small', '', r.desc)); card.append(it); }
     card.append(h('small', 'foot', 'Dân thắng khi diệt hết Sói. Sói thắng khi số Sói bằng hoặc nhiều hơn số người còn lại. Ban đêm dân không chat được; Sói có kênh 🐺 riêng; người chết và người xem chat ở kênh 👻.'));
+    card.append(h('small', 'foot', 'Nhạc nền: “Deep Horrors” – Kevin MacLeod (incompetech.com), giấy phép CC BY 4.0.'));
     box.append(card);
     box.onclick = e => { if (e.target === box) box.classList.remove('on'); };
   }
@@ -246,6 +272,8 @@ const MS = (() => {
   }
   $('btMsRoles').onclick = () => { renderRolesSheet(); $('msRoles').classList.add('on'); };
   $('btMsLeave').onclick = () => leaveRoom();
+  $('btMsNarr').onclick = () => { narrOn = !narrOn; setPref('ms_narr', narrOn); if (!narrOn) Sound.narrStop(); Sound.unlock(); syncAudio(); toast(narrOn ? '🎙️ Bật người dẫn truyện' : '🎙️ Tắt người dẫn truyện'); };
+  $('btMsBgm').onclick = () => { bgmOn = !bgmOn; setPref('ms_bgm', bgmOn); Sound.unlock(); syncAudio(); toast(bgmOn ? '🎵 Bật nhạc nền' : '🎵 Tắt nhạc nền'); };
 
   return { onState, leave, render };
 })();

@@ -31,6 +31,8 @@
 .mav{position:relative;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:26px;background:radial-gradient(circle at 35% 30%,#3c4a80,#151b38 75%);box-shadow:inset 0 2px 6px #000a}
 .mav .dot{position:absolute;right:0;bottom:0;width:10px;height:10px;border-radius:50%;background:#666;border:2px solid #121a33}
 .mav .dot.on{background:#3fd38a}.mav .dot.afk{background:#f3c45a}
+.mav.art{background:#0a0e1c center/cover}
+#sMasoi .bar .icon.off{opacity:.35;filter:grayscale(1)}
 .mav .skull{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;background:#000a;border-radius:50%}
 .mnm{font-size:13px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mtags{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
@@ -47,7 +49,8 @@
 .mrolecard{display:flex;gap:12px;align-items:center;padding:12px;border-radius:16px;background:#ffffff0d;border:1px solid #ffffff1a}
 .mrolecard.r-wolf{background:linear-gradient(135deg,#4a1016,#1a0507);border-color:#e0414e55}
 .mrolecard.dead{opacity:.6}
-.mrolecard .ic{font-size:38px}
+.mrolecard .pic{flex:none;width:64px;height:64px;border-radius:14px;background:#0a0e1c center/cover;display:grid;place-items:center;font-size:34px;box-shadow:0 0 0 1.5px #ffffff22,0 4px 14px #0008}
+.mrolecard.r-wolf .pic{box-shadow:0 0 0 1.5px #ff5a6777,0 4px 14px #0008}
 .mrolecard b{display:block;font-size:15px}
 .mrolecard small{display:block;font-size:12.5px;color:#c9d2ee;line-height:1.4}
 .mrolecard small.mates{color:#f3c45a;margin-top:3px}
@@ -64,17 +67,21 @@
 .ms-roles .rsheet{max-width:440px;width:100%;max-height:86vh;overflow:auto;background:#121a33;border:1px solid #ffffff22;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
 .ms-roles .ttl{font-size:17px}
 .ms-roles .it{display:flex;gap:10px;align-items:flex-start}
-.ms-roles .it .ic{font-size:26px}
+.ms-roles .it .pic{flex:none;width:52px;height:52px;border-radius:12px;background:#0a0e1c center/cover;display:grid;place-items:center;font-size:26px}
 .ms-roles .it b{display:block}
 .ms-roles small{display:block;color:#c9d2ee;font-size:12.5px;line-height:1.4}
 .ms-roles .foot{color:#9fb0dd;margin-top:4px}
 
 .ms-reveal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:#000c;animation:fade .3s}
-.ms-reveal .rcard{width:min(300px,82vw);aspect-ratio:5/7;border-radius:20px;padding:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
-  background:linear-gradient(160deg,#2b3a72,#0f1530);border:2px solid #f3c45a;box-shadow:0 0 40px #f3c45a55;animation:flipin .6s cubic-bezier(.2,.9,.3,1.2)}
-.ms-reveal.r-wolf .rcard{background:linear-gradient(160deg,#6b1414,#1d0606);border-color:#ff5a67;box-shadow:0 0 50px #ff5a6788}
-.ms-reveal .ic{font-size:84px}
-.ms-reveal b{font-size:22px}
+.ms-reveal .rcard{width:min(320px,86vw);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;text-align:center;
+  background:linear-gradient(180deg,#141c3a,#0b1024);border:2px solid #f3c45a;box-shadow:0 0 40px #f3c45a55;animation:flipin .6s cubic-bezier(.2,.9,.3,1.2)}
+.ms-reveal.r-wolf .rcard{background:linear-gradient(180deg,#2a0909,#120303);border-color:#ff5a67;box-shadow:0 0 50px #ff5a6788}
+.ms-reveal .pic{aspect-ratio:1;background:#0a0e1c center/cover;display:grid;place-items:center;font-size:84px;position:relative}
+.ms-reveal .pic::after{content:"";position:absolute;left:0;right:0;bottom:0;height:35%;background:linear-gradient(transparent,#0b1024)}
+.ms-reveal.r-wolf .pic::after{background:linear-gradient(transparent,#120303)}
+.ms-reveal .tx{padding:4px 18px 16px;display:flex;flex-direction:column;gap:7px;margin-top:-18px;position:relative}
+.ms-reveal b{font-size:22px;letter-spacing:.3px}
 .ms-reveal small{color:#dfe5f7;font-size:13.5px;line-height:1.45}
-.ms-reveal em{font-size:11px;color:#9fb0dd;margin-top:6px}
+.ms-reveal .lore{color:#9fb0dd;font-size:12px;line-height:1.45}
+.ms-reveal em{font-size:11px;color:#7f8db5;margin-top:2px;font-style:normal}
 @keyframes flipin{from{transform:rotateY(90deg) scale(.8)}to{transform:none}}

@@ -35,7 +35,7 @@ const Sound = (function () {
     if (!AC) return;
     ctx = new AC();
     master = ctx.createGain(); master.connect(ctx.destination);
-    for (const g of ['music', 'ambient', 'sfx', 'mc', 'male', 'female']) { groups[g] = ctx.createGain(); groups[g].connect(master); }
+    for (const g of ['music', 'ambient', 'sfx', 'mc', 'male', 'female', 'narr', 'bgm']) { groups[g] = ctx.createGain(); groups[g].connect(master); }
     pickExt();
     applyGains();
   }
@@ -73,9 +73,10 @@ const Sound = (function () {
     Object.keys(CAT).filter(k => CAT[k][2]).forEach(load);
     fetch('/audio/voices.json?v=' + Date.now().toString(36).slice(0, 5)).then(r => (r.ok ? r.json() : {})).then(j => { manifest = j || {}; }).catch(() => {});
     if (wantMusic) music(true);
+    if (bgmWant) bgm(bgmWant);
   }
 
-  function url(name) { return `/audio/${name}.${ext}?v=6`; }
+  function url(name) { return name[0] === '/' ? name : `/audio/${name}.${ext}?v=6`; }   // '/...' = đường dẫn đầy đủ (âm thanh riêng của từng game)
   function load(name) {
     if (buffers.has(name)) return Promise.resolve(buffers.get(name));
     if (loading.has(name)) return loading.get(name);
@@ -100,6 +101,8 @@ const Sound = (function () {
     groups.female.gain.setValueAtTime(st.pvoice ? (st.femaleVol ?? 85) / 100 : 0, t);
     // nhạc nền luôn nhỏ hơn rõ rệt so với hiệu ứng
     groups.music.gain.setValueAtTime(st.perf ? 0 : ((st.music ?? 30) / 100) * 0.35, t);
+    groups.narr.gain.setValueAtTime((st.mcVol ?? 90) / 100, t);
+    groups.bgm.gain.setValueAtTime(st.perf ? 0 : Math.min(1, ((st.music ?? 30) / 100) * 0.9), t);
     groups.ambient.gain.setValueAtTime(st.ambient && !st.perf ? ((st.music ?? 30) / 100) * 0.3 + 0.05 : 0, t);
   }
 
@@ -230,5 +233,56 @@ const Sound = (function () {
     if (!ambSrc && st.ambient) { ambSrc = 'pending'; loop('ambient', 'ambient').then(s => { ambSrc = s; if (s && !wantMusic) stopLoops(); }); }
   }
 
-  return { init, unlock, play, line, has, music, apply, _state: () => ({ ctx: ctx && ctx.state, unlocked, ext, loaded: [...buffers.keys()], failed: [...failed] }) };
+  /* ---------- người dẫn truyện (Ma Sói): hàng đợi đọc lần lượt, nhạc nền tự nhỏ lại khi đang đọc ---------- */
+  let nq = [], nCur = null, bgmSrc = null, bgmDuck = null, bgmWant = null;
+  function duck(on) {
+    if (!bgmDuck) return;
+    const t = ctx.currentTime;
+    bgmDuck.gain.cancelScheduledValues(t);
+    bgmDuck.gain.setValueAtTime(bgmDuck.gain.value, t);
+    bgmDuck.gain.linearRampToValueAtTime(on ? 0.3 : 1, t + (on ? 0.25 : 1.2));
+  }
+  function nNext() {
+    if (nCur || !nq.length) { if (!nCur) duck(false); return; }
+    const it = nq.shift();
+    if (performance.now() - it.at > 40000) return nNext();   // quá cũ (máy treo/mất mạng): bỏ
+    nCur = it;
+    load(it.path).then(b => {
+      if (nCur !== it) return;
+      if (!b || st.mute) { nCur = null; return nNext(); }
+      const s = ctx.createBufferSource();
+      s.buffer = b; s.connect(groups.narr);
+      s.onended = () => { if (nCur === it) { nCur = null; nNext(); } };
+      it.src = s; duck(true); s.start();
+    });
+  }
+  /** Đọc một file lời dẫn (xếp hàng sau câu đang đọc). */
+  function narrate(path) {
+    if (!ctx || !unlocked) return;
+    nq.push({ path, at: performance.now() });
+    load(path);   // tải trước trong lúc chờ
+    nNext();
+  }
+  function narrStop() { nq = []; if (nCur && nCur.src) try { nCur.src.stop(); } catch (e) {} nCur = null; duck(false); }
+  function preload(paths) { if (ctx && unlocked) paths.forEach(load); }
+  /** Nhạc nền riêng của game: bgm('/duong/dan.mp3') để bật (lặp vòng), bgm(null) để tắt. */
+  function bgm(path) {
+    bgmWant = path || null;
+    if (!path) { if (bgmSrc && bgmSrc.stop) try { bgmSrc.stop(); } catch (e) {} bgmSrc = null; return; }
+    if (!ctx || !unlocked || (bgmSrc && bgmSrc.path === path)) return;
+    if (bgmSrc && bgmSrc.stop) try { bgmSrc.stop(); } catch (e) {}
+    const mark = { path }; bgmSrc = mark;
+    load(path).then(b => {
+      if (bgmSrc !== mark || !b) return;
+      if (!bgmDuck) { bgmDuck = ctx.createGain(); bgmDuck.connect(groups.bgm); }
+      const s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = b; s.loop = true;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 3);
+      s.connect(g); g.connect(bgmDuck); s.start();
+      s.path = path; bgmSrc = s;
+      if (nCur) duck(true);
+    });
+  }
+
+  return { init, unlock, play, line, has, music, apply, narrate, narrStop, preload, bgm, _state: () => ({ ctx: ctx && ctx.state, unlocked, ext, loaded: [...buffers.keys()], failed: [...failed] }) };
 })();

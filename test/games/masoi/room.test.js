@@ -40,8 +40,8 @@ test('máy chơi trọn ván tới khi có phe thắng (nhiều ván, nhiều s�
     assert.deepStrictEqual(room.handle(h.pid, { a: 'start' }), {});
     assert.strictEqual(room.phase, 'night');
     let guard = 0;
-    while (room.phase !== 'over' && guard++ < 400) tick(t, 5000);
-    assert.strictEqual(room.phase, 'over', 'ván phải kết thúc');
+    while (room.phase !== 'over' && guard++ < 1200) tick(t, 5000);
+    assert.strictEqual(room.phase, 'over', 'ván phải kết thúc: ' + room.phase + ' ngày ' + (room.g && room.g.day) + ' ván ' + game + ' ' + JSON.stringify({r: room.g.roles, a: room.g.alive, d: room.g.deaths, hp: room.players.map(p=>p.bot)}));
     const g = room.g;
     const alive = g.alive.map((a, k) => a && k).filter(k => k !== false);
     const w = alive.filter(k => g.roles[k] === 'wolf').length;
@@ -99,7 +99,7 @@ test('lưu và khôi phục giữa ván rồi chơi tiếp tới hết', t => {
   const r2 = Room.restore(snap, { send() {} });
   assert.strictEqual(r2.game, 'masoi');
   let guard = 0;
-  while (r2.phase !== 'over' && guard++ < 400) tick(t, 5000);
+  while (r2.phase !== 'over' && guard++ < 1200) tick(t, 5000);
   assert.strictEqual(r2.phase, 'over');
   r2.close();
 });
@@ -143,4 +143,53 @@ test('lệnh của người chơi đi qua handle(): cắn/soi/che/vote dùng tr�
     return;
   }
   assert.fail('không được chia vai Sói lần nào');
+});
+
+test('người dẫn truyện: phát sự kiện narr theo bước, bước chỉ-nghe chờ đọc xong, có người thật mới đọc', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 9_000_000 });
+  const NARR = require('../../../src/games/masoi/narration.json');
+  const sent = [];
+  const { room, h } = mkRoom(6, { send(r) { sent.push(...r.outbox); } });
+  room.handle(h.pid, { a: 'start' }); room.commit();
+  const keys = () => sent.filter(e => e.type === 'narr').map(e => e.key);
+  assert.deepStrictEqual(keys().slice(0, 2), ['intro', 'night']);
+  for (const e of sent.filter(e => e.type === 'narr')) assert.ok(e.n >= 1 && e.n <= NARR[e.key].length);
+  // đêm đầu được cộng thời gian đọc intro + night
+  assert.ok(room.g.timer.total > 30000, 'đêm đầu dài hơn vì đang đọc lời dẫn');
+  let guard = 0;
+  while (room.phase !== 'dawn' && room.phase !== 'over' && guard++ < 200) tick(t, 500);
+  if (room.phase === 'dawn') {
+    assert.ok(keys().some(k => k.startsWith('dawn_')));
+    assert.ok(room.g.timer.total >= room.narrLeft(), 'trời sáng: chờ đọc xong mới thảo luận');
+  }
+  // ván có Phù thủy: luôn có lượt Phù thủy (ván 7 người)
+  assert.ok(keys().includes('witch') || room.phase === 'over');
+  room.close();
+});
+
+test('Phù thủy đã chết vẫn có lượt Phù thủy giả (không lộ bà còn sống hay không)', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 9_500_000 });
+  const { room, h } = mkRoom(6);
+  room.handle(h.pid, { a: 'start' });
+  const wi = room.g.roles.indexOf('witch');
+  room.g.alive[wi] = false;
+  room.endNight();
+  assert.strictEqual(room.phase, 'witch');
+  let guard = 0;
+  while (room.phase === 'witch' && guard++ < 200) tick(t, 500);
+  assert.notStrictEqual(room.phase, 'witch', 'lượt giả tự kết thúc');
+  room.close();
+});
+
+test('Sói (người thật) treo máy cả đêm: bầy vẫn vồ một người', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 9_900_000 });
+  const { room, h } = mkRoom(4);
+  room.handle(h.pid, { a: 'start' });
+  const g = room.g;
+  // để mình người chơi thật làm Sói
+  const wolf = g.roles.indexOf('wolf'); [g.roles[0], g.roles[wolf]] = [g.roles[wolf], g.roles[0]];
+  g.night.wolf = {};
+  room.endNight();
+  assert.ok(g.night.victim !== null && g.roles[g.night.victim] !== 'wolf');
+  room.close();
 });

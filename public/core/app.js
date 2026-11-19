@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const GAMES = {};
 const gameOf = s => GAMES[s && s.game] || GAMES.sam;
 const GAME_NAMES = { sam: 'Sâm Lốc', masoi: 'Ma Sói' };
-const APP_VERSION = '3.3.0';
+const APP_VERSION = '3.4.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
