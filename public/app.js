@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.7.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -26,7 +26,7 @@ if (!token || token.length < 16) {
   token = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   store.set('sam_token', token);
 }
-const DEFAULT_SETTINGS = { mute: false, master: 80, music: 30, sfx: 85, voice: false, mcGender: 'nu', mcVol: 90, pvoice: false, maleVol: 85, femaleVol: 85, ambient: true, spatial: true, vibrate: true, reduce: false, perf: false };
+const DEFAULT_SETTINGS = { mute: false, master: 80, music: 30, sfx: 85, voice: false, mcGender: 'nu', mcVol: 90, pvoice: false, maleVol: 85, femaleVol: 85, ambient: true, spatial: true, vibrate: true, reduce: false, perf: false, showPiles: false };
 let settings = Object.assign({}, DEFAULT_SETTINGS, store.json('sam_settings', {}));
 let myAv = store.get('sam_av') || AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
@@ -56,12 +56,20 @@ const fmtTime = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Mat
 function cardEl(c, size) {
   const d = h('div', 'card' + (size ? ' ' + size : ''));
   if (c < 0) { d.classList.add('back'); return d; }
-  const s = c & 3;
+  const s = c & 3, r = RANKS[c >> 2];
   if (s >= 2) d.classList.add('r');
-  const a = h('div', 'a', RANKS[c >> 2]); a.appendChild(h('span', '', SUITS[s]));
-  d.append(a, h('div', 'b', SUITS[s]));
+  if (r === 'J' || r === 'Q' || r === 'K') d.classList.add('court');
+  else if (r === 'A') d.classList.add('ace');
+  const a = h('div', 'a', r); a.appendChild(h('span', '', SUITS[s]));
+  const a2 = h('div', 'a a2', r); a2.appendChild(h('span', '', SUITS[s]));   // chỉ số góc dưới, lộn ngược như bài thật
+  const b = h('div', 'b');
+  if (d.classList.contains('court')) { b.append(h('i', 'cl', r), h('i', 'cs', SUITS[s])); }
+  else b.textContent = SUITS[s];
+  d.append(a, b, a2);
   return d;
 }
+// độ nghiêng cố định theo lá (bài ném xuống bàn không thẳng hàng tăm tắp)
+const cardTilt = c => (((c * 37) % 9) - 4) * 0.9;
 // nhận diện bộ (chỉ để gợi ý trên giao diện; server mới là người quyết định)
 const nat = p => (p <= 10 ? p + 3 : p === 11 ? 1 : 2);
 const isRun = a => a.every((v, i) => i === 0 || v === a[i - 1] + 1);
@@ -447,6 +455,23 @@ function renderRooms(list) {
   });
 }
 $('btRoomsRef').onclick = () => loadRooms();
+
+/* ---- chơi màn hình ngang: toàn màn hình + khoá xoay ngang (Android); iPhone thì nhắc xoay máy ---- */
+const isLandscape = () => window.matchMedia('(orientation: landscape)').matches;
+async function toggleLandscape() {
+  const fs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fs) {
+    try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch (e) {}
+    try { await (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
+    return;
+  }
+  const el = document.documentElement;
+  try { await (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: 'hide' }); } catch (e) {}
+  try { await screen.orientation.lock('landscape'); }
+  catch (e) { if (!isLandscape()) toast('Xoay ngang điện thoại để chơi (nhớ tắt khoá xoay màn hình)'); }
+}
+$('btRotate').onclick = toggleLandscape;
+if (!window.matchMedia('(pointer: coarse)').matches) $('btRotate').classList.add('hide');   // máy tính không cần
 function startRoomsPoll() { clearInterval(roomsTimer); loadRooms(); roomsTimer = setInterval(loadRooms, 8000); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadRooms(); });
 startRoomsPoll();
@@ -715,7 +740,7 @@ function renderTable(box, vm) {
     const cs = h('div', 'cs');
     const ov = pl.cards.length > 6 ? -40 : pl.cards.length > 3 ? -34 : -26;
     cs.style.setProperty('--ov', ov + 'px');
-    displayOrder(pl.cards).forEach(c => cs.append(cardEl(c, age === 0 ? '' : 's')));
+    displayOrder(pl.cards).forEach(c => { const ce = cardEl(c, age === 0 ? '' : 's'); ce.style.setProperty('--tilt', cardTilt(c) + 'deg'); cs.append(ce); });
     const who = h('div', 'who', (vm.players[pl.by] ? vm.players[pl.by].name : '') + ' · ' + (pl.label || ''));
     if (pl.chop) who.append(h('span', 'ct', pl.chop === 'chat2' ? 'CHẶT' : 'ĐÈ x' + (pl.mult || 2)));
     e.append(cs);
@@ -810,7 +835,7 @@ function renderHand() {
   const hd = $('hand'); hd.textContent = '';
   const hand = S.hand || [];
   [...sel].forEach(c => { if (!hand.includes(c)) sel.delete(c); });
-  const W = Math.min(hd.parentElement.clientWidth - 8, 760);
+  const W = Math.min(hd.parentElement.clientWidth - 26, 760);   // chừa mép cho bài xếp quạt
   const cw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cw')) || 58;
   const m = hand.length;
   const step = m > 1 ? Math.min(cw + 4, (W - cw) / (m - 1)) : 0;
@@ -818,6 +843,10 @@ function renderHand() {
   hand.forEach((c, k) => {
     const d = cardEl(c);
     d.style.left = (k * step) + 'px';
+    // xếp hình quạt nhẹ như cầm bài thật
+    const t = m > 1 ? (k - (m - 1) / 2) / ((m - 1) / 2) : 0;
+    d.style.setProperty('--rot', (t * 5).toFixed(2) + 'deg');
+    d.style.setProperty('--arc', (t * t * 9).toFixed(1) + 'px');
     d.dataset.c = c;
     if (sel.has(c)) d.classList.add('sel');
     if (sugCards && sugCards.includes(c)) d.classList.add('sug');
@@ -1482,11 +1511,12 @@ function onChatState(first) {
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on')); }
 
 /* ================= cài đặt ================= */
-const ST_BIND = { stMute: 'mute', stVoice: 'voice', stPVoice: 'pvoice', stAmbient: 'ambient', stSpatial: 'spatial', stVibrate: 'vibrate', stReduce: 'reduce', stPerf: 'perf' };
+const ST_BIND = { stPiles: 'showPiles', stMute: 'mute', stVoice: 'voice', stPVoice: 'pvoice', stAmbient: 'ambient', stSpatial: 'spatial', stVibrate: 'vibrate', stReduce: 'reduce', stPerf: 'perf' };
 const ST_RANGE = { stMaster: 'master', stMusic: 'music', stSfx: 'sfx', stMcVol: 'mcVol', stMaleVol: 'maleVol', stFemaleVol: 'femaleVol' };
 function applySettings() {
   document.body.classList.toggle('reduce', !!settings.reduce);
   document.body.classList.toggle('perf', !!settings.perf);
+  document.body.classList.toggle('piles-on', !!settings.showPiles);
   Sound.apply(settings);
   store.set('sam_settings', JSON.stringify(settings));
   Account.syncSettings();

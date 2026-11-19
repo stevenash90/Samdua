@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=2.6.0">
+<link rel="stylesheet" href="/style.css?v=2.7.0">
 </head>
 <body>
 
@@ -106,6 +106,7 @@
   <header class="gbar">
     <div class="gl"><span class="rc"><span class="lb">Phòng </span><b id="gCode"></b></span><span class="chip" id="gNo"></span><span class="chip hide" id="gSpec"></span></div>
     <div class="gr">
+      <button class="icon sm" id="btRotate" title="Chơi màn hình ngang">⟲</button>
       <button class="icon sm hide" id="btPause" title="Tạm dừng">⏸</button>
       <button class="icon sm btRstats" title="Thống kê bàn">📊</button>
       <button class="icon sm btMenu" title="Bàn chơi">⋯</button>
@@ -215,6 +216,7 @@
       <div class="frow"><div><b>Âm thanh theo vị trí</b><small>Nhà bên trái nghe lệch trái…</small></div><label class="sw"><input type="checkbox" id="stSpatial"><i></i></label></div>
     </div>
     <div class="card-panel form">
+      <div class="frow"><div><b>Bài đã đánh trên bàn</b><small>Bật: thấy các bộ đã đánh trong vòng và bài đã ra của từng người. Tắt: chỉ thấy bộ vừa đánh</small></div><label class="sw"><input type="checkbox" id="stPiles"><i></i></label></div>
       <div class="frow"><b>Rung</b><label class="sw"><input type="checkbox" id="stVibrate"><i></i></label></div>
       <div class="frow"><b>Giảm hiệu ứng</b><label class="sw"><input type="checkbox" id="stReduce"><i></i></label></div>
       <div class="frow"><div><b>Tiết kiệm hiệu năng</b><small>Cho máy yếu: bỏ đổ bóng, nhạc nền, hiệu ứng</small></div><label class="sw"><input type="checkbox" id="stPerf"><i></i></label></div>
@@ -258,7 +260,7 @@
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/audio.js?v=2.6.0"></script>
-<script src="/app.js?v=2.6.0"></script>
+<script src="/audio.js?v=2.7.0"></script>
+<script src="/app.js?v=2.7.0"></script>
 </body>
 </html>
