@@ -348,7 +348,7 @@ test('máy khơi chuyện thời sự thì máy khác góp ý kiến', t => {
   room.botGame = { lines: 0, budget: 10, news: 0 };
   let replies = 0;
   for (let k = 0; k < 14; k++) {
-    room.botGame.news = 0; room.botTalk = {};
+    room.botGame = { lines: 0, budget: 10, news: 0 }; room.botTalk = {};
     const from = room.chatSeq;
     assert.ok(room.botNews(1));
     for (let s = 0; s < 20; s++) tick(t, 1000);
