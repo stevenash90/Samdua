@@ -16,7 +16,7 @@ const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
 // Bộ bài (kiểu dáng mặt sau / viền) — chủ phòng thay khi có người đề nghị "đổi bộ bài mới"
-const DECKS = ['Đỏ cổ điển', 'Xanh hoàng gia', 'Đen vàng', 'Tím mộng', 'Lục bảo', 'Hoàng cung Việt'];   // từ bộ thứ 6: J Q K và mặt lưng là ảnh (public/decks/)
+const DECKS = ['Đỏ cổ điển', 'Xanh hoàng gia', 'Đen vàng', 'Tím mộng', 'Lục bảo', 'Hoàng cung Việt', 'Siêu anh hùng vũ trụ'];   // từ bộ thứ 6: J Q K và mặt lưng là ảnh (public/decks/)
 const LOSE_STREAK_SWAP = 10;     // thua liên tiếp bấy nhiêu ván thì được xin đổi chỗ giải đen
 const SWAP_ASK = 'Đen quá, đổi chỗ phát!';
 const SWAP_YES = 'Ok cưng!';

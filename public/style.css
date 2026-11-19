@@ -626,12 +626,13 @@ body:not(.piles-on) #sGame .play.old{display:none}
   #sGame .slot-me .plate{padding:1px 7px 2px}
 }
 
-/* ===== bộ bài có ảnh (kiểu 6: Hoàng cung Việt) ===== */
+/* ===== bộ bài có ảnh ===== */
+/* @decks-begin — sinh tự động bởi scripts/decks.js, đừng sửa tay */
 body[data-deck="5"]{--back1:#8b1a1a;--back2:#b3261e;--edge:#d4af37}
 body[data-deck="5"] .card.back,body .dp .card.back[data-deckp="5"]{background:#8b1a1a url(decks/hoang-cung/back.webp) center/cover;box-shadow:0 3px 6px #0007}
 body[data-deck="5"] .card.back::after,body .dp .card.back[data-deckp="5"]::after{display:none}
 body[data-deck="5"] .cnt{background:#8b1a1a url(decks/hoang-cung/back.webp) center/cover}
-body[data-deck="5"] .card.court{background:#fbf3df center/cover;border-color:#c9a24a}
+body[data-deck="5"] .card.court{background:#fbf3df center/cover;border-color:#d4af37}
 body[data-deck="5"] .card.court>*{display:none}
 body[data-deck="5"] .card[data-k="JS"]{background-image:url(decks/hoang-cung/JS.webp)}
 body[data-deck="5"] .card[data-k="JC"]{background-image:url(decks/hoang-cung/JC.webp)}
@@ -645,6 +646,25 @@ body[data-deck="5"] .card[data-k="KS"]{background-image:url(decks/hoang-cung/KS.
 body[data-deck="5"] .card[data-k="KC"]{background-image:url(decks/hoang-cung/KC.webp)}
 body[data-deck="5"] .card[data-k="KD"]{background-image:url(decks/hoang-cung/KD.webp)}
 body[data-deck="5"] .card[data-k="KH"]{background-image:url(decks/hoang-cung/KH.webp)}
+body[data-deck="6"]{--back1:#0f1f4a;--back2:#1d3a7a;--edge:#e2b84a}
+body[data-deck="6"] .card.back,body .dp .card.back[data-deckp="6"]{background:#0f1f4a url(decks/sieu-anh-hung/back.webp) center/cover;box-shadow:0 3px 6px #0007}
+body[data-deck="6"] .card.back::after,body .dp .card.back[data-deckp="6"]::after{display:none}
+body[data-deck="6"] .cnt{background:#0f1f4a url(decks/sieu-anh-hung/back.webp) center/cover}
+body[data-deck="6"] .card.court{background:#fbf3df center/cover;border-color:#e2b84a}
+body[data-deck="6"] .card.court>*{display:none}
+body[data-deck="6"] .card[data-k="JS"]{background-image:url(decks/sieu-anh-hung/JS.webp)}
+body[data-deck="6"] .card[data-k="JC"]{background-image:url(decks/sieu-anh-hung/JC.webp)}
+body[data-deck="6"] .card[data-k="JD"]{background-image:url(decks/sieu-anh-hung/JD.webp)}
+body[data-deck="6"] .card[data-k="JH"]{background-image:url(decks/sieu-anh-hung/JH.webp)}
+body[data-deck="6"] .card[data-k="QS"]{background-image:url(decks/sieu-anh-hung/QS.webp)}
+body[data-deck="6"] .card[data-k="QC"]{background-image:url(decks/sieu-anh-hung/QC.webp)}
+body[data-deck="6"] .card[data-k="QD"]{background-image:url(decks/sieu-anh-hung/QD.webp)}
+body[data-deck="6"] .card[data-k="QH"]{background-image:url(decks/sieu-anh-hung/QH.webp)}
+body[data-deck="6"] .card[data-k="KS"]{background-image:url(decks/sieu-anh-hung/KS.webp)}
+body[data-deck="6"] .card[data-k="KC"]{background-image:url(decks/sieu-anh-hung/KC.webp)}
+body[data-deck="6"] .card[data-k="KD"]{background-image:url(decks/sieu-anh-hung/KD.webp)}
+body[data-deck="6"] .card[data-k="KH"]{background-image:url(decks/sieu-anh-hung/KH.webp)}
+/* @decks-end */
 
 /* chọn kiểu bộ bài (chủ phòng) */
 .deckpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}

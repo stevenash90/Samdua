@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.9.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -1226,7 +1226,7 @@ document.querySelectorAll('.btMenu').forEach(b => (b.onclick = () => { renderHos
 $('btCloseHost').onclick = () => $('hostSheet').classList.remove('on');
 $('btPause').onclick = () => act(S && S.pause ? 'resume' : 'pause');
 // bộ bài có ảnh: tải trước để lật bài không bị trắng
-const IMG_DECKS = { 5: 'hoang-cung' };
+const IMG_DECKS = { 5: 'hoang-cung', 6: 'sieu-anh-hung' };
 const deckLoaded = new Set();
 function preloadDeck(style) {
   const dir = IMG_DECKS[style]; if (!dir || deckLoaded.has(dir)) return;
