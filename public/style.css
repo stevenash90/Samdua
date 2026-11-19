@@ -722,13 +722,19 @@ body[data-deck="3"] .card[data-k="KH"]{background-image:url(games/sam/decks/la-m
 body:has(#sLobby.on) .vbar{top:auto;left:auto;right:12px;bottom:calc(var(--sab,0px) + 70px);flex-direction:row;align-items:center}
 body:has(#sLobby.on) .vb.vn{margin:0}
 body:has(#sLobby.on) .vlist{top:auto;left:auto;right:12px;bottom:calc(var(--sab,0px) + 120px)}
+/* Ma Sói: cụm voice dựng đứng ở mép phải ô chat, chữ chat chừa chỗ */
+body:has(#sMasoi.on) .vbar{top:auto;left:auto;right:8px;bottom:calc(var(--sab,0px) + 74px);flex-direction:column-reverse;align-items:center;gap:6px}
+body:has(#sMasoi.on) .vb{width:38px;height:38px;font-size:17px}
+body:has(#sMasoi.on) .vb.vn{margin:0;width:26px;height:26px}
+body:has(#sMasoi.on) .vlist{top:auto;left:auto;right:54px;bottom:calc(var(--sab,0px) + 74px)}
+body:has(#sMasoi.on) .ms-chat .cb-list{padding-right:52px;min-height:96px}
 @media (orientation:landscape) and (max-height:560px){
   .vbar{top:34vh;flex-direction:column;gap:6px}
   .vb{width:36px;height:36px;font-size:16px}
   .vb.vn{margin-left:4px}
   .vlist{left:50px;top:34vh}
 }
-body:not(:has(#sLobby.on)):not(:has(#sGame.on)) .vbar,body:not(:has(#sLobby.on)):not(:has(#sGame.on)) .vlist{display:none!important}
+body:not(:has(#sLobby.on)):not(:has(#sGame.on)):not(:has(#sMasoi.on)) .vbar,body:not(:has(#sLobby.on)):not(:has(#sGame.on)):not(:has(#sMasoi.on)) .vlist{display:none!important}
 .vb[hidden]{display:none}
 .vb.mic.forced{opacity:.35;filter:grayscale(1)}
 .card-panel[hidden]{display:none}
