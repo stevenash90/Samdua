@@ -7,6 +7,7 @@
 const PC = require('../platform/config');
 const GAMES = {
   sam: require('./sam'),
+  masoi: require('./masoi'),
 };
 
 function get(id) { return GAMES[id] || GAMES[PC.DEFAULT_GAME] || GAMES.sam; }

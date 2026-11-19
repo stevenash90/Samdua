@@ -6,7 +6,7 @@ const Voice = (() => {
   let joined = false, micOn = false, myVid = null, ice = null, stream = null, micTrack = null;
   const peers = new Map();           // vid -> {pc, polite, makingOffer, ignoreOffer, sender, audio, an, level}
   const muted = new Set(JSON.parse(localStorage.getItem('sam_vmute') || '[]'));   // vid đã tắt tiếng riêng
-  let spkOff = false, actx = null, meter = null, members = [];
+  let spkOff = false, actx = null, meter = null, members = [], forced = false;
 
   const supported = () => !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   const inApp = () => /FBAN|FBAV|FB_IAB|Messenger|Instagram|Zalo|Line\/|MicroMessenger/i.test(navigator.userAgent);
@@ -41,7 +41,7 @@ const Voice = (() => {
     if (meter) return;
     meter = setInterval(() => {
       const talking = new Set();
-      if (micOn && myAn && levelOf(myAn) > 0.04) talking.add(myVid);
+      if (micOn && !forced && myAn && levelOf(myAn) > 0.04) talking.add(myVid);
       for (const [vid, p] of peers) if (!muted.has(vid) && !spkOff && levelOf(p.an) > 0.04) talking.add(vid);
       paint(talking);
     }, 180);
@@ -59,7 +59,7 @@ const Voice = (() => {
     document.body.append(audio);
     const p = { pc, polite: myVid < vid, makingOffer: false, ignoreOffer: false, sender: tr.sender, audio, an: null };
     peers.set(vid, p);
-    if (micTrack) tr.sender.replaceTrack(micTrack).catch(() => {});
+    if (micTrack && !forced) tr.sender.replaceTrack(micTrack).catch(() => {});
     pc.onnegotiationneeded = async () => {
       try {
         p.makingOffer = true;
@@ -150,7 +150,7 @@ const Voice = (() => {
       micTrack = stream.getAudioTracks()[0];
       micTrack.onended = () => { if (micOn) { setMic(false); toast('Micro đã tắt (máy chuyển sang app khác hoặc có cuộc gọi). Bấm 🎙️ để bật lại'); } };
       myAn = analyser(stream);
-      for (const p of peers.values()) p.sender.replaceTrack(micTrack).catch(() => {});
+      if (!forced) for (const p of peers.values()) p.sender.replaceTrack(micTrack).catch(() => {});
       micOn = true;
     } else {
       for (const p of peers.values()) p.sender.replaceTrack(null).catch(() => {});
@@ -243,7 +243,7 @@ const Voice = (() => {
   }
   function paint(talking) {
     const bySeat = new Map(members.map(m => [m.seat, m]));
-    document.querySelectorAll('.seat[data-seat]').forEach(el => {
+    document.querySelectorAll('[data-seat]').forEach(el => {
       const m = bySeat.get(+el.dataset.seat);
       el.classList.toggle('invoice', !!m);
       el.classList.toggle('talking', !!(m && talking.has(m.vid)));
@@ -251,6 +251,14 @@ const Voice = (() => {
   }
   const state = () => (typeof S !== 'undefined' ? S : null);
 
-  return { sync, onSignal, setMe, reset, supported, get joined() { return joined; }, debug: () => [...peers].map(([vid, p]) => ({ vid, state: p.pc.connectionState, muted: p.audio.muted })),
+  // game yêu cầu tắt mic tạm thời (Ma Sói: ban đêm, hoặc đã chết) — mic vẫn bật lại khi hết lệnh
+  function forceMute(on) {
+    on = !!on;
+    if (on === forced) return;
+    forced = on;
+    for (const p of peers.values()) p.sender.replaceTrack(on ? null : micTrack).catch(() => {});
+    if (ui) { const m = ui.querySelector('.mic'); m.classList.toggle('forced', on); m.title = on ? 'Đang tạm tắt mic (đêm / đã chết)' : 'Bật mic'; }
+  }
+  return { forceMute, sync, onSignal, setMe, reset, supported, get joined() { return joined; }, debug: () => [...peers].map(([vid, p]) => ({ vid, state: p.pc.connectionState, muted: p.audio.muted })),
     async bytesIn() { let n = 0; for (const p of peers.values()) (await p.pc.getStats()).forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.bytesReceived || 0; }); return n; } };
 })();

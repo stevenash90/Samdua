@@ -730,3 +730,5 @@ body:has(#sLobby.on) .vlist{top:auto;left:auto;right:12px;bottom:calc(var(--sab,
 }
 body:not(:has(#sLobby.on)):not(:has(#sGame.on)) .vbar,body:not(:has(#sLobby.on)):not(:has(#sGame.on)) .vlist{display:none!important}
 .vb[hidden]{display:none}
+.vb.mic.forced{opacity:.35;filter:grayscale(1)}
+.card-panel[hidden]{display:none}

@@ -10,7 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=3.2.1">
+<link rel="stylesheet" href="/style.css?v=3.3.0">
+<link rel="stylesheet" href="/games/masoi/game.css?v=3.3.0">
 </head>
 <body>
 
@@ -54,6 +55,16 @@
 <section class="screen" id="sCreate">
   <header class="bar"><button class="icon" data-back>←</button><h2 id="createTitle">Tạo phòng</h2><span></span></header>
   <div class="wrap">
+    <div class="card-panel form" id="gameRow">
+      <div class="frow"><div><b>Chọn game</b></div><div class="seg" id="fGame" data-v="sam"><button data-v="sam">🃏 Sâm Lốc</button><button data-v="masoi">🐺 Ma Sói</button></div></div>
+    </div>
+    <div class="card-panel form" id="msForm" hidden>
+      <div class="frow"><div><b>Thời gian thảo luận</b><small>Mỗi ngày; mọi người bấm "Sẵn sàng" thì bỏ phiếu sớm</small></div><div class="seg" id="fMsDiscuss" data-v="120000"><button data-v="60000">1p</button><button data-v="90000">1p30</button><button data-v="120000">2p</button><button data-v="180000">3p</button><button data-v="300000">5p</button></div></div>
+      <div class="frow"><div><b>Lộ vai khi chết</b><small>Người chết bị lật bài cho cả làng xem</small></div><label class="sw"><input type="checkbox" id="fMsReveal" checked><i></i></label></div>
+      <div class="frow"><div><b>Máy nói chuyện</b><small>Máy tố, cãi, nhận Tiên tri trên chat</small></div><label class="sw"><input type="checkbox" id="fMsBotChat" checked><i></i></label></div>
+      <div class="frow"><div><b>Phòng riêng tư</b><small>Không hiện trong "Phòng đang mở"</small></div><label class="sw"><input type="checkbox" id="fMsPrivate"><i></i></label></div>
+      <div class="frow"><div><b>5–12 người</b><small>Thiếu người thì thêm máy. Vai tự chia theo số người: Sói, Tiên tri, Bảo vệ, Phù thủy (≥7), Thợ săn (≥8), Dân làng</small></div></div>
+    </div>
     <div class="card-panel form" id="roomForm">
       <div class="frow"><div><b>Gợi ý AI</b><small>Người chơi bấm 💡 để được gợi ý nước đi</small></div><label class="sw"><input type="checkbox" id="fAi" checked><i></i></label></div>
       <div class="frow"><div><b>Máy nói chuyện</b><small>Máy chém gió trên chat theo tính cách, nói ít mà đúng lúc</small></div><label class="sw"><input type="checkbox" id="fBotChat" checked><i></i></label></div>
@@ -129,6 +140,18 @@
 </section>
 
 <!-- ============ XEM LẠI ============ -->
+<!-- ============ MA SÓI ============ -->
+<section class="screen" id="sMasoi">
+  <header class="bar"><button class="icon" id="btMsLeave">←</button><h2 id="msTitle">Ma Sói</h2><button class="icon" id="btMsRoles" title="Các vai">📜</button></header>
+  <div class="ms-banner" id="msBanner"></div>
+  <div class="ms-scroll">
+    <div class="ms-grid" id="msGrid"></div>
+    <div class="ms-panel" id="msPanel"></div>
+  </div>
+  <div class="chatbox lobby ms-chat" data-chat></div>
+  <div class="ms-roles" id="msRoles"></div>
+</section>
+
 <section class="screen" id="sReplay">
   <header class="bar"><button class="icon" data-back>←</button><h2 id="rpTitle">Xem lại</h2><button class="icon" id="rpScore" title="Bảng tính tiền">🧾</button></header>
   <div class="tablewrap rp">
@@ -261,10 +284,11 @@
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/core/audio.js?v=3.2.1"></script>
-<script src="/core/voice.js?v=3.2.1"></script>
-<script src="/core/app.js?v=3.2.1"></script>
-<script src="/games/sam/game.js?v=3.2.1"></script>
-<script src="/core/boot.js?v=3.2.1"></script>
+<script src="/core/audio.js?v=3.3.0"></script>
+<script src="/core/voice.js?v=3.3.0"></script>
+<script src="/core/app.js?v=3.3.0"></script>
+<script src="/games/sam/game.js?v=3.3.0"></script>
+<script src="/games/masoi/game.js?v=3.3.0"></script>
+<script src="/core/boot.js?v=3.3.0"></script>
 </body>
 </html>

@@ -66,6 +66,7 @@ let lastGameId = null, dealAnim = false, lastTrickSig = '', resultHidden = {}, t
 let timerBase = { at: 0, left: 0, total: 1, frozen: true };
 let warnedTurn = -1;
 
+GAMES.sam = { name: 'Sâm Lốc', onState: (s, evs, first) => onState(s, evs, first), leave: () => sel.clear() };
 function onState(s, evs, first) {
   const prev = S;
   S = s;

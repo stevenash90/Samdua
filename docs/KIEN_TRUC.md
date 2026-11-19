@@ -1,6 +1,6 @@
 # Kiến trúc — nền tảng board game
 
-Từ v3.2, mã nguồn chia thành **nền tảng** (dùng chung cho mọi game) và **game** (luật, máy, giao diện bàn riêng). Hiện có 1 game: Sâm Lốc (`sam`).
+Từ v3.2, mã nguồn chia thành **nền tảng** (dùng chung cho mọi game) và **game** (luật, máy, giao diện bàn riêng). Hiện có 2 game: Sâm Lốc (`sam`) và Ma Sói (`masoi`, từ v3.3).
 
 ## Cây thư mục
 
@@ -13,6 +13,7 @@ src/
     store.js  migrate.js      lưu trữ Postgres/File, chuyển DB
     accounts.js               tài khoản, phiên, Google
     players.js                pid, làm sạch tên/avatar/chat
+    room-base.js              lớp phòng nền cho game mới (người chơi, người xem, chủ phòng, chat theo kênh, voice, lưu/khôi phục)
     ice.js                    STUN/TURN cho voice
     news.js                   tin thời sự cho máy chat
     bots/personas.js          19 nhân vật máy (tính cách, câu thoại) — dùng được cho mọi game
@@ -24,6 +25,10 @@ src/
       rules.js scoring.js     luật bài, tính tiền
       ai.js aipro.js          máy Amateur / Pro, báo Sâm
       room.js                 phòng & ván (state machine), chat máy, voice, đổi chỗ, bộ bài
+    masoi/                    ── GAME MA SÓI ── (kế thừa platform/room-base.js)
+      roles.js                vai & chia vai theo số người
+      room.js                 đêm → Phù thủy → sáng → thảo luận → bỏ phiếu → treo cổ; kênh chat all/wolf/ghost
+      ai.js                   máy chơi theo độ nghi (soi, lời khai Tiên tri, chat người chơi, phiếu bầu)
 public/
   index.html  style.css       khung giao diện
   core/                       ── NỀN TẢNG (trình duyệt) ──
@@ -33,6 +38,7 @@ public/
   games/sam/                  ── GAME SÂM LỐC (trình duyệt) ──
     game.js                   lá bài, bàn, bài trên tay, kết quả, sự kiện ván, quản lý bàn, xem lại
     decks/<bộ>/*.webp         J Q K + mặt lưng của 4 bộ bài ảnh
+  games/masoi/                ── GAME MA SÓI (trình duyệt) ── game.js, game.css (màn #sMasoi)
   audio/                      giọng đọc + hiệu ứng
 test/
   platform/                   test nền tảng
@@ -56,7 +62,9 @@ Phòng tạo qua API `create` với `game: '<id>'` (bỏ trống = `DEFAULT_GAME
 
 **Trình duyệt** — script thường (không module), dùng chung phạm vi toàn cục, nạp theo thứ tự:
 `core/audio.js → core/voice.js → core/app.js → games/<id>/game.js → core/boot.js`.
-`core/app.js` gọi các hàm game cung cấp: `onState(s, evs, first)`, `render()`, `renderLobby()`, `Replay`, `openReplay(id)`.
+Mỗi game tự đăng ký `GAMES[id] = { name, onState(s, evs, first), leave() }`; nền tảng chuyển trạng thái phòng tới đúng game theo `s.game`.
+
+**Lưu ý khi gửi lệnh:** `act(a, data)` — `data` không được dùng các tên trường `t`, `a`, `cid` (đã chặn ghi đè từ v3.3, game dùng `target` để chỉ người được chọn).
 
 ## Thêm một game mới (ví dụ Tiến Lên, Phỏm, Cờ tướng)
 
@@ -66,8 +74,8 @@ Phòng tạo qua API `create` với `game: '<id>'` (bỏ trống = `DEFAULT_GAME
 
 ## Lộ trình còn lại (chưa làm, cần khi có game thứ hai)
 
-- Trang chủ: chọn game khi tạo phòng; danh sách phòng hiện tên game.
-- Tách phần dùng chung còn nằm trong `games/sam/room.js` (chat, người xem, chủ phòng, tạm dừng, AFK, voice) ra `src/platform/room-base.js` để game mới kế thừa.
+- ~~Trang chủ: chọn game khi tạo phòng; danh sách phòng hiện tên game.~~ (xong ở v3.3)
+- Chuyển `games/sam/room.js` sang kế thừa `src/platform/room-base.js` như Ma Sói (hiện Sâm vẫn tự chứa phần chung).
 - Tách `renderLobby`, form tạo phòng (phần điểm/luật là của Sâm) thành phần chung + phần cài đặt riêng của game.
 - `style.css`: tách phần bàn/lá bài sang `public/games/sam/game.css`.
 - Thống kê & lịch sử: thêm cột `game` trong bảng `games` của DB.

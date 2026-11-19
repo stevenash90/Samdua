@@ -187,7 +187,8 @@ async function api(b, ip) {
       return { code: room.code };
     }
     if (room.phase !== 'lobby' && room.phase !== 'over') return { err: 'Phòng đang chơi dở, đợi hết ván rồi vào', canWatch: true };
-    if (room.players.length >= C.MAX_PLAYERS) return { err: 'Phòng đã đủ 5 người', canWatch: true };
+    const maxP = Games.get(room.game).maxPlayers;
+    if (room.players.length >= maxP) return { err: `Phòng đã đủ ${maxP} người`, canWatch: true };
     room.removeSpectator(pid, true);   // đang xem thì chuyển sang ngồi chơi
     room.removeSpectator(pidOf(token), true);
     room.addHuman(token, nameOf(), avOf(), ident);

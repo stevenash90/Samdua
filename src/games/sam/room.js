@@ -68,6 +68,7 @@ class Room {
    * send(room) được gọi sau mỗi thay đổi để server đẩy trạng thái tới client.
    */
   constructor(code, deps) {
+    this.game = 'sam';
     this.code = code;
     this.deps = deps;
     this.created = this.now();

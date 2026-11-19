@@ -3,7 +3,11 @@
    Các file là script thường (không module) dùng chung phạm vi toàn cục. */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '3.2.1';
+// Các game đăng ký ở đây (public/games/<id>/game.js): GAMES[id] = { name, onState(s, evs, first), leave?() }
+const GAMES = {};
+const gameOf = s => GAMES[s && s.game] || GAMES.sam;
+const GAME_NAMES = { sam: 'Sâm Lốc', masoi: 'Ma Sói' };
+const APP_VERSION = '3.3.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -101,7 +105,7 @@ const Net = {
       if (m.t === 'state') {
         this.tries = 0; $('netbar').classList.remove('on'); clearTimeout(this.netTimer);
         const first = this.fresh; this.fresh = false;
-        onState(m.s, m.ev || [], first);
+        gameOf(m.s).onState(m.s, m.ev || [], first);
         try { Voice.sync(S); } catch (x) { /* voice không được làm hỏng game */ }
       } else if (m.t === 'ack') {
         const p = this.pend.get(m.cid); if (p) { this.pend.delete(m.cid); clearTimeout(p.to); p.res(m); }
@@ -133,7 +137,7 @@ const Net = {
       const cid = 'c' + Date.now().toString(36) + (++this.seq);
       const to = setTimeout(() => { this.pend.delete(cid); res({ err: 'Máy chủ không phản hồi' }); }, 8000);
       this.pend.set(cid, { res, to });
-      this.ws.send(JSON.stringify(Object.assign({ t: 'act', a, cid }, data)));
+      this.ws.send(JSON.stringify(Object.assign({}, data, { t: 'act', a, cid })));   // dữ liệu game không được ghi đè t/a/cid
     });
   },
 };
@@ -361,7 +365,7 @@ $('btWatch').onclick = () => {
   watchRoom(c, n);
 };
 /* ---- danh sách phòng đang mở: bấm là vào, không cần mã ---- */
-const PHASE_TXT = { lobby: 'Đang chờ', sam: 'Đang báo Sâm', play: 'Đang chơi', reveal: 'Đang chơi', over: 'Vừa xong ván' };
+const PHASE_TXT = { lobby: 'Đang chờ', sam: 'Đang báo Sâm', play: 'Đang chơi', reveal: 'Đang chơi', over: 'Vừa xong ván', night: 'Đang đêm', witch: 'Đang đêm', dawn: 'Đang ngày', discuss: 'Đang thảo luận', vote: 'Đang bỏ phiếu', exec: 'Đang ngày', hunter: 'Đang ngày' };
 let roomsTimer = null, roomsBusy = false;
 async function loadRooms() {
   if (roomsBusy || current !== 'sHome' || document.hidden) return;
@@ -379,7 +383,7 @@ function renderRooms(list) {
     const avs = h('div', 'pr-avs');
     r.players.slice(0, 5).forEach(p => { const a = h('span', 'pr-av' + (p.bot ? ' bot' : ''), p.av || '🙂'); a.title = p.name + (p.bot ? ' (máy)' : ''); avs.append(a); });
     const info = h('div', 'pr-info');
-    info.append(h('b', '', 'Phòng của ' + (r.host || '…')));
+    info.append(h('b', '', (r.game === 'masoi' ? '🐺 Ma Sói · ' : '🃏 Sâm · ') + 'Phòng của ' + (r.host || '…')));
     const meta = [`${PHASE_TXT[r.phase] || ''}${r.phase !== 'lobby' && r.gameNo ? ' ván ' + r.gameNo : ''}`, `${r.players.length}/${r.max} người`];
     if (r.spectators) meta.push(`👀 ${r.spectators}`);
     info.append(h('small', '', meta.join(' · ')));
@@ -463,6 +467,16 @@ function openCreate(cur) {
   formPts = Object.assign({ sam: 20, trang: 20, cong: 15, chat: 10, chatDeMult: 2, thoi2: 0 }, s.points || {});
   setSeg('fChain', (s.points && s.points.chainMode) || 'last');
   renderSteps();
+  // chọn game (chỉ khi tạo mới)
+  const gm = editMode ? 'sam' : store.get('sam_game', 'sam') || 'sam';
+  setSeg('fGame', GAMES[gm] ? gm : 'sam');
+  $('gameRow').hidden = editMode;
+  syncGameForm();
+  const ms = store.json('masoi_defaults', null) || {};
+  setSeg('fMsDiscuss', ms.discussMs || 120000);
+  $('fMsReveal').checked = ms.revealRole !== undefined ? ms.revealRole : true;
+  $('fMsBotChat').checked = ms.botChat !== undefined ? ms.botChat : true;
+  $('fMsPrivate').checked = !!ms.private;
   $('createTitle').textContent = editMode ? 'Cài đặt phòng' : 'Tạo phòng';
   $('btCreate').textContent = editMode ? 'Lưu cài đặt' : 'Tạo phòng';
   show('sCreate');
@@ -473,7 +487,24 @@ function formSettings() {
     points: Object.assign({}, formPts, { chainMode: segVal('fChain') }),
   };
 }
+function syncGameForm() {
+  const gm = segVal('fGame');
+  $('roomForm').hidden = gm !== 'sam';
+  $('msForm').hidden = gm !== 'masoi';
+}
+$('fGame').addEventListener('click', () => setTimeout(syncGameForm, 0));
 $('btCreate').onclick = async () => {
+  const gm = editMode ? 'sam' : segVal('fGame');
+  if (gm === 'masoi') {
+    const ms = { discussMs: +segVal('fMsDiscuss'), revealRole: $('fMsReveal').checked, botChat: $('fMsBotChat').checked, private: $('fMsPrivate').checked };
+    store.set('masoi_defaults', JSON.stringify(ms)); store.set('sam_game', 'masoi');
+    const n = myName(); if (!n) return show('sHome');
+    const j = await api('create', { name: n, av: myAv, game: 'masoi', settings: ms });
+    if (j.err) return toast(j.err);
+    store.set('sam_role', 'player');
+    return enterRoom(j.code);
+  }
+  if (!editMode) store.set('sam_game', 'sam');
   const s = formSettings();
   store.set('sam_room_defaults', JSON.stringify(s));
   if (editMode) {
@@ -496,7 +527,9 @@ function enterRoom(code) {
   Net.open(code);
 }
 function leftRoom(msg) {
-  Net.close(); room = null; S = null; sel.clear();
+  const wasGame = gameOf(S);
+  Net.close(); room = null; S = null;
+  try { wasGame && wasGame.leave && wasGame.leave(); } catch (x) {}
   try { Voice.reset(); } catch (x) {}
   store.set('sam_room', '');
   history.replaceState(null, '', location.pathname);
@@ -507,8 +540,8 @@ function leftRoom(msg) {
   show('sHome');
 }
 async function leaveRoom() {
-  const inGame = S && !isSpec() && (S.phase === 'sam' || S.phase === 'play');
-  if (inGame && !(await confirmBox('Rời phòng giữa ván? Máy sẽ đánh thay bạn tới hết ván.'))) return;
+  const inGame = S && !isSpec() && S.phase !== 'lobby' && S.phase !== 'over';
+  if (inGame && !(await confirmBox(S.game === 'masoi' ? 'Rời làng giữa ván? Máy sẽ chơi thay vai của bạn.' : 'Rời phòng giữa ván? Máy sẽ đánh thay bạn tới hết ván.'))) return;
   await Net.act('leave');
   leftRoom();
 }
@@ -525,6 +558,7 @@ $('btCopy').onclick = async () => {
 
 function showRoomScreen() {
   if (!S) return show('sHome');
+  if (S.game === 'masoi') return show('sMasoi');
   if (S.phase === 'lobby') show('sLobby'); else show('sGame');
 }
 
@@ -614,7 +648,7 @@ function onChatState(first) {
   const fresh = msgs.filter(m => m.id > chatSeen);
   chatSeen = last;
   for (const m of fresh) {
-    if (m.kind === 'player' && m.seat >= 0) { taunts[m.seat] = { text: shortText(m.text, 56), until: Date.now() + 3500, chat: true }; setTimeout(() => S && render(), 3600); }
+    if (S && S.game === 'sam' && m.kind === 'player' && m.seat >= 0) { taunts[m.seat] = { text: shortText(m.text, 56), until: Date.now() + 3500, chat: true }; setTimeout(() => S && render(), 3600); }
   }
   if (fresh.some(m => m.kind !== 'sys' && m.name !== myChatName())) Sound.play('turn');
 }
