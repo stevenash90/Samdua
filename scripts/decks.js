@@ -4,8 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const IMG_DECKS = [
   // [style, thư mục, màu lưng đậm, màu lưng nhạt, màu viền]
-  [5, 'hoang-cung', '#8b1a1a', '#b3261e', '#d4af37'],
-  [6, 'sieu-anh-hung', '#0f1f4a', '#1d3a7a', '#e2b84a'],
+  [0, 'hoang-cung', '#8b1a1a', '#b3261e', '#d4af37'],
+  [1, 'sieu-anh-hung', '#0f1f4a', '#1d3a7a', '#e2b84a'],
+  [2, 'ai-cap', '#0d2a5c', '#16407f', '#d9b24c'],
+  [3, 'la-ma', '#6b1414', '#9a2020', '#e0b64a'],
 ];
 const KEYS = ['JS', 'JC', 'JD', 'JH', 'QS', 'QC', 'QD', 'QH', 'KS', 'KC', 'KD', 'KH'];
 const out = ['/* @decks-begin — sinh tự động bởi scripts/decks.js, đừng sửa tay */'];

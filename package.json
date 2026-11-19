@@ -1,6 +1,6 @@
 {
   "name": "sam-dua",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "Sâm Dứa — game bài Sâm Lốc online chơi theo phòng",
   "main": "server.js",
   "scripts": {

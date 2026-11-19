@@ -17,7 +17,14 @@ const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
 // Bộ bài (kiểu dáng mặt sau / viền) — chủ phòng thay khi có người đề nghị "đổi bộ bài mới"
-const DECKS = ['Đỏ cổ điển', 'Xanh hoàng gia', 'Đen vàng', 'Tím mộng', 'Lục bảo', 'Hoàng cung Việt', 'Siêu anh hùng vũ trụ'];   // từ bộ thứ 6: J Q K và mặt lưng là ảnh (public/decks/)
+// Các bộ bài: J Q K và mặt lưng là ảnh (public/decks/<thư mục>, cấu hình ở scripts/decks.js)
+const DECKS = ['Hoàng cung Việt', 'Siêu anh hùng vũ trụ', 'Ai Cập Fantasy', 'La Mã Fantasy'];
+const DECK_V = 2;   // v2: bỏ 5 bộ màu cơ bản. Phòng lưu từ trước: bộ ảnh cũ giữ nguyên, bộ màu → Hoàng cung Việt
+function migrateDeck(d) {
+  if (!d) return { no: 1, style: 0, v: DECK_V };
+  if (d.v === DECK_V) return d.style >= 0 && d.style < DECKS.length ? d : Object.assign({}, d, { style: 0 });
+  return { no: d.no || 1, style: d.style === 6 ? 1 : 0, v: DECK_V };
+}
 const LOSE_STREAK_SWAP = 10;     // thua liên tiếp bấy nhiêu ván thì được xin đổi chỗ giải đen
 const SWAP_ASK = 'Đen quá, đổi chỗ phát!';
 const SWAP_YES = 'Ok cưng!';
@@ -84,7 +91,7 @@ class Room {
     this.chat = [];
     this.chatSeq = 0;
     this.spectators = [];          // người vào xem: {pid, tokenHash, name, av}
-    this.deck = { no: 1, style: 0 };
+    this.deck = { no: 1, style: 0, v: DECK_V };
     this.swap = null;              // lời xin đổi chỗ đang chờ: {from, to, at} (pid)
     this.swapPlan = null;          // đã đồng ý, đổi khi bắt đầu ván sau: {a: người xin, b: người đồng ý} (pid)
     this.rstats = {};              // thống kê của bàn theo người chơi (pid)
@@ -432,7 +439,7 @@ class Room {
   // style: chủ phòng chọn thẳng kiểu bộ bài; bỏ trống thì sang kiểu kế tiếp
   newDeck(byName, forName, style) {
     const pick = Number.isInteger(style) && style >= 0 && style < DECKS.length && style !== this.deck.style ? style : (this.deck.style + 1) % DECKS.length;
-    this.deck = { no: this.deck.no + 1, style: pick };
+    this.deck = { no: this.deck.no + 1, style: pick, v: DECK_V };
     this.deckReq = null;
     this.sysChat(`🃏 ${byName} đã thay bộ bài mới: ${DECKS[this.deck.style]}${forName ? ` (theo đề nghị của ${forName})` : ''}`);
     this.emit('deck', { style: this.deck.style }, false);
@@ -1149,7 +1156,7 @@ class Room {
       created: s.created, touched: s.touched || Date.now(), settings: normalizeSettings(s.settings),
       players: s.players, hostPid: s.hostPid, phase: s.phase, g: s.g, result: s.result, log: s.log || '',
       lastWinnerPid: s.lastWinnerPid, gameNo: s.gameNo || 0, hostLog: s.hostLog || [],
-      chat: s.chat || [], chatSeq: s.chatSeq || 0, spectators: s.spectators || [], deck: s.deck || { no: 1, style: 0 },
+      chat: s.chat || [], chatSeq: s.chatSeq || 0, spectators: s.spectators || [], deck: migrateDeck(s.deck),
       swap: s.swap || null, swapPlan: s.swapPlan || null, deckReq: s.deckReq || null, rstats: s.rstats || {},
       botUsed: s.botUsed || {}, newsUsed: s.newsUsed || [],
     });

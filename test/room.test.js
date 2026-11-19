@@ -347,7 +347,7 @@ test('máy khơi chuyện thời sự thì máy khác góp ý kiến', t => {
   for (let k = 0; k < 3; k++) room.handle(h.pid, { a: 'addBot' });
   room.botGame = { lines: 0, budget: 10, news: 0 };
   let replies = 0;
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < 14; k++) {
     room.botGame.news = 0; room.botTalk = {};
     const from = room.chatSeq;
     assert.ok(room.botNews(1));
@@ -479,13 +479,13 @@ test('đổi bộ bài: người chơi đề nghị, chỉ chủ phòng quyết;
   assert.match(act(2, { a: 'deckReq' }).err, /chờ chủ phòng/);
   assert.match(act(1, { a: 'deckAns', yes: true }).err, /Chỉ chủ phòng/);
   assert.deepStrictEqual(act(0, { a: 'deckAns', yes: true }), {});
-  assert.deepStrictEqual(room.deck, { no: 2, style: 1 });
+  assert.deepStrictEqual(room.deck, { no: 2, style: 1, v: 2 });
   assert.match(act(1, { a: 'deckReq' }).err, /đợi một chút/);
   act(2, { a: 'deckReq' });
   act(0, { a: 'deckAns', yes: false });
   assert.strictEqual(room.deck.no, 2);
   act(0, { a: 'deckReq' }); // chủ phòng đổi thẳng
-  assert.deepStrictEqual(room.deck, { no: 3, style: 2 });
+  assert.deepStrictEqual(room.deck, { no: 3, style: 2, v: 2 });
   assert.ok(room.chat.some(c => c.kind === 'sys' && /thay bộ bài mới/.test(c.text)));
 });
 
@@ -571,5 +571,18 @@ test('voice: vào/ra, bật mic, người xem chỉ nghe, rời phòng thì tự
   assert.strictEqual(room.view(0).voice.length, 1, 'mất kết nối thì ra khỏi voice');
   room.handle(a.pid, { a: 'vleave' });
   assert.strictEqual(room.view(0).voice.length, 0);
+  room.close();
+});
+
+test('bộ bài: phòng lưu từ bản cũ được chuyển sang danh sách bộ ảnh mới', () => {
+  const { DECKS } = require('../src/room');
+  assert.deepStrictEqual(DECKS, ['Hoàng cung Việt', 'Siêu anh hùng vũ trụ', 'Ai Cập Fantasy', 'La Mã Fantasy']);
+  const room = new Room('DKMG', { store: mkStore(), send() {} });
+  const snap = room.snapshot();
+  for (const [old, want] of [[0, 0], [3, 0], [5, 0], [6, 1]]) {
+    const r = Room.restore(Object.assign({}, snap, { deck: { no: 4, style: old } }), { send() {} });
+    assert.deepStrictEqual(r.deck, { no: 4, style: want, v: 2 }, 'bộ cũ ' + old);
+    r.close();
+  }
   room.close();
 });
