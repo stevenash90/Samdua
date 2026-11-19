@@ -16,7 +16,7 @@ const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
 // Bộ bài (kiểu dáng mặt sau / viền) — chủ phòng thay khi có người đề nghị "đổi bộ bài mới"
-const DECKS = ['Đỏ cổ điển', 'Xanh hoàng gia', 'Đen vàng', 'Tím mộng', 'Lục bảo'];
+const DECKS = ['Đỏ cổ điển', 'Xanh hoàng gia', 'Đen vàng', 'Tím mộng', 'Lục bảo', 'Hoàng cung Việt'];   // từ bộ thứ 6: J Q K và mặt lưng là ảnh (public/decks/)
 const LOSE_STREAK_SWAP = 10;     // thua liên tiếp bấy nhiêu ván thì được xin đổi chỗ giải đen
 const SWAP_ASK = 'Đen quá, đổi chỗ phát!';
 const SWAP_YES = 'Ok cưng!';
@@ -425,8 +425,10 @@ class Room {
   }
 
   /* ---------------- đổi bộ bài ---------------- */
-  newDeck(byName, forName) {
-    this.deck = { no: this.deck.no + 1, style: (this.deck.style + 1) % DECKS.length };
+  // style: chủ phòng chọn thẳng kiểu bộ bài; bỏ trống thì sang kiểu kế tiếp
+  newDeck(byName, forName, style) {
+    const pick = Number.isInteger(style) && style >= 0 && style < DECKS.length && style !== this.deck.style ? style : (this.deck.style + 1) % DECKS.length;
+    this.deck = { no: this.deck.no + 1, style: pick };
     this.deckReq = null;
     this.sysChat(`🃏 ${byName} đã thay bộ bài mới: ${DECKS[this.deck.style]}${forName ? ` (theo đề nghị của ${forName})` : ''}`);
     this.emit('deck', { style: this.deck.style }, false);
@@ -901,7 +903,7 @@ class Room {
         return {};
       }
       case 'deckReq': {
-        if (isHost) { this.newDeck(me.name); return {}; }
+        if (isHost) { this.newDeck(me.name, null, msg.style); return {}; }
         if (this.deckReq) return { err: 'Đã có người đề nghị, chờ chủ phòng trả lời' };
         if (this.now() - (this.lastDeckReq.get(me.pid) || 0) < DECK_COOLDOWN_MS) return { err: 'Bạn vừa đề nghị rồi, đợi một chút' };
         this.lastDeckReq.set(me.pid, this.now());
@@ -1154,7 +1156,7 @@ class Room {
       role, swapNeed: LOSE_STREAK_SWAP,
       spectators: this.spectators.map(x => ({ name: x.name, av: x.av, online: (this.conns.get(x.pid) || 0) > 0 })),
       chat: this.chat.slice(-CHAT_MAX),
-      deck: { no: this.deck.no, style: this.deck.style, name: DECKS[this.deck.style] },
+      deck: { no: this.deck.no, style: this.deck.style, name: DECKS[this.deck.style], list: DECKS },
       swap: this.swap ? { from: this.idxOf(this.swap.from), to: this.idxOf(this.swap.to), at: this.swap.at } : null,
       swapPlan: this.swapPlan ? { a: this.idxOf(this.swapPlan.a), b: this.idxOf(this.swapPlan.b) } : null,
       rstats: this.players.map(p => this.rstats[p.pid] || null),

@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.8.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -58,7 +58,7 @@ function cardEl(c, size) {
   if (c < 0) { d.classList.add('back'); return d; }
   const s = c & 3, r = RANKS[c >> 2];
   if (s >= 2) d.classList.add('r');
-  if (r === 'J' || r === 'Q' || r === 'K') d.classList.add('court');
+  if (r === 'J' || r === 'Q' || r === 'K') { d.classList.add('court'); d.dataset.k = r + 'SCDH'[s]; }   // bộ bài ảnh: J Q K lấy hình theo data-k
   else if (r === 'A') d.classList.add('ace');
   const a = h('div', 'a', r); a.appendChild(h('span', '', SUITS[s]));
   const a2 = h('div', 'a a2', r); a2.appendChild(h('span', '', SUITS[s]));   // chỉ số góc dưới, lộn ngược như bài thật
@@ -596,6 +596,7 @@ function onState(s, evs, first) {
   if (!away) showRoomScreen();
   if (!first) handleEvents(evs);
   document.body.dataset.deck = S.deck ? S.deck.style : 0;
+  preloadDeck(S.deck ? S.deck.style : 0);
   render();
   onChatState(first);
   checkRequests();
@@ -1224,6 +1225,14 @@ setInterval(() => {
 document.querySelectorAll('.btMenu').forEach(b => (b.onclick = () => { renderHostSheet(); $('hostSheet').classList.add('on'); }));
 $('btCloseHost').onclick = () => $('hostSheet').classList.remove('on');
 $('btPause').onclick = () => act(S && S.pause ? 'resume' : 'pause');
+// bộ bài có ảnh: tải trước để lật bài không bị trắng
+const IMG_DECKS = { 5: 'hoang-cung' };
+const deckLoaded = new Set();
+function preloadDeck(style) {
+  const dir = IMG_DECKS[style]; if (!dir || deckLoaded.has(dir)) return;
+  deckLoaded.add(dir);
+  ['back', 'JS', 'JC', 'JD', 'JH', 'QS', 'QC', 'QD', 'QH', 'KS', 'KC', 'KD', 'KH'].forEach(k => { const im = new Image(); im.src = `decks/${dir}/${k}.webp`; });
+}
 function renderHostSheet() {
   const b = $('hostBody'); b.textContent = '';
   if (!S) return;
@@ -1236,6 +1245,18 @@ function renderHostSheet() {
     if (S.deckReq && !isHost) { db.disabled = true; db.textContent = 'Đang chờ chủ phòng trả lời…'; }
     db.onclick = async () => { const r = await act('deckReq'); if (!r.err) { toast(isHost ? 'Đã thay bộ bài mới' : 'Đã gửi đề nghị tới chủ phòng'); renderHostSheet(); } };
     dk.append(db);
+    if (isHost && S.deck && S.deck.list) {
+      // chủ phòng chọn thẳng kiểu bộ bài
+      const pk = h('div', 'deckpick');
+      S.deck.list.forEach((nm, k) => {
+        const it = h('button', 'dp' + (k === S.deck.style ? ' on' : ''));
+        const bk = h('div', 'card back s'); bk.dataset.deckp = k;
+        it.append(bk, h('small', '', nm));
+        it.onclick = async () => { if (k === S.deck.style) return; const r = await act('deckReq', { style: k }); if (!r.err) { toast('Đã đổi sang bộ ' + nm); renderHostSheet(); } };
+        pk.append(it);
+      });
+      dk.append(pk);
+    }
     if (isHost && S.deckReq && S.players[S.deckReq.from]) {
       const q = h('div', 'frow'); q.append(h('span', '', `${S.players[S.deckReq.from].name} đề nghị đổi bộ bài`));
       const y = h('button', 'btn slim gold', 'Đổi'), n = h('button', 'btn slim', 'Không');
