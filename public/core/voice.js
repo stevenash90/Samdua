@@ -132,15 +132,23 @@ const Voice = (() => {
   }
   async function setMic(on, quiet) {
     if (on) {
-      if (!joined && !(await join())) return;
+      if (!supported()) { toast('Trình duyệt này chưa hỗ trợ voice. Dùng Safari/Chrome bản mới (iPhone cần iOS 14.3+)'); return; }
+      // iPhone: phải chuyển sang chế độ ghi âm TRƯỚC khi xin micro, và xin ngay trong lần chạm (chưa chờ mạng)
+      window.__samMic = true;
+      iosSession('play-and-record');
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       } catch (e) {
-        toast(e && e.name === 'NotAllowedError' ? 'Bạn chưa cho phép micro. Vào cài đặt trình duyệt để bật quyền micro cho trang này' : 'Không mở được micro');
+        window.__samMic = false; iosSession('playback');
+        const n = e && e.name;
+        toast(n === 'NotAllowedError' || n === 'SecurityError'
+          ? 'Micro đang bị chặn. iPhone: Cài đặt → Safari → Micro → Hỏi/Cho phép, rồi tải lại trang. Hoặc bấm "aA" trên thanh địa chỉ → Cài đặt trang web → Micro'
+          : n === 'NotFoundError' ? 'Không tìm thấy micro trên máy' : n === 'NotReadableError' ? 'Micro đang bị app khác dùng (cuộc gọi, ghi âm…)' : 'Không mở được micro (' + (n || 'lỗi') + ')', 5000);
         return;
       }
-      iosSession('play-and-record');
+      if (!joined && !(await join())) { stream.getTracks().forEach(t => t.stop()); stream = null; window.__samMic = false; iosSession('playback'); return; }
       micTrack = stream.getAudioTracks()[0];
+      micTrack.onended = () => { if (micOn) { setMic(false); toast('Micro đã tắt (máy chuyển sang app khác hoặc có cuộc gọi). Bấm 🎙️ để bật lại'); } };
       myAn = analyser(stream);
       for (const p of peers.values()) p.sender.replaceTrack(micTrack).catch(() => {});
       micOn = true;
@@ -148,6 +156,7 @@ const Voice = (() => {
       for (const p of peers.values()) p.sender.replaceTrack(null).catch(() => {});
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = null; micTrack = null; myAn = null; micOn = false;
+      window.__samMic = false;
       iosSession('playback');
     }
     if (joined && !quiet) act('vmic', { on: micOn });
@@ -179,7 +188,7 @@ const Voice = (() => {
     myVid = vid;
     if (joined) act('vjoin', { mic: micOn });   // vừa kết nối lại: vào lại voice
   }
-  function reset() { if (joined) { joined = false; micOn = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; micTrack = null; iosSession('playback'); for (const vid of [...peers.keys()]) drop(vid); stopMeter(); } members = []; render(); }
+  function reset() { if (joined) { joined = false; micOn = false; window.__samMic = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; micTrack = null; iosSession('playback'); for (const vid of [...peers.keys()]) drop(vid); stopMeter(); } members = []; render(); }
 
   /* ---------- giao diện ---------- */
   let ui = null, list = null;

@@ -44,7 +44,8 @@ const Sound = (function () {
   // (Safari 16.4+ có navigator.audioSession; máy cũ hơn: phát kèm 1 thẻ <audio> im lặng lặp vòng).
   let keepAlive = null;
   function playbackSession() {
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    // đang bật mic (voice chat) thì phải giữ chế độ ghi âm, nếu không Safari tắt micro
+    try { if (navigator.audioSession) navigator.audioSession.type = window.__samMic ? 'play-and-record' : 'playback'; } catch (e) {}
     if (!/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || keepAlive) return;
     try {
       // WAV im lặng 0,1 giây
