@@ -709,6 +709,9 @@ body[data-deck="3"] .card[data-k="KH"]{background-image:url(games/sam/decks/la-m
 .vb.mic.off{opacity:.55;position:relative}
 .vb.mic.off::after{content:"";position:absolute;width:26px;height:2.5px;background:#ff5a67;transform:rotate(-45deg);border-radius:2px}
 .vbar:not(.joined) .vb.mic{opacity:.55}
+.vb.mic.wolf{box-shadow:0 0 0 2px #e0414e,0 4px 12px #0008}.vb.mic.wolf::before{content:"🐺";position:absolute;right:-6px;top:-6px;font-size:13px}
+.vb.mic.ghost::before{content:"👻";position:absolute;right:-6px;top:-6px;font-size:13px}
+.vb{position:relative}
 .vb.vn{width:28px;height:28px;font-size:12px;font-weight:800;margin-left:7px;background:#f3c45a;color:#2c1d00}
 .vlist{position:fixed;left:56px;top:calc(var(--sat,0px) + 33vh);z-index:31;display:none;min-width:210px;max-width:72vw;padding:10px 12px;border-radius:14px;background:#071f17f5;border:1px solid var(--line);box-shadow:0 10px 30px #000a;font-size:13px}
 .vlist.on{display:block}

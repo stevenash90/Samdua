@@ -7,6 +7,7 @@ const Voice = (() => {
   const peers = new Map();           // vid -> {pc, polite, makingOffer, ignoreOffer, sender, audio, an, level}
   const muted = new Set(JSON.parse(localStorage.getItem('sam_vmute') || '[]'));   // vid đã tắt tiếng riêng
   let spkOff = false, actx = null, meter = null, members = [], forced = false;
+  let policy = null, policyLabel = '';   // game quyết định mic của mình được gửi tới ai (Ma Sói: đêm chỉ bầy Sói nghe nhau)
 
   const supported = () => !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   const inApp = () => /FBAN|FBAV|FB_IAB|Messenger|Instagram|Zalo|Line\/|MicroMessenger/i.test(navigator.userAgent);
@@ -41,12 +42,29 @@ const Voice = (() => {
     if (meter) return;
     meter = setInterval(() => {
       const talking = new Set();
-      if (micOn && !forced && myAn && levelOf(myAn) > 0.04) talking.add(myVid);
+      if (micOn && sendingToAnyone() && myAn && levelOf(myAn) > 0.04) talking.add(myVid);
       for (const [vid, p] of peers) if (!muted.has(vid) && !spkOff && levelOf(p.an) > 0.04) talking.add(vid);
       paint(talking);
     }, 180);
   }
   function stopMeter() { clearInterval(meter); meter = null; paint(new Set()); }
+
+  /* ---------- gửi mic tới ai: lọc ngay ở máy gửi, máy không được nghe sẽ không nhận được âm thanh nào ---------- */
+  function allowed(vid) {
+    if (forced) return false;
+    if (!policy) return true;
+    const m = members.find(x => x.vid === vid);
+    try { return !!(m && policy(m)); } catch (e) { return false; }
+  }
+  function applyTracks() {
+    for (const [vid, p] of peers) {
+      const want = micTrack && allowed(vid) ? micTrack : null;
+      if (p.sending === want) continue;
+      p.sending = want;
+      p.sender.replaceTrack(want).catch(() => {});
+    }
+  }
+  const sendingToAnyone = () => !!micTrack && !forced && (!policy || members.some(m => m.vid !== myVid && allowed(m.vid)) || policyLabel === 'wolf' || policyLabel === 'ghost');
 
   /* ---------- kết nối từng người (perfect negotiation) ---------- */
   async function peer(vid) {
@@ -59,7 +77,7 @@ const Voice = (() => {
     document.body.append(audio);
     const p = { pc, polite: myVid < vid, makingOffer: false, ignoreOffer: false, sender: tr.sender, audio, an: null };
     peers.set(vid, p);
-    if (micTrack && !forced) tr.sender.replaceTrack(micTrack).catch(() => {});
+    applyTracks();
     pc.onnegotiationneeded = async () => {
       try {
         p.makingOffer = true;
@@ -150,10 +168,10 @@ const Voice = (() => {
       micTrack = stream.getAudioTracks()[0];
       micTrack.onended = () => { if (micOn) { setMic(false); toast('Micro đã tắt (máy chuyển sang app khác hoặc có cuộc gọi). Bấm 🎙️ để bật lại'); } };
       myAn = analyser(stream);
-      if (!forced) for (const p of peers.values()) p.sender.replaceTrack(micTrack).catch(() => {});
       micOn = true;
+      applyTracks();
     } else {
-      for (const p of peers.values()) p.sender.replaceTrack(null).catch(() => {});
+      micTrack = null; applyTracks();
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = null; micTrack = null; myAn = null; micOn = false;
       window.__samMic = false;
@@ -182,6 +200,7 @@ const Voice = (() => {
     const want = new Set(members.filter(m => m.vid !== myVid).map(m => m.vid));
     for (const vid of [...peers.keys()]) if (!want.has(vid)) drop(vid);
     for (const vid of want) if (!peers.has(vid)) peer(vid);
+    applyTracks();
     render();
   }
   function setMe(vid) {
@@ -256,9 +275,25 @@ const Voice = (() => {
     on = !!on;
     if (on === forced) return;
     forced = on;
-    for (const p of peers.values()) p.sender.replaceTrack(on ? null : micTrack).catch(() => {});
-    if (ui) { const m = ui.querySelector('.mic'); m.classList.toggle('forced', on); m.title = on ? 'Đang tạm tắt mic (đêm / đã chết)' : 'Bật mic'; }
+    applyTracks(); micTitle();
   }
-  return { forceMute, sync, onSignal, setMe, reset, supported, get joined() { return joined; }, debug: () => [...peers].map(([vid, p]) => ({ vid, state: p.pc.connectionState, muted: p.audio.muted })),
+  /** fn(member) → true nếu được nghe mic của mình; null = cả phòng. label: 'wolf' | 'ghost' | 'sleep' | '' (để hiện chú thích). */
+  function setPolicy(fn, label) {
+    label = label || '';
+    if (label === policyLabel && !!fn === !!policy && label !== 'wolf' && label !== 'ghost') return;
+    policy = fn || null; policyLabel = label;
+    applyTracks(); micTitle();
+  }
+  function micTitle() {
+    if (!ui) return;
+    const m = ui.querySelector('.mic');
+    const off = forced || policyLabel === 'sleep';
+    m.classList.toggle('forced', off);
+    m.classList.toggle('wolf', policyLabel === 'wolf');
+    m.classList.toggle('ghost', policyLabel === 'ghost');
+    m.title = off ? 'Đang tạm tắt mic (ban đêm)' : policyLabel === 'wolf' ? 'Mic chỉ bầy Sói nghe' : policyLabel === 'ghost' ? 'Mic chỉ người đã chết và người xem nghe' : 'Bật mic';
+  }
+  return { forceMute, setPolicy, sync, onSignal, setMe, reset, supported, get joined() { return joined; }, debug: () => [...peers].map(([vid, p]) => ({ vid, state: p.pc.connectionState, muted: p.audio.muted, sending: !!p.sending })),
+    stats: async () => { const o = {}; for (const [vid, p] of peers) { let b = 0; (await p.pc.getStats()).forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') b += r.bytesReceived || 0; }); o[vid] = b; } return o; },
     async bytesIn() { let n = 0; for (const p of peers.values()) (await p.pc.getStats()).forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.bytesReceived || 0; }); return n; } };
 })();

@@ -467,6 +467,10 @@ class Room extends BaseRoom {
     };
     const showVotes = g && (this.phase === 'vote' || this.phase === 'exec');
     const votesNow = this.phase === 'vote' ? g.votes : g && g.lastVote && g.lastVote.day === g.day ? g.lastVote.votes : {};
+    // ban đêm: dân thường không thấy ai đang bật mic (tránh đoán Sói qua việc ai bật mic lúc đêm)
+    if (g && (this.phase === 'night' || this.phase === 'witch') && !ghost && !(i >= 0 && this.isWolf(i)) && Array.isArray(v.voice)) {
+      v.voice = v.voice.map(m => (m.seat === i ? m : Object.assign({}, m, { mic: false })));
+    }
     v.settings = Object.assign({}, this.settings);
     v.min = C.MIN_PLAYERS; v.max = C.MAX_PLAYERS;
     v.roleInfo = ROLES;

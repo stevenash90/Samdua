@@ -39,9 +39,21 @@ const MS = (() => {
     if (!first) for (const e of evs || []) handleEvent(e);
     render();
     onChatState(first);
-    try { Voice.forceMute(inGame() && !spec() && (S.phase === 'night' || S.phase === 'witch' || (me() && !me().alive))); } catch (e) {}
+    syncVoice();
     if (!ticker) ticker = setInterval(tickTimer, 250);
     syncAudio();
+  }
+  // Voice theo luật Ma Sói (lọc ở máy gửi): ban ngày cả làng nghe nhau; ban đêm chỉ bầy Sói nghe nhau, dân im;
+  // người đã chết chỉ nói được với người chết khác và người xem (kênh hồn ma).
+  function syncVoice() {
+    const m = me(), night = S.phase === 'night' || S.phase === 'witch';
+    let pol = null, label = '';
+    if (inGame() && m && !spec()) {
+      if (!m.alive) { pol = x => x.seat < 0 || (S.players[x.seat] && !S.players[x.seat].alive); label = 'ghost'; }
+      else if (night && m.role === 'wolf') { const mates = new Set(m.mates || []); pol = x => mates.has(x.seat); label = 'wolf'; }
+      else if (night) { pol = () => false; label = 'sleep'; }
+    }
+    try { Voice.forceMute(false); Voice.setPolicy(pol, label); } catch (e) {}
   }
   function handleEvent(e) {
     if (e.type === 'narr' && narrOn) Sound.narrate(VOICE(e.key + '_' + e.n));
@@ -49,7 +61,7 @@ const MS = (() => {
     if (e.type === 'exec' && e.t === S.you) toast('⚖️ Bạn bị làng treo cổ!', 3000);
     if (e.type === 'over') { try { Sound.play(S.g && me() && ((S.g.winner === 'wolf') === (me().role === 'wolf')) ? 'win' : 'lose'); } catch (x) {} }
   }
-  function leave() { clearInterval(ticker); ticker = null; lastGameNo = 0; lastPhase = ''; bgmPick = null; try { Voice.forceMute(false); } catch (e) {} try { Sound.narrStop(); Sound.bgm(null); } catch (e) {} }
+  function leave() { clearInterval(ticker); ticker = null; lastGameNo = 0; lastPhase = ''; bgmPick = null; try { Voice.forceMute(false); Voice.setPolicy(null, ''); } catch (e) {} try { Sound.narrStop(); Sound.bgm(null); } catch (e) {} }
 
   /* ---------- banner + đồng hồ ---------- */
   function phaseText() {
@@ -59,8 +71,8 @@ const MS = (() => {
       case 'night': {
         let sub = 'Bạn đang ngủ… 😴 (mic tạm tắt)';
         if (!m || spec()) sub = 'Cả làng đang ngủ, người chơi đặc biệt đang hành động';
-        else if (!m.alive) sub = 'Bạn đã chết — xem các vai hành động 👻';
-        else if (r === 'wolf') sub = 'Chọn người để cắn (bàn với bầy ở kênh 🐺)';
+        else if (!m.alive) sub = 'Bạn đã chết — xem các vai hành động 👻 (voice chỉ người chết nghe)';
+        else if (r === 'wolf') sub = 'Chọn người để cắn — bàn với bầy ở kênh 🐺 hoặc voice (chỉ Sói nghe)';
         else if (r === 'seer') sub = m.done ? 'Đã soi, chờ trời sáng' : 'Chọn một người để soi';
         else if (r === 'guard') sub = m.target !== null && m.target !== undefined ? `Đang che ${nm(m.target)}` : 'Chọn một người để che chở';
         return [`🌙 Đêm ${g.day}`, sub];
