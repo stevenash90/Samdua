@@ -1,9 +1,9 @@
-// Sinh docs/NHAN_VAT.md từ hồ sơ nhân vật trong src/botchat.js và tin trong src/news.js.
+// Sinh docs/NHAN_VAT.md từ hồ sơ nhân vật trong src/platform/bots/personas.js và tin trong src/platform/news.js.
 // Chạy: node scripts/nhan_vat.js
 const fs = require('fs');
 const path = require('path');
-const { PERSONAS } = require('../src/botchat');
-const { CURATED } = require('../src/news');
+const { PERSONAS } = require('../src/platform/bots/personas');
+const { CURATED } = require('../src/platform/news');
 
 const TAG = { showbiz: 'Showbiz', bongda: 'Bóng đá', phim: 'Phim', hoahau: 'Hoa hậu', congnghe: 'Công nghệ', anuong: 'Ăn uống', vui: 'Chuyện vui' };
 const CAT = [['start', 'Vào ván'], ['chop', 'Chặt người khác'], ['chopped', 'Bị chặt'], ['brag', 'Ra bộ đẹp'], ['sam', 'Có người báo Sâm'],
@@ -15,7 +15,7 @@ const ex = (a, n = 2) => (a || []).slice(0, n).map(x => `“${x}”`).join(' · 
 
 const out = [];
 out.push('# Sâm Dứa — Chỉ dẫn nhân vật máy', '');
-out.push('> File này sinh tự động từ `src/botchat.js` (chạy `node scripts/nhan_vat.js`). Muốn sửa câu thoại, sửa trong `src/botchat.js` rồi chạy lại.', '');
+out.push('> File này sinh tự động từ `src/platform/bots/personas.js` (chạy `node scripts/nhan_vat.js`). Muốn sửa câu thoại, sửa trong `src/platform/bots/personas.js` rồi chạy lại.', '');
 out.push('Các nhân vật là **bản nhại hư cấu**, lấy cảm hứng từ người nổi tiếng để mua vui trong nhóm bạn: nói đùa nhẹ, không bôi nhọ, không bàn chính trị thật.', '');
 out.push('## Máy nói chuyện thế nào', '');
 out.push('- **Ít mà đúng lúc.** Máy chỉ nói khi có chuyện: vào ván, chặt hoặc bị chặt, ra bộ đẹp, có người báo Sâm, thắng thua, bị gọi tên, có người chat.');

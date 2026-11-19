@@ -1,6 +1,6 @@
 # Sâm Dứa — Chỉ dẫn nhân vật máy
 
-> File này sinh tự động từ `src/botchat.js` (chạy `node scripts/nhan_vat.js`). Muốn sửa câu thoại, sửa trong `src/botchat.js` rồi chạy lại.
+> File này sinh tự động từ `src/platform/bots/personas.js` (chạy `node scripts/nhan_vat.js`). Muốn sửa câu thoại, sửa trong `src/platform/bots/personas.js` rồi chạy lại.
 
 Các nhân vật là **bản nhại hư cấu**, lấy cảm hứng từ người nổi tiếng để mua vui trong nhóm bạn: nói đùa nhẹ, không bôi nhọ, không bàn chính trị thật.
 

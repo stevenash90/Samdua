@@ -21,7 +21,7 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Người xem**: vào phòng bằng nút 👀 Xem (hoặc khi phòng đang chơi dở). Chỉ thấy bài công khai, chat được, không thao tác ván, không xem lại được ván. Còn chỗ thì bấm "Vào chơi" giữa các ván.
 - **Đổi chỗ giải đen**: thua 10 ván liên tiếp thì được xin đổi chỗ (kể cả lúc đang chơi, nút trong menu ⋯). Người kia có 30 giây trả lời; đồng ý thì đổi chỗ từ ván sau. Có thoại "Đen quá, đổi chỗ phát!" / "Ok cưng!"; từ chối thì hiện câu đáp ngẫu nhiên.
 - **Thống kê bàn** (nút 📊, mở được giữa ván): thắng/thua nhiều nhất, tỉ lệ thắng thua, báo Sâm, bắt Sâm, chặt, bị chặt, cóng, chuỗi xanh/đỏ hiện tại và dài nhất, lãi lỗ.
-- **Máy nói chuyện**: 19 nhân vật máy có tính cách, quan hệ và chủ đề riêng (`src/botchat.js`, chỉ dẫn đầy đủ ở `docs/NHAN_VAT.md`). Máy nói ít mà đúng lúc, đáp nhau và đáp người chơi, khơi chuyện thời sự (gói tin soạn sẵn + tiêu đề VnExpress tải miễn phí khi máy chủ thức dậy / có người mở app, đã lọc tin buồn và chính trị). Trong một bàn không máy nào nói lại câu đã nói. Chủ phòng tắt được.
+- **Máy nói chuyện**: 19 nhân vật máy có tính cách, quan hệ và chủ đề riêng (`src/platform/bots/personas.js`, chỉ dẫn đầy đủ ở `docs/NHAN_VAT.md`). Máy nói ít mà đúng lúc, đáp nhau và đáp người chơi, khơi chuyện thời sự (gói tin soạn sẵn + tiêu đề VnExpress tải miễn phí khi máy chủ thức dậy / có người mở app, đã lọc tin buồn và chính trị). Trong một bàn không máy nào nói lại câu đã nói. Chủ phòng tắt được.
 - **Bàn 3D**: mặt nỉ nghiêng phối cảnh như ngồi tại bàn, viền gỗ, bài in 2 góc + khung J Q K, mặt lưng có hoa văn, bài trên tay xếp quạt. Điện thoại có chế độ màn ngang (nút ⟲). Cài đặt "Bài đã đánh trên bàn" (mặc định tắt) để hiện các bộ đã đánh.
 - **Máy 2 mức Amateur / Pro** (mặc định Pro): Pro mô phỏng hàng trăm khả năng từ bài đã ra và bài trên tay (không nhìn trộm bài ai) để chọn nước lợi nhất; thử nghiệm thắng ~36% số ván trước 3 máy thường (đều nhau = 25%). Máy tự **báo Sâm có tính toán** khi khả năng thành công ≥ 70% (`src/aipro.js`).
 - **Voice chat** kiểu Liên Quân: 🎧 nghe cả bàn, 🎙️ bật mic, đếm người trong voice + tắt tiếng riêng từng người, viền xanh quanh người đang nói. WebRTC nối thẳng giữa các máy; TURN lấy từ biến môi trường (Cloudflare / Metered / ExpressTURN…, xem `src/ice.js`). Người xem chỉ nghe.
@@ -59,20 +59,14 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 ## Cấu trúc
 
 ```
-server.js            HTTP tĩnh + API + WebSocket (/ws) + /health
-src/config.js        cấu hình (biến môi trường)
-src/rules.js         luật bài thuần (nhận diện bộ, chặn, chặt, ăn trắng)
-src/scoring.js       tính tiền: chặt 2, chặt đè, Sâm, cóng, thối 2, ăn trắng
-src/ai.js            gợi ý nước đi / não của máy (chỉ thông tin công khai)
-src/botchat.js       tính cách & câu thoại chat của từng máy (sinh chỉ dẫn: node scripts/nhan_vat.js)
-src/news.js          tin thời sự cho máy: gói soạn sẵn + RSS VnExpress (lọc tin nhạy cảm)
-src/room.js          state machine phòng & ván, tạm dừng, AFK, chủ phòng, event log
-src/store.js         lưu trữ: PostgreSQL (migration) hoặc file JSON
-src/accounts.js      tài khoản: đăng ký, đăng nhập, Google, phiên, hồ sơ
-public/              giao diện (index.html, style.css, app.js, audio.js, audio/)
-scripts/backup.js    sao lưu toàn bộ dữ liệu ra JSON
-scripts/make_audio.py tạo lại toàn bộ âm thanh (numpy + espeak-ng)
-test/                unit test + test/e2e (server thật, WebSocket thật)
+server.js                 điểm khởi động → src/platform/server.js
+src/platform/             nền tảng dùng chung: server, config, store, accounts, players, ice (voice), news, bots/personas
+src/games/index.js        danh sách game
+src/games/sam/            game Sâm Lốc: rules, scoring, ai, aipro, room, config
+public/core/              trình duyệt – nền tảng: app.js, audio.js, voice.js, boot.js
+public/games/sam/         trình duyệt – Sâm: game.js, decks/
+test/platform, test/games/sam, test/e2e
+(chi tiết & cách thêm game mới: docs/KIEN_TRUC.md)
 ```
 
 ## Chạy ở máy

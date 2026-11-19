@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const R = require('../src/rules');
+const R = require('../../../src/games/sam/rules');
 const { cards } = require('./helpers');
 
 const cl = s => R.classify(cards(s));
@@ -85,7 +85,7 @@ test('ăn trắng', () => {
 });
 
 test('ba đôi thông chỉ được đánh để chặt 2 (hoặc chặt đè), không được đánh khi cầm cái hay chặn bộ khác', () => {
-  const R = require('../src/rules');
+  const R = require('../../../src/games/sam/rules');
   const C = cards;
   const hand = C('5s 5h 6s 6h 7s 7h 9d');
   const g = (table) => ({ hands: [hand, C('3s 4s')], table, passed: [false, false] });
@@ -97,7 +97,7 @@ test('ba đôi thông chỉ được đánh để chặt 2 (hoặc chặt đè),
 
 
 test('header gửi đi khi tải tin chỉ có ký tự ASCII (tránh lỗi ByteString)', () => {
-  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'news.js'), 'utf8');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', '..', '..', 'src', 'platform', 'news.js'), 'utf8');
   const m = src.match(/'user-agent':\s*'([^']*)'/);
   assert.ok(m && /^[\x20-\x7e]*$/.test(m[1]), 'user-agent phải là ASCII');
 });

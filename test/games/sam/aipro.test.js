@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const R = require('../src/rules');
-const A = require('../src/aipro');
+const R = require('../../../src/games/sam/rules');
+const A = require('../../../src/games/sam/aipro');
 
 const shuffle = (a, r = Math.random) => { a = a.slice(); for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
 const fresh = hands => ({ hands, table: null, trick: [], piles: hands.map(() => []), passed: hands.map(() => false), played: hands.map(() => false), samBy: null, turn: 0 });

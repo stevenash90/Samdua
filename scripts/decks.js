@@ -1,5 +1,5 @@
-// Sinh CSS cho các bộ bài ảnh (J Q K + mặt lưng nằm trong public/decks/<thư mục>/*.webp).
-// Thêm bộ mới: thêm 1 dòng vào IMG_DECKS (số thứ tự = vị trí trong DECKS ở src/room.js), rồi chạy: node scripts/decks.js
+// Sinh CSS cho các bộ bài ảnh của Sâm (J Q K + mặt lưng nằm trong public/games/sam/decks/<thư mục>/*.webp).
+// Thêm bộ mới: thêm 1 dòng vào IMG_DECKS (số thứ tự = vị trí trong DECKS ở src/games/sam/room.js), rồi chạy: node scripts/decks.js
 const fs = require('fs');
 const path = require('path');
 const IMG_DECKS = [
@@ -12,7 +12,7 @@ const IMG_DECKS = [
 const KEYS = ['JS', 'JC', 'JD', 'JH', 'QS', 'QC', 'QD', 'QH', 'KS', 'KC', 'KD', 'KH'];
 const out = ['/* @decks-begin — sinh tự động bởi scripts/decks.js, đừng sửa tay */'];
 for (const [n, dir, b1, b2, edge] of IMG_DECKS) {
-  const u = k => `url(decks/${dir}/${k}.webp)`;
+  const u = k => `url(games/sam/decks/${dir}/${k}.webp)`;
   out.push(`body[data-deck="${n}"]{--back1:${b1};--back2:${b2};--edge:${edge}}`);
   out.push(`body[data-deck="${n}"] .card.back,body .dp .card.back[data-deckp="${n}"]{background:${b1} ${u('back')} center/cover;box-shadow:0 3px 6px #0007}`);
   out.push(`body[data-deck="${n}"] .card.back::after,body .dp .card.back[data-deckp="${n}"]::after{display:none}`);
@@ -28,7 +28,7 @@ const re = /\/\* @decks-begin[\s\S]*?@decks-end \*\//;
 css = re.test(css) ? css.replace(re, out.join('\n')) : css + '\n' + out.join('\n') + '\n';
 fs.writeFileSync(file, css);
 // danh sách thư mục cho client tải trước
-const js = path.join(__dirname, '..', 'public', 'app.js');
+const js = path.join(__dirname, '..', 'public', 'games', 'sam', 'game.js');
 let app = fs.readFileSync(js, 'utf8');
 app = app.replace(/const IMG_DECKS = \{[^}]*\};/, 'const IMG_DECKS = { ' + IMG_DECKS.map(d => `${d[0]}: '${d[1]}'`).join(', ') + ' };');
 fs.writeFileSync(js, app);

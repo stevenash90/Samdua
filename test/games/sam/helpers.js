@@ -1,5 +1,5 @@
 // Tiện ích dựng bài cho test: '3s', '10h', 'Ad', '2c' (s ♠, c ♣, d ♦, h ♥)
-const { RANK_NAMES } = require('../src/rules');
+const { RANK_NAMES } = require('../../../src/games/sam/rules');
 const SUIT = { s: 0, c: 1, d: 2, h: 3 };
 
 function card(str) {

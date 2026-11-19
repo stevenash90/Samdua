@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const C = require('../src/config');
-const { Room } = require('../src/room');
+const C = require('../../../src/games/sam/config');
+const { Room } = require('../../../src/games/sam/room');
 const { cards } = require('./helpers');
 
 function mkStore() {
@@ -239,8 +239,8 @@ test('mô phỏng 300 ván toàn máy: không lỗi, tổng điểm bằng 0, m�
 });
 
 test('nhân vật: đủ hồ sơ, bỏ Tô Tổng, có Phương Oanh và 10 nhân vật mới, quan hệ trỏ đúng tên', () => {
-  const { PERSONAS } = require('../src/botchat');
-  const { BOTS } = require('../src/room');
+  const { PERSONAS } = require('../../../src/platform/bots/personas');
+  const { BOTS } = require('../../../src/games/sam/room');
   const names = BOTS.map(b => b[0]);
   assert.ok(!names.includes('Tô Tổng') && !names.includes('Tún') && names.includes('Phương Oanh'));
   for (const n of ['M10', 'Đô 500', 'Người Mỹ gốc U Cà', 'Big Kim', 'Tesla Driver']) assert.ok(names.includes(n), n);
@@ -255,7 +255,7 @@ test('nhân vật: đủ hồ sơ, bỏ Tô Tổng, có Phương Oanh và 10 nh�
 });
 
 test('tin thời sự: lọc tin buồn/chính trị, không nhắc lại tin đã dùng', () => {
-  const News = require('../src/news');
+  const News = require('../../../src/platform/news');
   const xml = `<rss><channel>
     <item><title><![CDATA[Trấn Thành đoán trúng mascot ở Ca sĩ mặt nạ]]></title><link>a</link></item>
     <item><title>Ca sĩ nổi tiếng qua đời ở tuổi 60</title><link>b</link></item>
@@ -275,7 +275,7 @@ test('tin thời sự: lọc tin buồn/chính trị, không nhắc lại tin đ
 
 test('máy nói chuyện: tiết chế, không lặp câu trong cả bàn, đáp người chơi, đáp nhau, tắt được', t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.parse('2026-11-18T12:00:00Z') });
-  const { PERSONAS } = require('../src/botchat');
+  const { PERSONAS } = require('../../../src/platform/bots/personas');
   const room = new Room('BCH', { store: mkStore(), send() {} });
   const h = room.addHuman('bc-token', 'Lan', '🙂', { gender: 'nu' });
   room.connect(h.pid);
@@ -575,7 +575,7 @@ test('voice: vào/ra, bật mic, người xem chỉ nghe, rời phòng thì tự
 });
 
 test('bộ bài: phòng lưu từ bản cũ được chuyển sang danh sách bộ ảnh mới', () => {
-  const { DECKS } = require('../src/room');
+  const { DECKS } = require('../../../src/games/sam/room');
   assert.deepStrictEqual(DECKS, ['Hoàng cung Việt', 'Siêu anh hùng vũ trụ', 'Ai Cập Fantasy', 'La Mã Fantasy']);
   const room = new Room('DKMG', { store: mkStore(), send() {} });
   const snap = room.snapshot();

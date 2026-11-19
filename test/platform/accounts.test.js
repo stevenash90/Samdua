@@ -4,8 +4,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { FileStore } = require('../src/store');
-const { createAccounts, makeGoogleVerifier } = require('../src/accounts');
+const { FileStore } = require('../../src/platform/store');
+const { createAccounts, makeGoogleVerifier } = require('../../src/platform/accounts');
 
 async function mk(opts) {
   const st = new FileStore(fs.mkdtempSync(path.join(os.tmpdir(), 'acc-')), () => {});

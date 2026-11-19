@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const AI = require('../src/ai');
-const R = require('../src/rules');
+const AI = require('../../../src/games/sam/ai');
+const R = require('../../../src/games/sam/rules');
 const { cards } = require('./helpers');
 
 const view = (mine, others, table) => ({

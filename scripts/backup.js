@@ -1,8 +1,8 @@
 // Sao lưu toàn bộ dữ liệu (Postgres hoặc file) ra một file JSON.
 // Dùng: DATABASE_URL=... node scripts/backup.js [đường-dẫn-file]
 const fs = require('fs');
-const C = require('../src/config');
-const { createStore } = require('../src/store');
+const C = require('../src/platform/config');
+const { createStore } = require('../src/platform/store');
 
 (async () => {
   const store = createStore(C, () => {});

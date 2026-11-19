@@ -621,77 +621,77 @@ body:not(.piles-on) #sGame .play.old{display:none}
 /* ===== bộ bài có ảnh ===== */
 /* @decks-begin — sinh tự động bởi scripts/decks.js, đừng sửa tay */
 body[data-deck="0"]{--back1:#8b1a1a;--back2:#b3261e;--edge:#d4af37}
-body[data-deck="0"] .card.back,body .dp .card.back[data-deckp="0"]{background:#8b1a1a url(decks/hoang-cung/back.webp) center/cover;box-shadow:0 3px 6px #0007}
+body[data-deck="0"] .card.back,body .dp .card.back[data-deckp="0"]{background:#8b1a1a url(games/sam/decks/hoang-cung/back.webp) center/cover;box-shadow:0 3px 6px #0007}
 body[data-deck="0"] .card.back::after,body .dp .card.back[data-deckp="0"]::after{display:none}
-body[data-deck="0"] .cnt{background:#8b1a1a url(decks/hoang-cung/back.webp) center/cover}
+body[data-deck="0"] .cnt{background:#8b1a1a url(games/sam/decks/hoang-cung/back.webp) center/cover}
 body[data-deck="0"] .card.court{background:#fbf3df center/cover;border-color:#d4af37}
 body[data-deck="0"] .card.court>*{display:none}
-body[data-deck="0"] .card[data-k="JS"]{background-image:url(decks/hoang-cung/JS.webp)}
-body[data-deck="0"] .card[data-k="JC"]{background-image:url(decks/hoang-cung/JC.webp)}
-body[data-deck="0"] .card[data-k="JD"]{background-image:url(decks/hoang-cung/JD.webp)}
-body[data-deck="0"] .card[data-k="JH"]{background-image:url(decks/hoang-cung/JH.webp)}
-body[data-deck="0"] .card[data-k="QS"]{background-image:url(decks/hoang-cung/QS.webp)}
-body[data-deck="0"] .card[data-k="QC"]{background-image:url(decks/hoang-cung/QC.webp)}
-body[data-deck="0"] .card[data-k="QD"]{background-image:url(decks/hoang-cung/QD.webp)}
-body[data-deck="0"] .card[data-k="QH"]{background-image:url(decks/hoang-cung/QH.webp)}
-body[data-deck="0"] .card[data-k="KS"]{background-image:url(decks/hoang-cung/KS.webp)}
-body[data-deck="0"] .card[data-k="KC"]{background-image:url(decks/hoang-cung/KC.webp)}
-body[data-deck="0"] .card[data-k="KD"]{background-image:url(decks/hoang-cung/KD.webp)}
-body[data-deck="0"] .card[data-k="KH"]{background-image:url(decks/hoang-cung/KH.webp)}
+body[data-deck="0"] .card[data-k="JS"]{background-image:url(games/sam/decks/hoang-cung/JS.webp)}
+body[data-deck="0"] .card[data-k="JC"]{background-image:url(games/sam/decks/hoang-cung/JC.webp)}
+body[data-deck="0"] .card[data-k="JD"]{background-image:url(games/sam/decks/hoang-cung/JD.webp)}
+body[data-deck="0"] .card[data-k="JH"]{background-image:url(games/sam/decks/hoang-cung/JH.webp)}
+body[data-deck="0"] .card[data-k="QS"]{background-image:url(games/sam/decks/hoang-cung/QS.webp)}
+body[data-deck="0"] .card[data-k="QC"]{background-image:url(games/sam/decks/hoang-cung/QC.webp)}
+body[data-deck="0"] .card[data-k="QD"]{background-image:url(games/sam/decks/hoang-cung/QD.webp)}
+body[data-deck="0"] .card[data-k="QH"]{background-image:url(games/sam/decks/hoang-cung/QH.webp)}
+body[data-deck="0"] .card[data-k="KS"]{background-image:url(games/sam/decks/hoang-cung/KS.webp)}
+body[data-deck="0"] .card[data-k="KC"]{background-image:url(games/sam/decks/hoang-cung/KC.webp)}
+body[data-deck="0"] .card[data-k="KD"]{background-image:url(games/sam/decks/hoang-cung/KD.webp)}
+body[data-deck="0"] .card[data-k="KH"]{background-image:url(games/sam/decks/hoang-cung/KH.webp)}
 body[data-deck="1"]{--back1:#0f1f4a;--back2:#1d3a7a;--edge:#e2b84a}
-body[data-deck="1"] .card.back,body .dp .card.back[data-deckp="1"]{background:#0f1f4a url(decks/sieu-anh-hung/back.webp) center/cover;box-shadow:0 3px 6px #0007}
+body[data-deck="1"] .card.back,body .dp .card.back[data-deckp="1"]{background:#0f1f4a url(games/sam/decks/sieu-anh-hung/back.webp) center/cover;box-shadow:0 3px 6px #0007}
 body[data-deck="1"] .card.back::after,body .dp .card.back[data-deckp="1"]::after{display:none}
-body[data-deck="1"] .cnt{background:#0f1f4a url(decks/sieu-anh-hung/back.webp) center/cover}
+body[data-deck="1"] .cnt{background:#0f1f4a url(games/sam/decks/sieu-anh-hung/back.webp) center/cover}
 body[data-deck="1"] .card.court{background:#fbf3df center/cover;border-color:#e2b84a}
 body[data-deck="1"] .card.court>*{display:none}
-body[data-deck="1"] .card[data-k="JS"]{background-image:url(decks/sieu-anh-hung/JS.webp)}
-body[data-deck="1"] .card[data-k="JC"]{background-image:url(decks/sieu-anh-hung/JC.webp)}
-body[data-deck="1"] .card[data-k="JD"]{background-image:url(decks/sieu-anh-hung/JD.webp)}
-body[data-deck="1"] .card[data-k="JH"]{background-image:url(decks/sieu-anh-hung/JH.webp)}
-body[data-deck="1"] .card[data-k="QS"]{background-image:url(decks/sieu-anh-hung/QS.webp)}
-body[data-deck="1"] .card[data-k="QC"]{background-image:url(decks/sieu-anh-hung/QC.webp)}
-body[data-deck="1"] .card[data-k="QD"]{background-image:url(decks/sieu-anh-hung/QD.webp)}
-body[data-deck="1"] .card[data-k="QH"]{background-image:url(decks/sieu-anh-hung/QH.webp)}
-body[data-deck="1"] .card[data-k="KS"]{background-image:url(decks/sieu-anh-hung/KS.webp)}
-body[data-deck="1"] .card[data-k="KC"]{background-image:url(decks/sieu-anh-hung/KC.webp)}
-body[data-deck="1"] .card[data-k="KD"]{background-image:url(decks/sieu-anh-hung/KD.webp)}
-body[data-deck="1"] .card[data-k="KH"]{background-image:url(decks/sieu-anh-hung/KH.webp)}
+body[data-deck="1"] .card[data-k="JS"]{background-image:url(games/sam/decks/sieu-anh-hung/JS.webp)}
+body[data-deck="1"] .card[data-k="JC"]{background-image:url(games/sam/decks/sieu-anh-hung/JC.webp)}
+body[data-deck="1"] .card[data-k="JD"]{background-image:url(games/sam/decks/sieu-anh-hung/JD.webp)}
+body[data-deck="1"] .card[data-k="JH"]{background-image:url(games/sam/decks/sieu-anh-hung/JH.webp)}
+body[data-deck="1"] .card[data-k="QS"]{background-image:url(games/sam/decks/sieu-anh-hung/QS.webp)}
+body[data-deck="1"] .card[data-k="QC"]{background-image:url(games/sam/decks/sieu-anh-hung/QC.webp)}
+body[data-deck="1"] .card[data-k="QD"]{background-image:url(games/sam/decks/sieu-anh-hung/QD.webp)}
+body[data-deck="1"] .card[data-k="QH"]{background-image:url(games/sam/decks/sieu-anh-hung/QH.webp)}
+body[data-deck="1"] .card[data-k="KS"]{background-image:url(games/sam/decks/sieu-anh-hung/KS.webp)}
+body[data-deck="1"] .card[data-k="KC"]{background-image:url(games/sam/decks/sieu-anh-hung/KC.webp)}
+body[data-deck="1"] .card[data-k="KD"]{background-image:url(games/sam/decks/sieu-anh-hung/KD.webp)}
+body[data-deck="1"] .card[data-k="KH"]{background-image:url(games/sam/decks/sieu-anh-hung/KH.webp)}
 body[data-deck="2"]{--back1:#0d2a5c;--back2:#16407f;--edge:#d9b24c}
-body[data-deck="2"] .card.back,body .dp .card.back[data-deckp="2"]{background:#0d2a5c url(decks/ai-cap/back.webp) center/cover;box-shadow:0 3px 6px #0007}
+body[data-deck="2"] .card.back,body .dp .card.back[data-deckp="2"]{background:#0d2a5c url(games/sam/decks/ai-cap/back.webp) center/cover;box-shadow:0 3px 6px #0007}
 body[data-deck="2"] .card.back::after,body .dp .card.back[data-deckp="2"]::after{display:none}
-body[data-deck="2"] .cnt{background:#0d2a5c url(decks/ai-cap/back.webp) center/cover}
+body[data-deck="2"] .cnt{background:#0d2a5c url(games/sam/decks/ai-cap/back.webp) center/cover}
 body[data-deck="2"] .card.court{background:#fbf3df center/cover;border-color:#d9b24c}
 body[data-deck="2"] .card.court>*{display:none}
-body[data-deck="2"] .card[data-k="JS"]{background-image:url(decks/ai-cap/JS.webp)}
-body[data-deck="2"] .card[data-k="JC"]{background-image:url(decks/ai-cap/JC.webp)}
-body[data-deck="2"] .card[data-k="JD"]{background-image:url(decks/ai-cap/JD.webp)}
-body[data-deck="2"] .card[data-k="JH"]{background-image:url(decks/ai-cap/JH.webp)}
-body[data-deck="2"] .card[data-k="QS"]{background-image:url(decks/ai-cap/QS.webp)}
-body[data-deck="2"] .card[data-k="QC"]{background-image:url(decks/ai-cap/QC.webp)}
-body[data-deck="2"] .card[data-k="QD"]{background-image:url(decks/ai-cap/QD.webp)}
-body[data-deck="2"] .card[data-k="QH"]{background-image:url(decks/ai-cap/QH.webp)}
-body[data-deck="2"] .card[data-k="KS"]{background-image:url(decks/ai-cap/KS.webp)}
-body[data-deck="2"] .card[data-k="KC"]{background-image:url(decks/ai-cap/KC.webp)}
-body[data-deck="2"] .card[data-k="KD"]{background-image:url(decks/ai-cap/KD.webp)}
-body[data-deck="2"] .card[data-k="KH"]{background-image:url(decks/ai-cap/KH.webp)}
+body[data-deck="2"] .card[data-k="JS"]{background-image:url(games/sam/decks/ai-cap/JS.webp)}
+body[data-deck="2"] .card[data-k="JC"]{background-image:url(games/sam/decks/ai-cap/JC.webp)}
+body[data-deck="2"] .card[data-k="JD"]{background-image:url(games/sam/decks/ai-cap/JD.webp)}
+body[data-deck="2"] .card[data-k="JH"]{background-image:url(games/sam/decks/ai-cap/JH.webp)}
+body[data-deck="2"] .card[data-k="QS"]{background-image:url(games/sam/decks/ai-cap/QS.webp)}
+body[data-deck="2"] .card[data-k="QC"]{background-image:url(games/sam/decks/ai-cap/QC.webp)}
+body[data-deck="2"] .card[data-k="QD"]{background-image:url(games/sam/decks/ai-cap/QD.webp)}
+body[data-deck="2"] .card[data-k="QH"]{background-image:url(games/sam/decks/ai-cap/QH.webp)}
+body[data-deck="2"] .card[data-k="KS"]{background-image:url(games/sam/decks/ai-cap/KS.webp)}
+body[data-deck="2"] .card[data-k="KC"]{background-image:url(games/sam/decks/ai-cap/KC.webp)}
+body[data-deck="2"] .card[data-k="KD"]{background-image:url(games/sam/decks/ai-cap/KD.webp)}
+body[data-deck="2"] .card[data-k="KH"]{background-image:url(games/sam/decks/ai-cap/KH.webp)}
 body[data-deck="3"]{--back1:#6b1414;--back2:#9a2020;--edge:#e0b64a}
-body[data-deck="3"] .card.back,body .dp .card.back[data-deckp="3"]{background:#6b1414 url(decks/la-ma/back.webp) center/cover;box-shadow:0 3px 6px #0007}
+body[data-deck="3"] .card.back,body .dp .card.back[data-deckp="3"]{background:#6b1414 url(games/sam/decks/la-ma/back.webp) center/cover;box-shadow:0 3px 6px #0007}
 body[data-deck="3"] .card.back::after,body .dp .card.back[data-deckp="3"]::after{display:none}
-body[data-deck="3"] .cnt{background:#6b1414 url(decks/la-ma/back.webp) center/cover}
+body[data-deck="3"] .cnt{background:#6b1414 url(games/sam/decks/la-ma/back.webp) center/cover}
 body[data-deck="3"] .card.court{background:#fbf3df center/cover;border-color:#e0b64a}
 body[data-deck="3"] .card.court>*{display:none}
-body[data-deck="3"] .card[data-k="JS"]{background-image:url(decks/la-ma/JS.webp)}
-body[data-deck="3"] .card[data-k="JC"]{background-image:url(decks/la-ma/JC.webp)}
-body[data-deck="3"] .card[data-k="JD"]{background-image:url(decks/la-ma/JD.webp)}
-body[data-deck="3"] .card[data-k="JH"]{background-image:url(decks/la-ma/JH.webp)}
-body[data-deck="3"] .card[data-k="QS"]{background-image:url(decks/la-ma/QS.webp)}
-body[data-deck="3"] .card[data-k="QC"]{background-image:url(decks/la-ma/QC.webp)}
-body[data-deck="3"] .card[data-k="QD"]{background-image:url(decks/la-ma/QD.webp)}
-body[data-deck="3"] .card[data-k="QH"]{background-image:url(decks/la-ma/QH.webp)}
-body[data-deck="3"] .card[data-k="KS"]{background-image:url(decks/la-ma/KS.webp)}
-body[data-deck="3"] .card[data-k="KC"]{background-image:url(decks/la-ma/KC.webp)}
-body[data-deck="3"] .card[data-k="KD"]{background-image:url(decks/la-ma/KD.webp)}
-body[data-deck="3"] .card[data-k="KH"]{background-image:url(decks/la-ma/KH.webp)}
+body[data-deck="3"] .card[data-k="JS"]{background-image:url(games/sam/decks/la-ma/JS.webp)}
+body[data-deck="3"] .card[data-k="JC"]{background-image:url(games/sam/decks/la-ma/JC.webp)}
+body[data-deck="3"] .card[data-k="JD"]{background-image:url(games/sam/decks/la-ma/JD.webp)}
+body[data-deck="3"] .card[data-k="JH"]{background-image:url(games/sam/decks/la-ma/JH.webp)}
+body[data-deck="3"] .card[data-k="QS"]{background-image:url(games/sam/decks/la-ma/QS.webp)}
+body[data-deck="3"] .card[data-k="QC"]{background-image:url(games/sam/decks/la-ma/QC.webp)}
+body[data-deck="3"] .card[data-k="QD"]{background-image:url(games/sam/decks/la-ma/QD.webp)}
+body[data-deck="3"] .card[data-k="QH"]{background-image:url(games/sam/decks/la-ma/QH.webp)}
+body[data-deck="3"] .card[data-k="KS"]{background-image:url(games/sam/decks/la-ma/KS.webp)}
+body[data-deck="3"] .card[data-k="KC"]{background-image:url(games/sam/decks/la-ma/KC.webp)}
+body[data-deck="3"] .card[data-k="KD"]{background-image:url(games/sam/decks/la-ma/KD.webp)}
+body[data-deck="3"] .card[data-k="KH"]{background-image:url(games/sam/decks/la-ma/KH.webp)}
 /* @decks-end */
 
 /* chọn kiểu bộ bài (chủ phòng) */

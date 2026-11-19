@@ -7,17 +7,16 @@ const R = require('./rules');
 const S = require('./scoring');
 const AI = require('./ai');
 const AIP = require('./aipro');
-const BC = require('./botchat');
-const News = require('./news');
+const BC = require('../../platform/bots/personas');
+const News = require('../../platform/news');
 
-// [tên, avatar, giọng] — lấy từ hồ sơ nhân vật (src/botchat.js)
+// [tên, avatar, giọng] — lấy từ hồ sơ nhân vật (src/platform/bots/personas.js)
 const BOTS = BC.BOT_LIST;
 const BOT_MIN_GAP = 2000;   // máy chat cách nhau tối thiểu 2 giây
-const cleanGender = g => (g === 'nu' ? 'nu' : 'nam');
 const TAUNTS = ['Chết nè!', 'Mày ngon!', 'Đi đâu hả con?', 'Từ từ đã!', 'Ôi bạn ơi!', 'Cay chưa?', 'Nộp điểm đây!', 'Về quê nuôi cá nhé!'];
 
 // Bộ bài (kiểu dáng mặt sau / viền) — chủ phòng thay khi có người đề nghị "đổi bộ bài mới"
-// Các bộ bài: J Q K và mặt lưng là ảnh (public/decks/<thư mục>, cấu hình ở scripts/decks.js)
+// Các bộ bài: J Q K và mặt lưng là ảnh (public/games/sam/decks/<thư mục>, cấu hình ở scripts/decks.js)
 const DECKS = ['Hoàng cung Việt', 'Siêu anh hùng vũ trụ', 'Ai Cập Fantasy', 'La Mã Fantasy'];
 const DECK_V = 2;   // v2: bỏ 5 bộ màu cơ bản. Phòng lưu từ trước: bộ ảnh cũ giữ nguyên, bộ màu → Hoàng cung Việt
 function migrateDeck(d) {
@@ -30,15 +29,10 @@ const SWAP_ASK = 'Đen quá, đổi chỗ phát!';
 const SWAP_YES = 'Ok cưng!';
 const SWAP_NO = ['Ghế này phong thủy tốt, không đổi đâu!', 'Đen thì chịu khó đi cưng!', 'Đổi chỗ chứ đổi vận sao được!', 'Ngồi yên đó, ván sau đỏ lại!', 'Không đổi, tao đang lên tay!'];
 const MAX_SPECTATORS = 20;
-const CHAT_MAX = 60, CHAT_LEN = 200, CHAT_GAP_MS = 700;
+const CHAT_MAX = 60, CHAT_GAP_MS = 700;
 const REQ_TTL_MS = 30000, DECK_COOLDOWN_MS = 60000, SPEC_IDLE_MS = 10 * 60 * 1000;
-const cleanText = s => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_LEN);
 
-const hashToken = t => crypto.createHash('sha256').update('samdua:' + String(t)).digest('hex');
-const pidOf = t => hashToken(t).slice(0, 20);
-const cleanName = s => String(s || '').replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || 'Khách';
-const cleanAv = s => Array.from(String(s || '').replace(/[\u0000-\u001f<>]/g, '')).slice(0, 4).join('') || '🙂';
-const rid = () => crypto.randomBytes(8).toString('hex');
+const { hashToken, pidOf, cleanName, cleanAv, cleanGender, cleanText, rid } = require('../../platform/players');
 
 const DEFAULT_SETTINGS = () => ({
   ai: true,                       // cho phép người chơi bấm Gợi ý
@@ -221,7 +215,7 @@ class Room {
     const host = this.players.find(p => p.pid === this.hostPid) || this.players.find(p => !p.bot);
     const open = this.phase === 'lobby' || this.phase === 'over';
     return {
-      code: this.code, host: host ? host.name : '', phase: this.phase, gameNo: this.gameNo,
+      game: 'sam', code: this.code, host: host ? host.name : '', phase: this.phase, gameNo: this.gameNo,
       players: this.players.map(p => ({ name: p.name, av: p.av, bot: !!p.bot })),
       max: C.MAX_PLAYERS, humans, spectators: this.spectators.length,
       canJoin: open && this.players.length < C.MAX_PLAYERS,
@@ -1142,7 +1136,7 @@ class Room {
       }
     }
     return {
-      v: 2, code: this.code, created: this.created, touched: this.touched, settings: this.settings,
+      v: 2, game: 'sam', code: this.code, created: this.created, touched: this.touched, settings: this.settings,
       players: this.players.map(p => ({ pid: p.pid, tokenHash: p.tokenHash, name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: p.auto, score: p.score, lose: p.lose || 0 })),
       chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, swapPlan: this.swapPlan, deckReq: this.deckReq, rstats: this.rstats, botUsed: this.botUsed, newsUsed: this.newsUsed,
       hostPid: this.hostPid, phase: this.phase, g: gs, result: this.result, log: this.log,
@@ -1207,7 +1201,7 @@ class Room {
     }
     const host = this.hostIdx();
     return {
-      code: this.code, phase: this.phase, you: i, host, log: this.log, voice: this.voiceList(),
+      game: 'sam', code: this.code, phase: this.phase, you: i, host, log: this.log, voice: this.voiceList(),
       gameId: g ? g.id : null, gameNo: this.gameNo,
       settings: { ai: this.settings.ai, botLevel: this.settings.botLevel, botChat: this.settings.botChat, private: !!this.settings.private, pauseLimitMs: this.settings.pauseLimitMs, replayPolicy: this.settings.replayPolicy, turnMs: this.settings.turnMs, points: this.settings.points },
       players: this.players.map((p, k) => ({

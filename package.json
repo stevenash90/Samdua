@@ -1,16 +1,18 @@
 {
   "name": "sam-dua",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Sâm Dứa — game bài Sâm Lốc online chơi theo phòng",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "BOT_THINK_MS=4 node --test test/*.test.js",
+    "test": "BOT_THINK_MS=4 node --test test/platform/*.test.js test/games/*/*.test.js",
     "test:e2e": "BOT_THINK_MS=4 node --test test/e2e/*.test.js",
     "backup": "node scripts/backup.js",
     "audio": "python3 scripts/make_audio.py"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "pg": "^8.13.0",
     "ws": "^8.18.0"

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const S = require('../src/scoring');
+const S = require('../../../src/games/sam/scoring');
 const { cards } = require('./helpers');
 
 const pts = S.normalizePoints({});
