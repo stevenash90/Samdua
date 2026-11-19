@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=2.9.0">
+<link rel="stylesheet" href="/style.css?v=3.0.0">
 </head>
 <body>
 
@@ -58,6 +58,7 @@
       <div class="frow"><div><b>Gợi ý AI</b><small>Người chơi bấm 💡 để được gợi ý nước đi</small></div><label class="sw"><input type="checkbox" id="fAi" checked><i></i></label></div>
       <div class="frow"><div><b>Máy nói chuyện</b><small>Máy chém gió trên chat theo tính cách, nói ít mà đúng lúc</small></div><label class="sw"><input type="checkbox" id="fBotChat" checked><i></i></label></div>
       <div class="frow"><div><b>Phòng riêng tư</b><small>Không hiện trong "Phòng đang mở", chỉ vào được bằng mã</small></div><label class="sw"><input type="checkbox" id="fPrivate"><i></i></label></div>
+      <div class="frow"><div><b>Độ khó của máy</b><small>Pro: máy tính xác suất từ bài đã ra và bài trên tay (không nhìn trộm), biết báo Sâm</small></div><div class="seg" id="fLevel" data-v="pro"><button data-v="amateur">Amateur</button><button data-v="pro">Pro</button></div></div>
       <div class="frow"><div><b>Thời gian mỗi lượt</b></div><div class="seg" id="fTurn" data-v="30000"><button data-v="20000">20s</button><button data-v="30000">30s</button><button data-v="45000">45s</button><button data-v="60000">60s</button></div></div>
       <div class="frow"><div><b>Giới hạn tạm dừng / ván</b><small>"Không giới hạn" dành cho phòng riêng</small></div><div class="seg" id="fPause" data-v="600000"><button data-v="300000">5p</button><button data-v="600000">10p</button><button data-v="1200000">20p</button><button data-v="0">∞</button></div></div>
       <div class="frow"><div><b>Xem lại ván</b><small>Ai đã chơi ván đó mới xem được</small></div><div class="seg" id="fReplay" data-v="all"><button data-v="all">Mọi bài</button><button data-v="own">Bài mình</button></div></div>
@@ -260,7 +261,8 @@
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/audio.js?v=2.9.0"></script>
-<script src="/app.js?v=2.9.0"></script>
+<script src="/audio.js?v=3.0.0"></script>
+<script src="/voice.js?v=3.0.0"></script>
+<script src="/app.js?v=3.0.0"></script>
 </body>
 </html>

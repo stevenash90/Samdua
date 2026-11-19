@@ -64,7 +64,7 @@ async function refresh(log) {
     try {
       const ac = new AbortController();
       const to = setTimeout(() => ac.abort(), 8000);
-      const r = await fetch(url, { signal: ac.signal, headers: { 'user-agent': 'SamDua/1.0 (+game bài bạn bè)' } });
+      const r = await fetch(url, { signal: ac.signal, headers: { 'user-agent': 'SamDua/1.0 (friends card game)' } });
       clearTimeout(to);
       if (r.ok) all.push(...parseFeed(await r.text(), tag));
     } catch (e) { lastErr = e.message; log && log('news', url, e.message); }

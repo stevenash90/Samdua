@@ -13,6 +13,7 @@ module.exports = {
   // Thời gian (ms)
   TURN_MS: num('TURN_MS', 30000),        // mặc định thời gian mỗi lượt (chủ phòng đổi được trong phòng)
   SAM_MS: num('SAM_MS', 12000),          // thời gian báo Sâm
+  BOT_THINK_MS: num('BOT_THINK_MS', 90),  // thời gian máy Pro tính mỗi nước (ms)
   BOT_MS: num('BOT_MS', 1100),           // máy "suy nghĩ"
   REVEAL_MS: num('REVEAL_MS', 2800),     // giữ màn hình lá bài cuối trước khi hiện kết quả
   AFK_MS: num('AFK_MS', 30000),          // không tương tác bao lâu thì báo AFK

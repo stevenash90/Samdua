@@ -83,3 +83,21 @@ test('ăn trắng', () => {
   assert.strictEqual(R.instantWin(cards('3s 3h 5d 5c 7s 7h 9d 9c Js Jh')), '5 đôi');
   assert.strictEqual(R.instantWin(cards('3s 3h 4d 4c 5s 6h 7d 8c Js Kh')), null);
 });
+
+test('ba đôi thông chỉ được đánh để chặt 2 (hoặc chặt đè), không được đánh khi cầm cái hay chặn bộ khác', () => {
+  const R = require('../src/rules');
+  const C = cards;
+  const hand = C('5s 5h 6s 6h 7s 7h 9d');
+  const g = (table) => ({ hands: [hand, C('3s 4s')], table, passed: [false, false] });
+  assert.match(R.checkPlay(g(null), 0, C('5s 5h 6s 6h 7s 7h')), /chặt 2/);
+  assert.strictEqual(typeof R.checkPlay(g({ combo: R.classify(C('2d')), by: 1 }), 0, C('5s 5h 6s 6h 7s 7h')), 'object');
+  assert.strictEqual(typeof R.checkPlay(g({ combo: R.classify(C('3d 3c')), by: 1 }), 0, C('5s 5h 6s 6h 7s 7h')), 'string');
+  assert.strictEqual(typeof R.checkPlay(g(null), 0, C('5s 6s 7s')), 'object', 'vẫn đánh sảnh lẻ được');
+});
+
+
+test('header gửi đi khi tải tin chỉ có ký tự ASCII (tránh lỗi ByteString)', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'news.js'), 'utf8');
+  const m = src.match(/'user-agent':\s*'([^']*)'/);
+  assert.ok(m && /^[\x20-\x7e]*$/.test(m[1]), 'user-agent phải là ASCII');
+});

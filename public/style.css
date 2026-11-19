@@ -677,3 +677,32 @@ body[data-deck="6"] .card[data-k="KH"]{background-image:url(decks/sieu-anh-hung/
 .dp .card.back[data-deckp="2"]{--back1:#14110b;--back2:#3a2e12;--edge:#f3c45a}
 .dp .card.back[data-deckp="3"]{--back1:#4a1d6b;--back2:#6b2c97;--edge:#e4c8ff}
 .dp .card.back[data-deckp="4"]{--back1:#0c5a3c;--back2:#137a52;--edge:#c9f2dd}
+
+/* ===== voice chat ===== */
+.vbar{position:fixed;left:6px;top:calc(var(--sat,0px) + 33vh);z-index:30;display:none;flex-direction:column;gap:8px}
+.vbar.on{display:flex}
+.vb{width:42px;height:42px;border-radius:50%;border:1px solid #ffffff2a;background:#0b231bd9;color:#fff;font-size:19px;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px #0008;padding:0}
+.vb.lit{background:linear-gradient(180deg,#3fd38a,#159a5c);border-color:#7cf0b6}
+.vb.mic.off{opacity:.55;position:relative}
+.vb.mic.off::after{content:"";position:absolute;width:26px;height:2.5px;background:#ff5a67;transform:rotate(-45deg);border-radius:2px}
+.vbar:not(.joined) .vb.mic{opacity:.55}
+.vb.vn{width:28px;height:28px;font-size:12px;font-weight:800;margin-left:7px;background:#f3c45a;color:#2c1d00}
+.vlist{position:fixed;left:56px;top:calc(var(--sat,0px) + 33vh);z-index:31;display:none;min-width:210px;max-width:72vw;padding:10px 12px;border-radius:14px;background:#071f17f5;border:1px solid var(--line);box-shadow:0 10px 30px #000a;font-size:13px}
+.vlist.on{display:block}
+.vlist b{display:block;margin-bottom:6px;color:var(--gold)}
+.vrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
+.vrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat.invoice .ring::before{content:"🎧";position:absolute;left:-6px;top:-4px;font-size:13px;filter:drop-shadow(0 1px 1px #000)}
+.seat.talking .ring{box-shadow:0 0 0 3px #3fd38a,0 0 18px 4px #3fd38acc,0 4px 12px #000a;animation:talk .6s ease-in-out infinite alternate}
+@keyframes talk{from{box-shadow:0 0 0 2px #3fd38a,0 0 10px 2px #3fd38a99}to{box-shadow:0 0 0 4px #3fd38a,0 0 22px 6px #3fd38acc}}
+ /* phòng chờ: cụm voice nằm ngang, góc phải phía trên ô chat */
+body:has(#sLobby.on) .vbar{top:auto;left:auto;right:12px;bottom:calc(var(--sab,0px) + 70px);flex-direction:row;align-items:center}
+body:has(#sLobby.on) .vb.vn{margin:0}
+body:has(#sLobby.on) .vlist{top:auto;left:auto;right:12px;bottom:calc(var(--sab,0px) + 120px)}
+@media (orientation:landscape) and (max-height:560px){
+  .vbar{top:34vh;flex-direction:column;gap:6px}
+  .vb{width:36px;height:36px;font-size:16px}
+  .vb.vn{margin-left:4px}
+  .vlist{left:50px;top:34vh}
+}
+body:not(:has(#sLobby.on)):not(:has(#sGame.on)) .vbar,body:not(:has(#sLobby.on)):not(:has(#sGame.on)) .vlist{display:none!important}

@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '3.0.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -159,10 +159,15 @@ const Net = {
         this.tries = 0; $('netbar').classList.remove('on'); clearTimeout(this.netTimer);
         const first = this.fresh; this.fresh = false;
         onState(m.s, m.ev || [], first);
+        try { Voice.sync(S); } catch (x) { /* voice không được làm hỏng game */ }
       } else if (m.t === 'ack') {
         const p = this.pend.get(m.cid); if (p) { this.pend.delete(m.cid); clearTimeout(p.to); p.res(m); }
       } else if (m.t === 'gone') {
         this.want = false; leftRoom('Bạn không còn ở trong phòng này');
+      } else if (m.t === 'vme') {
+        Voice.setMe(m.vid);
+      } else if (m.t === 'vsig') {
+        Voice.onSignal(m.from, m.data);
       } else if (m.t === 'retry') {
         try { ws.close(); } catch (x) {}
       }
@@ -509,6 +514,7 @@ function openCreate(cur) {
   $('fBotChat').checked = s.botChat !== undefined ? s.botChat : true;
   $('fPrivate').checked = !!s.private;
   setSeg('fTurn', s.turnMs || 30000);
+  setSeg('fLevel', s.botLevel === 'amateur' ? 'amateur' : 'pro');
   setSeg('fPause', s.pauseLimitMs !== undefined ? s.pauseLimitMs : 600000);
   setSeg('fReplay', s.replayPolicy || 'all');
   formPts = Object.assign({ sam: 20, trang: 20, cong: 15, chat: 10, chatDeMult: 2, thoi2: 0 }, s.points || {});
@@ -520,7 +526,7 @@ function openCreate(cur) {
 }
 function formSettings() {
   return {
-    ai: $('fAi').checked, botChat: $('fBotChat').checked, private: $('fPrivate').checked, turnMs: +segVal('fTurn'), pauseLimitMs: +segVal('fPause'), replayPolicy: segVal('fReplay'),
+    ai: $('fAi').checked, botChat: $('fBotChat').checked, private: $('fPrivate').checked, botLevel: segVal('fLevel'), turnMs: +segVal('fTurn'), pauseLimitMs: +segVal('fPause'), replayPolicy: segVal('fReplay'),
     points: Object.assign({}, formPts, { chainMode: segVal('fChain') }),
   };
 }
@@ -548,6 +554,7 @@ function enterRoom(code) {
 }
 function leftRoom(msg) {
   Net.close(); room = null; S = null; sel.clear();
+  try { Voice.reset(); } catch (x) {}
   store.set('sam_room', '');
   history.replaceState(null, '', location.pathname);
   $('resultOv').classList.remove('on');
@@ -702,6 +709,7 @@ function renderTable(box, vm) {
     box.append(pile);
     // ghế
     const seat = h('div', 'seat slot-' + slot);
+    seat.dataset.seat = i;
     if (vm.turn === i) seat.classList.add('turn');
     if (vm.warn && vm.turn === i) seat.classList.add('warn');
     if (vm.winner === i) seat.classList.add('winner');
@@ -1278,6 +1286,16 @@ function renderHostSheet() {
   const sw = h('label', 'sw'); const inp = document.createElement('input'); inp.type = 'checkbox'; inp.checked = S.settings.ai; inp.disabled = !isHost;
   inp.onchange = () => act('settings', { settings: { ai: inp.checked } });
   sw.append(inp, h('i', '')); aiRow.append(lab, sw); panel.append(aiRow);
+  // độ khó của máy (đổi được cả giữa ván, áp dụng từ nước kế tiếp)
+  const lvRow = h('div', 'frow');
+  const lvLab = h('div', ''); lvLab.append(h('b', '', 'Độ khó của máy'), h('small', '', 'Pro tính xác suất, Amateur đánh cảm tính hơn'));
+  const lvSeg = h('div', 'seg');
+  [['amateur', 'Amateur'], ['pro', 'Pro']].forEach(([v, t]) => {
+    const bt = h('button', (S.settings.botLevel || 'pro') === v ? 'on' : '', t);
+    bt.onclick = async () => { lvSeg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === bt)); const r = await act('settings', { settings: { botLevel: v } }); if (!r.err) toast('Máy chơi mức ' + t); };
+    lvSeg.append(bt);
+  });
+  lvRow.append(lvLab, lvSeg); panel.append(lvRow);
   const bcRow = h('div', 'frow');
   const bcLab = h('div', ''); bcLab.append(h('b', '', 'Máy nói chuyện trên chat'));
   const bcSw = h('label', 'sw'); const bcIn = document.createElement('input'); bcIn.type = 'checkbox'; bcIn.checked = S.settings.botChat !== false;

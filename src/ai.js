@@ -7,7 +7,7 @@ const { P, TWO, checkPlay, classify } = require('./rules');
 const natToRank = v => (v === 1 || v === 14 ? 11 : v === 2 ? 12 : v - 3);
 
 /** Các bộ bài (theo hạng) có thể tạo từ vector đếm hạng. */
-function rankCombos(cnt) {
+function rankCombos(cnt, withPairs3 = true) {
   const out = [];
   for (let p = 0; p < 13; p++) {
     const c = cnt[p];
@@ -26,8 +26,8 @@ function rankCombos(cnt) {
       run.push(natToRank(v));
       if (run.length >= 3) out.push({ t: 'straight', ranks: run.slice(), each: 1 });
     }
-    // ba đôi thông (s..s+2; s = 1 là A-2-3, s = 12 là Q-K-A)
-    if (has(s, 2) && has(s + 1, 2) && has(s + 2, 2)) {
+    // ba đôi thông (s..s+2; s = 1 là A-2-3, s = 12 là Q-K-A) — chỉ dùng để chặt 2, không tính là một nước đi bình thường
+    if (withPairs3 && has(s, 2) && has(s + 1, 2) && has(s + 2, 2)) {
       out.push({ t: 'pairs3', ranks: [natToRank(s), natToRank(s + 1), natToRank(s + 2)], each: 2 });
     }
   }
@@ -47,7 +47,7 @@ function minMoves(cnt, memo = new Map()) {
   const first = cnt.findIndex(c => c > 0);
   if (first < 0) return 0;
   let best = Infinity;
-  for (const cb of rankCombos(cnt)) {
+  for (const cb of rankCombos(cnt, false)) {
     if (!cb.ranks.includes(first)) continue;
     const next = cnt.slice();
     cb.ranks.forEach(p => (next[p] -= cb.each));

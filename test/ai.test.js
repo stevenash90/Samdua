@@ -13,7 +13,7 @@ const view = (mine, others, table) => ({
 test('minMoves', () => {
   assert.strictEqual(AI.minMoves(AI.countOf(cards('3s 4h 5d 6c 7s'))), 1);
   assert.strictEqual(AI.minMoves(AI.countOf(cards('3s 3h 5d 5c 9s'))), 3);
-  assert.strictEqual(AI.minMoves(AI.countOf(cards('5s 5h 6s 6h 7s 7h'))), 1);
+  assert.strictEqual(AI.minMoves(AI.countOf(cards('5s 5h 6s 6h 7s 7h'))), 2, 'ba đôi thông không đánh tự do được: 2 sảnh 5-6-7');
 });
 
 test('cầm cái: đánh hết nếu được', () => {

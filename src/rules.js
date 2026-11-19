@@ -101,6 +101,7 @@ function checkPlay(g, i, cards, opts) {
   const cb = classify(cards);
   if (!cb) return 'Bộ bài không hợp lệ';
   if (g.table && !beats(cb, g.table.combo, opts)) return 'Không chặn được bài trên bàn';
+  if (cb.t === 'pairs3' && !g.table) return 'Ba đôi thông chỉ được đánh để chặt 2';
   const rest = hand.filter(c => !cards.includes(c));
   if (rest.length && rest.every(c => P(c) === TWO)) return 'Không được để 2 về cuối';
   if (cb.t === 'single') {

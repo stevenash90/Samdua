@@ -5,7 +5,7 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 ## Tính năng
 
 - **Luật bài**: rác, đôi, sám, tứ quý, sảnh (A-2-3 thấp nhất, Q-K-A cao nhất, không có K-A-2), **ba đôi thông**. Ba đôi thông A-2-3 hợp lệ; K-A-2 không hợp lệ.
-- **Chặt**: tứ quý hoặc ba đôi thông chặt được một lá 2. Bộ cùng loại lớn hơn chặt đè được; bộ bằng nhau thì không. Chuỗi chặt đè nhiều tầng có hệ số x2.
+- **Chặt**: tứ quý hoặc ba đôi thông chặt được một lá 2. **Ba đôi thông chỉ được đánh để chặt 2** (hoặc chặt đè ba đôi thông khác), không đánh khi cầm cái. Bộ cùng loại lớn hơn chặt đè được; bộ bằng nhau thì không. Chuỗi chặt đè nhiều tầng có hệ số x2.
 - **Tính tiền** nằm trong module riêng (`src/scoring.js`). Mỗi khoản là một bút toán, chốt đúng một lần.
 - Báo Sâm / bắt Sâm, cóng, thối 2, ăn trắng, báo 1, cấm để 2 về cuối.
 - **Bàn bài**: bài đã đánh nằm lại trên bàn tới hết ván, mỗi người một khu. Ở vòng đang đánh, mọi bộ đều nhìn thấy, bộ mới nhất được làm nổi bật.
@@ -23,6 +23,8 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Thống kê bàn** (nút 📊, mở được giữa ván): thắng/thua nhiều nhất, tỉ lệ thắng thua, báo Sâm, bắt Sâm, chặt, bị chặt, cóng, chuỗi xanh/đỏ hiện tại và dài nhất, lãi lỗ.
 - **Máy nói chuyện**: 19 nhân vật máy có tính cách, quan hệ và chủ đề riêng (`src/botchat.js`, chỉ dẫn đầy đủ ở `docs/NHAN_VAT.md`). Máy nói ít mà đúng lúc, đáp nhau và đáp người chơi, khơi chuyện thời sự (gói tin soạn sẵn + tiêu đề VnExpress tải miễn phí khi máy chủ thức dậy / có người mở app, đã lọc tin buồn và chính trị). Trong một bàn không máy nào nói lại câu đã nói. Chủ phòng tắt được.
 - **Bàn 3D**: mặt nỉ nghiêng phối cảnh như ngồi tại bàn, viền gỗ, bài in 2 góc + khung J Q K, mặt lưng có hoa văn, bài trên tay xếp quạt. Điện thoại có chế độ màn ngang (nút ⟲). Cài đặt "Bài đã đánh trên bàn" (mặc định tắt) để hiện các bộ đã đánh.
+- **Máy 2 mức Amateur / Pro** (mặc định Pro): Pro mô phỏng hàng trăm khả năng từ bài đã ra và bài trên tay (không nhìn trộm bài ai) để chọn nước lợi nhất; thử nghiệm thắng ~36% số ván trước 3 máy thường (đều nhau = 25%). Máy tự **báo Sâm có tính toán** khi khả năng thành công ≥ 70% (`src/aipro.js`).
+- **Voice chat** kiểu Liên Quân: 🎧 nghe cả bàn, 🎙️ bật mic, đếm người trong voice + tắt tiếng riêng từng người, viền xanh quanh người đang nói. WebRTC nối thẳng giữa các máy; TURN lấy từ biến môi trường (Cloudflare / Metered / ExpressTURN…, xem `src/ice.js`). Người xem chỉ nghe.
 - **Phòng đang mở**: trang chủ liệt kê các phòng công khai đang có người, bấm "Vào chơi" hoặc "👀 Xem" không cần mã. Chủ phòng bật "Phòng riêng tư" để ẩn.
 - **Chat không đè bàn**: điện thoại hiện 2 dòng mới nhất ngay trên ô nhập, chạm để mở lịch sử; máy tính màn rộng có khung chat riêng bên phải bàn.
 - **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.
@@ -117,6 +119,10 @@ Bảng dữ liệu được tạo tự động (migration chạy lúc khởi đ�
 | `CROSS_CHOP` | `1` = tứ quý được đè ba đôi thông (chưa xác nhận luật) | 0 |
 | `GOOGLE_CLIENT_ID` | bật nút đăng nhập Google | trống |
 | `MIGRATE_FROM_URL` | chỉ dùng khi đổi database (vd. sang Singapore): đặt = database CŨ, máy chủ tự chép dữ liệu sang database mới nếu còn trống; chép xong thì xoá | trống |
+| `TURN_KEY_ID` + `TURN_KEY_API_TOKEN` | TURN của Cloudflare cho voice | trống |
+| `METERED_APP` + `METERED_API_KEY` | TURN của Metered / Open Relay | trống |
+| `TURN_URLS` + `TURN_USERNAME` + `TURN_CREDENTIAL` | TURN bất kỳ (ExpressTURN…) | trống |
+| `BOT_THINK_MS` | thời gian máy Pro tính mỗi nước | 90 |
 | `BOT_NEWS` | `0` = không tải tin báo cho máy (chỉ dùng gói tin soạn sẵn) | bật |
 
 Điểm/tiền (chặt 2, hệ số chặt đè, Sâm, ăn trắng, cóng, thối 2) do chủ phòng chỉnh khi tạo phòng.

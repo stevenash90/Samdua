@@ -530,3 +530,46 @@ test('danh sách phòng: ẩn phòng riêng tư và phòng không còn ai online
   assert.strictEqual(room.listing(), null, 'phòng riêng tư');
   room.close();
 });
+
+test('máy cầm tay chắc ăn thì tự báo Sâm sau vài giây, rồi đánh hết bài', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 2_000_000 });
+  const room = new Room('BSAM', { store: mkStore(), send() {}, deal: () => [
+    '3s 3d 6h 8c 9s 9d Jh Qc 5s 7h',       // người
+    'As Ah Ad Ac Ks Kh Kd 2s 2h 2d',        // máy: tứ quý A, sám K, sám 2 — không ai chặn nổi
+    '3c 4c 5c 6c 6d 8d 8h 10h Jd Qd',
+  ].map(cards), firstLead: 0 });
+  const h = room.addHuman('bsam-token-123456', 'Lan', '🙂');
+  room.connect(h.pid);
+  room.handle(h.pid, { a: 'addBot' }); room.handle(h.pid, { a: 'addBot' });
+  room.handle(h.pid, { a: 'start' });
+  assert.strictEqual(room.phase, 'sam');
+  room.handle(h.pid, { a: 'sam', yes: false });
+  assert.strictEqual(room.phase, 'sam', 'chờ máy nghĩ');
+  for (let k = 0; k < 5; k++) t.mock.timers.tick(1000);
+  assert.strictEqual(room.g ? room.g.samBy : room.result && room.result.samBy, 1, 'máy ghế 1 báo Sâm');
+  let guard = 0;
+  while (room.phase === 'play' && guard++ < 50) { room.commit(); t.mock.timers.tick(2000); }
+  assert.ok(room.result, 'ván kết thúc');
+  assert.strictEqual(room.result.type, 'sam');
+  room.close();
+});
+
+test('voice: vào/ra, bật mic, người xem chỉ nghe, rời phòng thì tự ra khỏi voice', () => {
+  const room = new Room('VOIC', { store: mkStore(), send() {} });
+  const a = room.addHuman('voice-token-aaaa1', 'An', '🙂'); room.connect(a.pid);
+  const b = room.addHuman('voice-token-bbbb2', 'Bình', '🙂'); room.connect(b.pid);
+  room.handle(a.pid, { a: 'vjoin', mic: true });
+  room.handle(b.pid, { a: 'vjoin', mic: false });
+  let v = room.view(0).voice;
+  assert.strictEqual(v.length, 2);
+  assert.deepStrictEqual(v.map(x => [x.name, x.mic, x.seat]), [['An', true, 0], ['Bình', false, 1]]);
+  assert.match(v[0].vid, /^[0-9a-f]{10}$/);
+  assert.ok(!JSON.stringify(v).includes(a.pid), 'không lộ pid');
+  room.handle(b.pid, { a: 'vmic', on: true });
+  assert.ok(room.view(0).voice[1].mic);
+  room.disconnect(b.pid);
+  assert.strictEqual(room.view(0).voice.length, 1, 'mất kết nối thì ra khỏi voice');
+  room.handle(a.pid, { a: 'vleave' });
+  assert.strictEqual(room.view(0).voice.length, 0);
+  room.close();
+});
