@@ -17,7 +17,22 @@ async function fetchJson(url, opt) {
   } finally { clearTimeout(to); }
 }
 
-async function turnServers(env, log) {
+// nhận cả các tên biến hay gặp (theo hướng dẫn của Cloudflare / Metered / ExpressTURN)
+const pickEnv = (env, names) => { for (const n of names) if (env[n] && String(env[n]).trim()) return String(env[n]).trim(); return ''; };
+function normalize(env) {
+  return {
+    TURN_KEY_ID: pickEnv(env, ['TURN_KEY_ID', 'TURN_TOKEN_ID', 'REALTIME_TURN_TOKEN_ID', 'CLOUDFLARE_TURN_KEY_ID', 'CF_TURN_KEY_ID', 'CLOUDFLARE_TURN_TOKEN_ID']),
+    TURN_KEY_API_TOKEN: pickEnv(env, ['TURN_KEY_API_TOKEN', 'TURN_API_TOKEN', 'REALTIME_TURN_TOKEN_SECRET', 'CLOUDFLARE_TURN_API_TOKEN', 'CF_TURN_API_TOKEN', 'TURN_KEY_TOKEN']),
+    METERED_APP: pickEnv(env, ['METERED_APP', 'METERED_DOMAIN', 'METERED_APP_NAME']),
+    METERED_API_KEY: pickEnv(env, ['METERED_API_KEY', 'METERED_KEY', 'OPENRELAY_API_KEY']),
+    TURN_URLS: pickEnv(env, ['TURN_URLS', 'TURN_URL', 'TURN_SERVER', 'TURN_SERVERS', 'EXPRESSTURN_URL', 'EXPRESSTURN_SERVER']),
+    TURN_USERNAME: pickEnv(env, ['TURN_USERNAME', 'TURN_USER', 'EXPRESSTURN_USERNAME', 'EXPRESSTURN_USER']),
+    TURN_CREDENTIAL: pickEnv(env, ['TURN_CREDENTIAL', 'TURN_PASSWORD', 'TURN_PASS', 'EXPRESSTURN_PASSWORD', 'EXPRESSTURN_CREDENTIAL']),
+  };
+}
+
+async function turnServers(rawEnv, log) {
+  const env = normalize(rawEnv);
   const out = [];
   if (env.TURN_KEY_ID && env.TURN_KEY_API_TOKEN) {
     try {
@@ -50,10 +65,15 @@ async function iceServers(env = process.env, log) {
   if (turn.length) { cache = list; cacheAt = Date.now(); }
   return list;
 }
-function status(env = process.env) {
+// tên (không có giá trị) các biến có vẻ liên quan TURN — để /health giúp dò lỗi đặt tên
+function envNames(env = process.env) {
+  return Object.keys(env).filter(k => /TURN|METERED|EXPRESS|REALTIME|OPENRELAY/i.test(k) && String(env[k] || '').trim()).sort();
+}
+function status(rawEnv = process.env) {
+  const env = normalize(rawEnv);
   return env.TURN_KEY_ID && env.TURN_KEY_API_TOKEN ? 'cloudflare'
     : env.METERED_APP && env.METERED_API_KEY ? 'metered'
     : env.TURN_URLS && env.TURN_USERNAME && env.TURN_CREDENTIAL ? 'custom' : 'none';
 }
 
-module.exports = { iceServers, status, turnServers };
+module.exports = { iceServers, status, turnServers, envNames, normalize };

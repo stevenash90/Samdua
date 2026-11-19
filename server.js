@@ -299,7 +299,7 @@ const server = http.createServer((req, res) => {
     const body = {
       ok: ready && !(store.lastError && (!store.lastOk || store.lastError.at > store.lastOk)),
       version: VERSION, storage: store.kind, uptimeSec: Math.round((Date.now() - started) / 1000),
-      news: News.status(), turn: ICE.status(), rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
+      news: News.status(), turn: ICE.status(), turnEnv: ICE.envNames(), rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
       lastStoreError: store.lastError,
     };
     store.ping().then(() => (body.db = 'ok'), e => { body.db = 'error: ' + e.message; body.ok = false; }).finally(() => {

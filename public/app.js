@@ -1,7 +1,7 @@
 /* Sâm Dứa 2.0 — client */
 'use strict';
 const $ = id => document.getElementById(id);
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.0.1';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
