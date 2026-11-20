@@ -14,9 +14,10 @@ const Voice = (() => {
   const send = (to, data) => { if (Net.ws && Net.ws.readyState === 1) Net.ws.send(JSON.stringify({ t: 'vsig', to, data })); };
   const iosSession = t => { try { if (navigator.audioSession) navigator.audioSession.type = t; } catch (e) {} };
 
+  let iceAt = 0;
   async function iceServers() {
-    if (ice) return ice;
-    try { const j = await api('ice', {}); if (j && j.iceServers && j.iceServers.length) ice = j.iceServers; } catch (e) {}
+    if (ice && Date.now() - iceAt < 40 * 60 * 1000) return ice;   // mật khẩu TURN tạm chỉ sống 2 giờ: xin lại sau 40 phút
+    try { const j = await api('ice', {}); if (j && j.iceServers && j.iceServers.length) { ice = j.iceServers; iceAt = Date.now(); } } catch (e) {}
     return ice || [{ urls: 'stun:stun.l.google.com:19302' }];
   }
 

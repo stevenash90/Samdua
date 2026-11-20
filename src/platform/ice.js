@@ -5,7 +5,7 @@
 //   Bất kỳ (ExpressTURN…): TURN_URLS (cách nhau dấu phẩy) + TURN_USERNAME + TURN_CREDENTIAL
 const STUN = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
 let cache = null, cacheAt = 0;
-const TTL = 6 * 3600;   // mật khẩu tạm sống 6 giờ, làm mới mỗi giờ
+const TTL = 2 * 3600;   // mật khẩu tạm sống 2 giờ, máy chủ làm mới mỗi 45 phút (luôn còn ≥ 75 phút)
 
 async function fetchJson(url, opt) {
   const ac = new AbortController();
@@ -59,7 +59,7 @@ async function turnServers(rawEnv, log) {
 }
 
 async function iceServers(env = process.env, log) {
-  if (cache && Date.now() - cacheAt < 3600 * 1000) return cache;
+  if (cache && Date.now() - cacheAt < 45 * 60 * 1000) return cache;
   const turn = await turnServers(env, log);
   const list = STUN.concat(turn);
   if (turn.length) { cache = list; cacheAt = Date.now(); }

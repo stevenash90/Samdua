@@ -334,3 +334,13 @@ test('health check', async () => {
   assert.strictEqual(h.ok, true);
   assert.strictEqual(h.db, 'ok');
 });
+
+test('mật khẩu TURN (ice): chỉ cấp cho người đang ở trong phòng', async () => {
+  const out = await api({ a: 'ice', token: 'ice-nguoi-ngoai-' + Date.now() });
+  assert.ok(out.err, 'người ngoài không xin được');
+  const tok = 'ice-nguoi-choi-' + Date.now();
+  const c = await api({ a: 'create', token: tok, name: 'Ice', av: '🐸' });
+  assert.ok(c.code);
+  const ok = await api({ a: 'ice', token: tok });
+  assert.ok(Array.isArray(ok.iceServers) && ok.iceServers.length, 'người trong phòng nhận được');
+});

@@ -133,7 +133,6 @@ async function api(b, ip) {
   if (NEWS_ON && (a === 'create' || a === 'join' || a === 'watch')) News.freshen(log);   // mở app: tin cũ quá 20 phút thì tải lại
   if (['register', 'login', 'google', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
   if (a === 'config') return { googleClientId: C.GOOGLE_CLIENT_ID || null, games: Games.list() };
-  if (a === 'ice') return { iceServers: await ICE.iceServers(process.env, log) };
   if (a === 'rooms') {
     // phòng công khai đang có người: phòng còn ghế lên trước, rồi phòng đông người
     const list = [...rooms.values()].map(r => r.listing()).filter(Boolean)
@@ -162,6 +161,13 @@ async function api(b, ip) {
   }
 
   const pid = user ? user.pid : pidOf(token);
+  if (a === 'ice') {
+    // mật khẩu TURN (tính tiền theo dung lượng): chỉ cấp cho người đang ở trong một phòng, tối đa 10 lần/phút mỗi IP
+    if (limited('ice:' + ip, 10)) return { err: 'Thao tác quá nhanh, đợi một chút' };
+    const inRoom = [...rooms.values()].some(r => r.idxOf(pid) >= 0 || r.specIdx(pid) >= 0 || r.idxOf(pidOf(token)) >= 0 || r.specIdx(pidOf(token)) >= 0);
+    if (!inRoom) return { err: 'Bạn chưa ở trong phòng nào' };
+    return { iceServers: await ICE.iceServers(process.env, log) };
+  }
   const ident = { pid: user ? user.pid : undefined, gender: b.gender || (user && user.gender) };
   const nameOf = () => b.name || (user && user.name);
   const avOf = () => b.av || (user && user.av);
