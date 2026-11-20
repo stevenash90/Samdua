@@ -21,6 +21,7 @@ const ICE = require('./ice');
 const NEWS_ON = process.env.BOT_NEWS !== '0';
 if (NEWS_ON) News.start(log);   // tải tin lúc máy chủ thức dậy, rồi định kỳ
 const rooms = new Map();
+const { clientIp, ipSources } = require('./client-ip');
 const started = Date.now();
 let ready = false;
 
@@ -120,6 +121,7 @@ function limited(ip, n = 40) {
   if (now - h.at > w) { h.at = now; h.n = 0; }
   h.n++;
   hits.set(ip, h);
+  if (hits.size > 5000) for (const [k, v] of hits) if (now - v.at > w) hits.delete(k);
   return h.n > n;
 }
 
@@ -302,7 +304,7 @@ const server = http.createServer((req, res) => {
     const body = {
       ok: ready && !(store.lastError && (!store.lastOk || store.lastError.at > store.lastOk)),
       version: VERSION, storage: store.kind, uptimeSec: Math.round((Date.now() - started) / 1000),
-      news: News.status(), turn: ICE.status(), turnEnv: ICE.envNames(), rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
+      news: News.status(), turn: ICE.status(), turnEnv: ICE.envNames(), ipFrom: ipSources(), rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
       lastStoreError: store.lastError,
     };
     store.ping().then(() => (body.db = 'ok'), e => { body.db = 'error: ' + e.message; body.ok = false; }).finally(() => {
@@ -316,7 +318,7 @@ const server = http.createServer((req, res) => {
     req.on('data', c => { body += c; if (body.length > 20000) req.destroy(); });
     req.on('end', async () => {
       let out;
-      try { out = await api(JSON.parse(body), req.socket.remoteAddress); }
+      try { out = await api(JSON.parse(body), clientIp(req)); }
       catch (e) { log('api error', e && e.message); out = { err: 'Yêu cầu lỗi' }; }
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(out));
