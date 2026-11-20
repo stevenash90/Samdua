@@ -743,3 +743,6 @@ body:not(:has(#sLobby.on)):not(:has(#sGame.on)):not(:has(#sMasoi.on)) .vbar,body
 .vb[hidden]{display:none}
 .vb.mic.forced{opacity:.35;filter:grayscale(1)}
 .card-panel[hidden]{display:none}
+
+.legal{text-align:center;font-size:12px;margin:14px 0 0;opacity:.7}
+.legal a{color:inherit}

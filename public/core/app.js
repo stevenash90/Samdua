@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const GAMES = {};
 const gameOf = s => GAMES[s && s.game] || GAMES.sam;
 const GAME_NAMES = { sam: 'Sâm Lốc', masoi: 'Ma Sói' };
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.5.1';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -274,6 +274,7 @@ const Account = {
     const guest = h('button', 'btn', 'Chơi tiếp với tư cách khách');
     guest.onclick = () => $('accSheet').classList.remove('on');
     b.append(guest, h('p', 'muted center', 'Khách vẫn chơi bình thường, nhưng lịch sử chỉ lưu trên máy này. Có tài khoản thì đăng nhập máy nào cũng thấy lịch sử, thống kê và cài đặt giọng đọc.'));
+    const lg = h('p', 'legal'); lg.innerHTML = '<a href="/privacy.html" target="_blank">Quyền riêng tư</a> · <a href="/terms.html" target="_blank">Điều khoản</a>'; b.append(lg);
   },
   /** Vẽ nút Google (thư viện GSI nạp không đồng bộ). onCred nhận phản hồi của nút vẽ gần nhất. */
   google(el, text, onCred) {
