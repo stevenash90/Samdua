@@ -37,7 +37,7 @@ const GENDERS = ['nam', 'nu'];
 const cleanGender = g => (GENDERS.includes(g) ? g : null);
 const publicUser = u => u && {
   id: u.id, username: u.username, name: u.name, av: u.av, gender: u.gender || 'nam', settings: u.settings || null,
-  google: !!u.googleSub, email: u.email || null, pid: userPid(u.id),
+  google: !!u.googleSub, email: u.email || null, hasPassword: !!u.passHash, pid: userPid(u.id),
 };
 
 /* ---------- Google Sign-In: kiểm tra ID token (JWT RS256) bằng khoá công khai của Google ---------- */
@@ -99,21 +99,35 @@ function createAccounts(store, opts = {}) {
       if (!user || !ok) return { err: 'Sai tên đăng nhập hoặc mật khẩu' };
       return { user: publicUser(user), session: await newSession(user.id) };
     },
-    /** Đăng nhập Google: lần đầu tự tạo tài khoản. */
+    /** Đăng ký / đăng nhập bằng Google: chưa có tài khoản thì tạo mới (created: true), có rồi thì đăng nhập. */
     async google({ credential, name, av, gender }) {
       let p;
       try { p = await verifyGoogle(credential); } catch (e) { return { err: 'Đăng nhập Google thất bại: ' + e.message }; }
-      let user = await store.userByGoogle(p.sub);
+      let user = await store.userByGoogle(p.sub), created = false;
       if (!user) {
         const base = (String(p.email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9_.]/g, '') || 'user').slice(0, 14).padEnd(3, '0');
         for (let k = 0; k < 5 && !user; k++) {
-          const cand = { id: crypto.randomBytes(8).toString('hex'), username: base + crypto.randomInt(1000, 9999), name: String(name || p.name || base).slice(0, 16),
+          const cand = { id: crypto.randomBytes(8).toString('hex'), username: base + crypto.randomInt(1000, 9999), name: String(name || p.name || base).replace(/\s+/g, ' ').trim().slice(0, 16) || base,
             av: av || '🙂', gender: cleanGender(gender) || 'nam', googleSub: p.sub, email: p.email || null };
-          if (await store.createUser(cand)) user = cand;
+          if (await store.createUser(cand)) { user = cand; created = true; }
+          else if ((user = await store.userByGoogle(p.sub))) break;   // bấm 2 lần cùng lúc: tài khoản vừa được tạo
         }
         if (!user) return { err: 'Không tạo được tài khoản, thử lại' };
       }
-      return { user: publicUser(user), session: await newSession(user.id), created: !user.createdAt };
+      return { user: publicUser(user), session: await newSession(user.id), created };
+    },
+    /** Liên kết Google vào tài khoản đang đăng nhập (tài khoản tạo bằng tên + mật khẩu). */
+    async linkGoogle(userId, credential) {
+      let p;
+      try { p = await verifyGoogle(credential); } catch (e) { return { err: 'Liên kết Google thất bại: ' + e.message }; }
+      const user = await store.userById(userId);
+      if (!user) return { err: 'Tài khoản không tồn tại' };
+      if (user.googleSub === p.sub) return { user: publicUser(user) };
+      if (user.googleSub) return { err: 'Tài khoản đã liên kết với một Google khác' };
+      const other = await store.userByGoogle(p.sub);
+      if (other) return { err: 'Google này đã gắn với tài khoản khác (' + other.name + '). Đăng xuất rồi bấm "Đăng nhập bằng Google" để vào tài khoản đó' };
+      if (!(await store.linkGoogle(userId, p.sub, p.email || null))) return { err: 'Google này đã gắn với tài khoản khác' };
+      return { user: publicUser(await store.userById(userId)) };
     },
     async logout(session) { if (session) await store.deleteSession(sha(session)); return {}; },
     /** Phiên hợp lệ → người dùng; ngược lại null. */
@@ -131,9 +145,11 @@ function createAccounts(store, opts = {}) {
       await store.updateUser(userId, clean);
       return publicUser(await store.userById(userId));
     },
+    /** Đổi mật khẩu; tài khoản Google chưa có mật khẩu thì đặt mới không cần mật khẩu cũ. */
     async changePassword(userId, oldPw, newPw) {
       const user = await store.userById(userId);
-      if (!user || !(await checkPassword(String(oldPw || ''), user.passHash))) return { err: 'Mật khẩu hiện tại không đúng' };
+      if (!user) return { err: 'Tài khoản không tồn tại' };
+      if (user.passHash && !(await checkPassword(String(oldPw || ''), user.passHash))) return { err: 'Mật khẩu hiện tại không đúng' };
       const pw = validPassword(newPw);
       if (!pw) return { err: 'Mật khẩu mới ít nhất 6 ký tự' };
       await store.updateUser(userId, { passHash: await hashPassword(pw) });

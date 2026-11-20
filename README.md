@@ -37,7 +37,8 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 
 ## Tài khoản thành viên
 
-- Đăng ký / đăng nhập bằng tên đăng nhập + mật khẩu (băm scrypt), hoặc **Google** (khi đã cấu hình `GOOGLE_CLIENT_ID`).
+- Đăng ký / đăng nhập bằng tên đăng nhập + mật khẩu (băm scrypt), hoặc **Google** (khi đã cấu hình `GOOGLE_CLIENT_ID`): tab Đăng ký có nút "Đăng ký bằng Google", tab Đăng nhập có "Đăng nhập bằng Google". Lần đầu dùng Google thì tự tạo tài khoản, lần sau vào đúng tài khoản đó.
+- Tài khoản tạo bằng mật khẩu bấm **Liên kết Google** trong Hồ sơ để sau này đăng nhập được bằng cả hai cách. Tài khoản tạo bằng Google có thể **Đặt mật khẩu** (không bắt buộc) để đăng nhập bằng tên @… khi không dùng Google.
 - Không đăng nhập vẫn chơi được (chế độ khách); lịch sử của khách gắn với trình duyệt.
 - Hồ sơ: nickname, avatar, giới tính (quyết định giọng thoại). Cấu hình âm thanh/giọng đọc lưu theo tài khoản.
 - Đăng nhập máy khác: thấy đủ lịch sử, thống kê, xem lại ván; đang ngồi trong phòng thì vào lại đúng ghế.
@@ -46,9 +47,10 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 ### Bật đăng nhập Google
 
 1. console.cloud.google.com → tạo project (ví dụ `samdua`).
-2. **APIs & Services → OAuth consent screen**: chọn External, điền tên app và email → lưu (để chế độ Testing thì thêm email bạn bè vào Test users, hoặc bấm Publish).
-3. **APIs & Services → Credentials → Create credentials → OAuth client ID** → Application type: **Web application** → Authorized JavaScript origins: `https://samdua.onrender.com` → Create.
-4. Copy **Client ID** (dạng `xxxx.apps.googleusercontent.com`) → Render → Environment → thêm `GOOGLE_CLIENT_ID`.
+2. **APIs & Services → OAuth consent screen** (giao diện mới gọi là **Google Auth Platform → Branding / Audience**): chọn External, điền tên app và email → lưu. Ở **Audience** bấm **Publish app** để ai cũng đăng nhập được (để Testing thì chỉ email trong Test users vào được). App chỉ xin `openid email profile` nên không phải chờ Google duyệt.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID** (hoặc **Clients → Create client**) → Application type: **Web application** → Authorized JavaScript origins: `https://samdua-1.onrender.com` (thêm `http://localhost:3000` nếu muốn thử ở máy) → Create. Không cần Redirect URI.
+4. Copy **Client ID** (dạng `xxxx.apps.googleusercontent.com`) → Render → service `samdua-1` → Environment → thêm `GOOGLE_CLIENT_ID` → Save (Render tự deploy lại).
+5. Mở trang → bấm ô "Khách · Đăng nhập / Đăng ký" → thấy nút Google dưới dòng "— hoặc —" là xong. Đổi tên miền thì nhớ sửa lại mục 3 (lỗi `origin_mismatch` / `The given origin is not allowed` nghĩa là thiếu tên miền ở đây).
 
 ## Giọng đọc
 
@@ -60,7 +62,7 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 
 - `.github/workflows/backup.yml` chạy 02:00 mỗi ngày, xuất toàn bộ database, **mã hoá** rồi lưu 30 ngày ở GitHub → Actions → Artifacts. Cần 2 secret của repo: `DATABASE_URL`, `BACKUP_PASSWORD`. Chạy tay: Actions → "Sao lưu database" → Run workflow.
 - Render → Settings → **Health Check Path** = `/health` (máy chủ trả 503 khi DB lỗi, Render tự khởi động lại và báo email).
-- Cảnh báo khi web sập: tạo monitor miễn phí trên UptimeRobot trỏ vào `https://samdua.onrender.com/health` (5 phút/lần, báo email). Monitor này cũng giữ cho Render không ngủ.
+- Cảnh báo khi web sập: tạo monitor miễn phí trên UptimeRobot trỏ vào `https://samdua-1.onrender.com/health` (5 phút/lần, báo email). Monitor này cũng giữ cho Render không ngủ.
 
 ## Cấu trúc
 
