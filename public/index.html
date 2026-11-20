@@ -10,34 +10,48 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=3.5.1">
-<link rel="stylesheet" href="/games/masoi/game.css?v=3.5.1">
+<link rel="stylesheet" href="/style.css?v=3.6.0">
+<link rel="stylesheet" href="/games/masoi/game.css?v=3.6.0">
 </head>
 <body>
 
 <!-- ============ TRANG CHỦ ============ -->
 <section class="screen on" id="sHome">
-  <div class="wrap">
+  <div class="wrap home">
+    <div class="hcol">
     <div class="accbar"><button class="acc-chip" id="accChip"></button></div>
     <div class="brand">
       <div class="logo">🍍</div>
       <h1>Sâm Dứa</h1>
-      <p class="tag">Sâm Lốc online · ngồi chiếu cùng hội bạn</p>
+      <p class="tag">Sâm Lốc · Ma Sói · chơi online cùng hội bạn</p>
     </div>
-    <div class="card-panel">
-      <label class="lbl" for="inName">Tên của bạn</label>
-      <input id="inName" maxlength="16" placeholder="Nhập tên" autocomplete="off">
-      <div class="lbl">Avatar</div>
-      <div class="avpick" id="avpick"></div>
-      <div class="lbl" style="margin-top:10px">Giọng nói của bạn</div>
-      <div class="seg gender" id="fGender" data-v="nam"><button data-v="nam">👨 Nam</button><button data-v="nu">👩 Nữ</button></div>
+    <div class="card-panel me-panel" id="mePanel">
+      <button class="me-sum" id="meSum" type="button" aria-expanded="false" aria-controls="meEdit">
+        <span class="me-av" id="meAv"></span>
+        <span class="me-tx"><b id="meName"></b><small id="meVoice"></small></span>
+        <span class="me-edit">Sửa</span>
+      </button>
+      <div class="me-edit-body" id="meEdit">
+        <label class="lbl" for="inName">Tên của bạn</label>
+        <input id="inName" maxlength="16" placeholder="Nhập tên" autocomplete="off" enterkeyhint="done">
+        <div class="lbl">Avatar</div>
+        <div class="avpick" id="avpick"></div>
+        <div class="lbl" style="margin-top:10px">Giọng nói của bạn</div>
+        <div class="seg gender" id="fGender" data-v="nam"><button data-v="nam">👨 Nam</button><button data-v="nu">👩 Nữ</button></div>
+      </div>
     </div>
-    <button class="btn gold big" id="btGoCreate">Tạo phòng mới</button>
+    <div class="lbl home-lbl">Tạo phòng mới</div>
+    <div class="gtiles" id="gTiles">
+      <button class="gtile sam" data-game="sam" id="btGoCreate"><span class="gi">🃏</span><b>Sâm Lốc</b><small>2–5 người · thiếu thì thêm máy</small></button>
+      <button class="gtile masoi" data-game="masoi"><span class="gi">🐺</span><b>Ma Sói</b><small>5–12 người · có người dẫn truyện</small></button>
+    </div>
     <div class="join-row">
-      <input id="inCode" maxlength="4" placeholder="MÃ PHÒNG" autocomplete="off">
+      <input id="inCode" maxlength="4" placeholder="MÃ PHÒNG" autocomplete="off" autocapitalize="characters" enterkeyhint="go" aria-label="Mã phòng">
       <button class="btn" id="btJoin">Vào chơi</button>
       <button class="btn" id="btWatch" title="Vào xem, không chơi">👀 Xem</button>
     </div>
+    </div>
+    <div class="hcol side">
     <div class="pubrooms">
       <div class="pr-head"><b>Phòng đang mở</b><button class="pr-ref" id="btRoomsRef" title="Làm mới">↻</button></div>
       <div class="pr-list" id="roomList"><div class="pr-empty">Đang tải…</div></div>
@@ -49,6 +63,7 @@
       <button data-go="rules"><span>📜</span>Luật chơi</button>
     </nav>
     <p class="legal"><a href="/privacy.html">Quyền riêng tư</a> · <a href="/terms.html">Điều khoản</a></p>
+    </div>
   </div>
 </section>
 
@@ -85,7 +100,7 @@
         <div class="frow"><div><b>Thối 2 (mỗi lá)</b><small>0 = lá 2 tính như lá thường</small></div><div class="step" data-k="thoi2"></div></div>
       </details>
     </div>
-    <button class="btn gold big" id="btCreate">Tạo phòng</button>
+    <div class="sticky-cta"><button class="btn gold big" id="btCreate">Tạo phòng</button></div>
   </div>
 </section>
 
@@ -285,11 +300,11 @@
 <div class="confirm" id="confirm"><div class="panel"><p id="confirmText"></p><div class="row"><button class="btn" id="confirmNo">Huỷ</button><button class="btn gold" id="confirmYes">Đồng ý</button></div></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/core/audio.js?v=3.5.1"></script>
-<script src="/core/voice.js?v=3.5.1"></script>
-<script src="/core/app.js?v=3.5.1"></script>
-<script src="/games/sam/game.js?v=3.5.1"></script>
-<script src="/games/masoi/game.js?v=3.5.1"></script>
-<script src="/core/boot.js?v=3.5.1"></script>
+<script src="/core/audio.js?v=3.6.0"></script>
+<script src="/core/voice.js?v=3.6.0"></script>
+<script src="/core/app.js?v=3.6.0"></script>
+<script src="/games/sam/game.js?v=3.6.0"></script>
+<script src="/games/masoi/game.js?v=3.6.0"></script>
+<script src="/core/boot.js?v=3.6.0"></script>
 </body>
 </html>

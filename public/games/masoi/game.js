@@ -102,7 +102,7 @@ const MS = (() => {
     const bar = document.querySelector('#msBanner .ms-bar i'); if (!bar) return;
     const left = Math.max(0, base.left - (performance.now() - base.at));
     bar.style.width = (100 * left / base.total) + '%';
-    bar.dataset.s = Math.ceil(left / 1000);
+    bar.parentElement.dataset.s = Math.ceil(left / 1000) + 's';
   }
 
   /* ---------- người chơi ---------- */

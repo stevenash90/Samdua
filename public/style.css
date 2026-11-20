@@ -746,3 +746,48 @@ body:not(:has(#sLobby.on)):not(:has(#sGame.on)):not(:has(#sMasoi.on)) .vbar,body
 
 .legal{text-align:center;font-size:12px;margin:14px 0 0;opacity:.7}
 .legal a{color:inherit}
+
+/* ================= v3.6: trang chủ mới, truy cập bằng bàn phím ================= */
+/* vòng sáng khi dùng bàn phím (không hiện khi chạm/bấm chuột) */
+:where(button,a,input,summary,[tabindex]):focus-visible{outline:2px solid var(--gold-l);outline-offset:2px;border-radius:inherit}
+.btn.gold:focus-visible{outline-color:#fff}
+
+/* trang chủ */
+.home .hcol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.home .pubrooms{margin-top:2px}
+.home-lbl{margin:4px 2px -4px}
+.me-panel{padding:0;overflow:hidden}
+.me-sum{display:none;width:100%;align-items:center;gap:12px;padding:10px 14px;text-align:left}
+.me-av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:26px;background:#00000040;border:2px solid var(--gold);flex:none}
+.me-tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.me-tx b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-tx small{color:var(--mute);font-size:12.5px}
+.me-edit{font-size:13px;font-weight:700;color:var(--gold);padding:7px 12px;border-radius:99px;background:#f3c45a1a;border:1px solid #f3c45a44}
+.me-edit-body{padding:14px}
+.me-panel.compact .me-sum{display:flex}
+.me-panel.compact .me-edit-body{display:none}
+
+.gtiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gtile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 14px 13px;border-radius:18px;text-align:left;overflow:hidden;
+  border:1px solid #ffffff22;box-shadow:0 4px 0 #0008,0 10px 24px #0006;transition:transform .08s,filter .15s}
+.gtile:active{transform:translateY(2px)}
+.gtile:hover{filter:brightness(1.08)}
+.gtile .gi{font-size:30px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 3px 4px #0008)}
+.gtile b{font-size:18px;font-weight:800}
+.gtile small{font-size:12px;line-height:1.35;opacity:.85}
+.gtile.sam{background:radial-gradient(120% 90% at 100% 0,#ffe39a55,transparent 60%),linear-gradient(160deg,#f3c45a,#c8902a);color:#2c1d00;border-color:#ffe39a88}
+.gtile.masoi{background:radial-gradient(120% 90% at 100% 0,#8a96ff40,transparent 60%),linear-gradient(160deg,#2a2f6b,#12142e);color:#e6e9ff;border-color:#8a96ff55}
+.gtile::after{content:"";position:absolute;right:-18px;bottom:-22px;width:80px;height:80px;border-radius:50%;background:#ffffff14}
+
+/* máy tính: 2 cột (bên trái chơi ngay, bên phải phòng đang mở) */
+@media (min-width:900px) and (min-height:560px){
+  .wrap.home{max-width:940px;flex-direction:row;align-items:flex-start;gap:28px;padding-top:28px}
+  .home .hcol{flex:1}
+  .home .hcol.side{padding-top:52px;position:sticky;top:0}
+  .home .pubrooms .pr-list{max-height:min(52vh,460px);overflow:auto}
+}
+
+/* tạo phòng: nút "Tạo phòng" luôn trong tầm tay */
+.sticky-cta{position:sticky;bottom:calc(-20px - var(--sab));margin:0 -16px calc(-20px - var(--sab));padding:12px 16px calc(14px + var(--sab));
+  background:linear-gradient(180deg,transparent,var(--bg) 40%);z-index:2}
+.sticky-cta .btn{width:100%}

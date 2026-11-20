@@ -31,6 +31,7 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
   - Ảnh vai (bộ Core 6) ở `public/games/masoi/roles/<vai>.webp`, vuông 480×480.
   - Ván có Phù thủy thì đêm nào cũng có lượt Phù thủy (kể cả khi bà đã chết) để không lộ. Sói treo máy không chọn ai thì bầy vồ ngẫu nhiên.
   - Nhạc: “Deep Horrors” – Kevin MacLeod (incompetech.com), CC BY 4.0.
+- **Trang chủ (v3.6)**: hai ô chọn game Sâm Lốc / Ma Sói tạo phòng ngay; tên + avatar + giọng thu gọn thành một dòng khi đã đặt (bấm Sửa để mở); máy tính màn rộng chia 2 cột, bên phải là phòng đang mở. Enter ở ô mã phòng là vào chơi. Nút Tạo phòng luôn nằm dưới đáy màn khi form dài. Có viền sáng khi dùng bàn phím, nút biểu tượng có nhãn cho trình đọc màn hình.
 - **Phòng đang mở**: trang chủ liệt kê các phòng công khai đang có người, bấm "Vào chơi" hoặc "👀 Xem" không cần mã. Chủ phòng bật "Phòng riêng tư" để ẩn.
 - **Chat không đè bàn**: điện thoại hiện 2 dòng mới nhất ngay trên ô nhập, chạm để mở lịch sử; máy tính màn rộng có khung chat riêng bên phải bàn.
 - **Đổi bộ bài mới**: người chơi đề nghị, chủ phòng quyết (chủ phòng tự đổi được). Bộ bài mới đổi kiểu mặt sau và viền; 5 kiểu xoay vòng.

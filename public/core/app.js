@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const GAMES = {};
 const gameOf = s => GAMES[s && s.game] || GAMES.sam;
 const GAME_NAMES = { sam: 'Sâm Lốc', masoi: 'Ma Sói' };
-const APP_VERSION = '3.5.1';
+const APP_VERSION = '3.6.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -173,10 +173,24 @@ $('inCode').value = qRoom;
   const box = $('avpick');
   AVATARS.forEach(a => {
     const b = h('button', a === myAv ? 'on' : '', a);
-    b.onclick = () => { myAv = a; store.set('sam_av', a); box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); Sound.play('select'); };
+    b.onclick = () => { myAv = a; store.set('sam_av', a); box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); Sound.play('select'); renderMe(); };
     box.append(b);
   });
 })();
+/* Thẻ "bạn là ai": đã có tên thì thu gọn thành 1 dòng, bấm Sửa để mở */
+let meOpen = !store.get('sam_name', '');
+function renderMe() {
+  const nm = $('inName').value.trim();
+  $('meAv').textContent = myAv || '🙂';
+  $('meName').textContent = nm || 'Chưa đặt tên';
+  $('meVoice').textContent = 'Giọng ' + (myGender() === 'nu' ? 'nữ' : 'nam');
+  const open = meOpen || !nm;
+  $('mePanel').classList.toggle('compact', !open);
+  $('meSum').setAttribute('aria-expanded', String(open));
+}
+$('meSum').onclick = () => { meOpen = true; renderMe(); $('inName').focus(); };
+$('inName').addEventListener('input', renderMe);
+$('inName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (e.target.value.trim()) { store.set('sam_name', e.target.value.trim()); meOpen = false; renderMe(); e.target.blur(); } } });
 /* ================= tài khoản thành viên ================= */
 function myGender() { return (Account && Account.user && Account.user.gender) || store.get('sam_gender', 'nam'); }
 const Account = {
@@ -194,6 +208,7 @@ const Account = {
     }
     setSeg('fGender', myGender());
     this.renderChip();
+    if (typeof renderMe === 'function') renderMe();
   },
   renderChip() {
     const c = $('accChip'); c.textContent = '';
@@ -358,16 +373,24 @@ document.getElementById('fGender').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   store.set('sam_gender', b.dataset.v);
   if (Account.logged()) Account.save({ gender: b.dataset.v });
+  setTimeout(renderMe, 0);
 });
 
 function myName() {
   let n = $('inName').value.trim();
   if (!n && Account.logged()) n = Account.user.name;
-  if (!n) { toast('Nhập tên đã nhé'); $('inName').focus(); return null; }
+  if (!n) { toast('Nhập tên đã nhé'); meOpen = true; renderMe(); $('inName').focus(); return null; }
   if (Account.logged() && n !== Account.user.name) Account.save({ name: n });
   store.set('sam_name', n); return n;
 }
-$('btGoCreate').onclick = () => { if (!myName()) return; openCreate(null); };
+function closeMe() { if (meOpen && $('inName').value.trim()) { meOpen = false; renderMe(); } }
+document.querySelectorAll('#gTiles .gtile').forEach(t => t.onclick = () => {
+  if (!myName()) return;
+  closeMe();
+  store.set('sam_game', t.dataset.game);
+  openCreate(null);
+});
+$('inCode').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('btJoin').click(); } });
 $('btJoin').onclick = async () => {
   const n = myName(); if (!n) return;
   const c = $('inCode').value.trim().toUpperCase();
@@ -503,7 +526,7 @@ function openCreate(cur) {
   $('fMsReveal').checked = ms.revealRole !== undefined ? ms.revealRole : true;
   $('fMsBotChat').checked = ms.botChat !== undefined ? ms.botChat : true;
   $('fMsPrivate').checked = !!ms.private;
-  $('createTitle').textContent = editMode ? 'Cài đặt phòng' : 'Tạo phòng';
+  if (editMode) $('createTitle').textContent = 'Cài đặt phòng';
   $('btCreate').textContent = editMode ? 'Lưu cài đặt' : 'Tạo phòng';
   show('sCreate');
 }
@@ -517,6 +540,7 @@ function syncGameForm() {
   const gm = segVal('fGame');
   $('roomForm').hidden = gm !== 'sam';
   $('msForm').hidden = gm !== 'masoi';
+  if (!editMode) $('createTitle').textContent = 'Tạo phòng ' + (gm === 'masoi' ? 'Ma Sói' : 'Sâm Lốc');
 }
 $('fGame').addEventListener('click', () => setTimeout(syncGameForm, 0));
 $('btCreate').onclick = async () => {

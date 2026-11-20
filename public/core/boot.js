@@ -2,6 +2,11 @@
 'use strict';
 setSeg('fGender', myGender());
 Account.renderChip();
+renderMe();
+// nút chỉ có biểu tượng: đọc được bằng trình đọc màn hình
+document.querySelectorAll('button[title]:not([aria-label])').forEach(b => b.setAttribute('aria-label', b.title));
+document.querySelectorAll('[data-back],#btLobbyLeave,#btMsLeave').forEach(b => b.setAttribute('aria-label', 'Quay lại'));
+document.querySelectorAll('.sheet-head .icon').forEach(b => b.setAttribute('aria-label', 'Đóng'));
 api('config').then(c => { if (c.err) return; Account.cfg = c; if ($('accSheet').classList.contains('on')) Account.render(); });
 Account.refresh();
 applySettings();
