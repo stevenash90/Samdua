@@ -159,7 +159,8 @@ test('người dẫn truyện: phát sự kiện narr theo bước, bước ch�
   let guard = 0;
   while (room.phase !== 'dawn' && room.phase !== 'over' && guard++ < 200) tick(t, 500);
   if (room.phase === 'dawn') {
-    assert.ok(keys().some(k => k.startsWith('dawn_')));
+    // người thật bị cắn đêm đầu thì không còn ai sống để nghe: không đọc (đúng thiết kế)
+    assert.ok(keys().some(k => k.startsWith('dawn_')) || !room.g.alive[room.idxOf(h.pid)]);
     assert.ok(room.g.timer.total >= room.narrLeft(), 'trời sáng: chờ đọc xong mới thảo luận');
   }
   // ván có Phù thủy: luôn có lượt Phù thủy (ván 7 người)

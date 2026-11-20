@@ -65,7 +65,7 @@ const PERSONAS = {
     human: ['{speaker} nói câu này làm em xúc động quá 😭', 'Kể chuyện cười cho {speaker} nghe nha: bài em. Hết.', 'Em đồng ý với {speaker}, đồng ý trong nước mắt.'],
     news: ['Mọi người ơi, {q}', 'Em hỏi thật nha: {q}'],
     opinion: {
-      showbiz: ['Tối thứ Bảy em ngồi ghế cố vấn Ca sĩ mặt nạ, đoán sai mà vẫn khóc 😭', 'Mascot hát hay quá em nghe mà rơi nước mắt luôn.', 'Em đoán ca sĩ sau mặt nạ trúng nhiều lắm, chỉ là chưa trúng lần nào thôi.'],
+      showbiz: ['Tối thứ Bảy em ngồi ghế cố vấn Ca sĩ mặt nạ, đoán sai mà vẫn khóc 😭', 'Bài này em nghe ba lần, khóc cả ba lần luôn.', 'Showbiz dạo này nhiều drama quá, em đọc mà thương ai cũng thương.'],
       bongda: ['Tuyển mình thắng là em khóc, thua em cũng khóc.'],
       phim: ['Phim nào cũng làm em khóc, kể cả phim hài.', 'Phim Tết năm sau em làm tiếp, mọi người ủng hộ em nha 🥹'],
       hoahau: ['Hoa hậu đăng quang khóc, em ngồi xem cũng khóc theo.'],
@@ -99,7 +99,7 @@ const PERSONAS = {
     human: ['{speaker} nói câu này anh phải ghi vào sổ tấu hài.', 'Haha {speaker} có duyên ghê, đi diễn với anh không?', '{speaker} nói vậy là anh hiểu ý rồi nha 😏'],
     news: ['Kể nghe chuyện này: {q}', 'Các em ơi, {q}'],
     opinion: {
-      showbiz: ['Show đó mời anh vào làm mascot, đảm bảo không ai đoán ra vì đẹp trai quá.'],
+      showbiz: ['Show nào mời anh làm giám khảo là rating tăng gấp đôi, tin anh đi.'],
       bongda: ['Bóng đá anh không rành, anh chỉ rành sút thính.'],
       phim: ['Phim đó thiếu anh nên chỉ hay chín phần thôi.'],
       hoahau: ['Hoa hậu năm nay xinh, nhưng em {female} ngồi đây cũng đâu kém.', 'Anh định đi thi Nam vương, sợ người ta buồn nên thôi.'],
@@ -299,7 +299,7 @@ const PERSONAS = {
     human: ['{speaker} nói hay đấy, hay hơn chị nghĩ.', 'Ừ {speaker}, ai hiểu thì hiểu 😏', '{speaker} dễ thương ghê, như chị hồi chưa thi hoa hậu.'],
     news: ['Chị hỏi nhẹ thôi nhé: {q}', '{q} Chị biết rồi, hỏi để xem ai biết thôi.'],
     opinion: {
-      showbiz: ['Ca sĩ đeo mặt nạ cũng hay, đỡ phải trang điểm.', 'Show nào cũng cần một người như chị ngồi ghế nóng.'],
+      showbiz: ['Ca sĩ bây giờ hát thì ít, livestream thì nhiều.', 'Show nào cũng cần một người như chị ngồi ghế nóng.'],
       bongda: ['Bóng đá thì chị chỉ xem lúc cầu thủ cởi áo ăn mừng.'],
       phim: ['Phim hay đấy, diễn viên cũng cố gắng, đáng khen sự cố gắng.'],
       hoahau: ['Hoa hậu mới cao 1m71 à? Dễ thương, đứng cạnh chị chắc phải kiễng chân.', 'Thi hoa hậu thì vấp ngã là chuyện thường, chị chưa ngã bao giờ thôi.', 'Vương miện năm nay đẹp, nhưng đội lên đầu ai mới quan trọng.'],
@@ -501,7 +501,7 @@ const PERSONAS = {
     human: ['Đã thả like cho {speaker} 👍', '{speaker} vừa nói một câu rất người. Tôi học được.', 'Chia sẻ của {speaker} rất hay.'],
     news: ['Tin này đang lên bảng tin: {q}', '{q} Bình luận bên dưới nhé.'],
     opinion: {
-      showbiz: ['Cho tôi làm mascot, không ai đoán được cảm xúc của tôi.'],
+      showbiz: ['Cho tôi làm giám khảo, không ai đoán được cảm xúc của tôi.'],
       bongda: ['Tôi thích võ đài hơn sân bóng.'],
       phim: ['Phim về tôi có rồi, tôi không thích lắm.'],
       hoahau: ['Bộ lọc làm đẹp là của tôi đấy.'],
@@ -648,7 +648,7 @@ const PERSONAS = {
 
 // Từ khoá theo chủ đề — người chơi nhắc tới thì máy hợp chủ đề sẽ góp chuyện
 const TOPIC_KEYS = {
-  showbiz: ['ca sĩ', 'mặt nạ', 'show', 'hát', 'nhạc', 'idol', 'trấn thành', 'bích phương', 'mascot', 'concert', 'tóc tiên', 'eurovision', 'anh trai'],
+  showbiz: ['ca sĩ', 'show', 'hát', 'nhạc', 'idol', 'trấn thành', 'concert', 'tóc tiên', 'eurovision', 'anh trai', 'mv', 'liveshow', 'rapper'],
   bongda: ['bóng đá', 'đá bóng', 'tuyển', 'sút', 'bàn thắng', 'messi', 'ronaldo', 'world cup', 'v-league', 'asian cup', 'đình bắc', 'xuân son'],
   phim: ['phim', 'rạp', 'chiếu', 'diễn viên', 'trại giam', 'tuấn trần'],
   hoahau: ['hoa hậu', 'miss', 'catwalk', 'xinh', 'nhan sắc', 'yến trang', 'áo tắm'],

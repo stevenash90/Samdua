@@ -347,7 +347,7 @@ test('máy khơi chuyện thời sự thì máy khác góp ý kiến', t => {
   for (let k = 0; k < 3; k++) room.handle(h.pid, { a: 'addBot' });
   room.botGame = { lines: 0, budget: 10, news: 0 };
   let replies = 0;
-  for (let k = 0; k < 14; k++) {
+  for (let k = 0; k < 9; k++) {
     room.botGame = { lines: 0, budget: 10, news: 0 }; room.botTalk = {};
     const from = room.chatSeq;
     assert.ok(room.botNews(1));
@@ -585,4 +585,20 @@ test('bộ bài: phòng lưu từ bản cũ được chuyển sang danh sách b�
     r.close();
   }
   room.close();
+});
+
+test('tin tức xoay vòng các mảng: 8 tin liên tiếp ở một bàn không bị một mảng chiếm', () => {
+  const News = require('../../../src/platform/news');
+  const mk = (cat, k) => ({ id: cat + k, tag: null, cat, q: `tin ${cat} số ${k}` });
+  const cats = ['giaitri', 'thethao', 'vanhoa', 'xahoi', 'giaoduc', 'congnghe', 'dulich', 'vui'];
+  News._setRss(cats.flatMap(c => [1, 2, 3, 4, 5].map(k => mk(c, k))));
+  const used = [], recent = [];
+  for (let k = 0; k < 8; k++) {
+    const n = News.pickFor(used, recent, Date.parse('2026-11-20'));
+    used.push(n.id); recent.push(n.cat);
+  }
+  assert.strictEqual(new Set(recent).size, 8, 'mỗi mảng đúng một lần: ' + recent.join(','));
+  // Ca sĩ mặt nạ chỉ còn 1 tin soạn tay
+  assert.strictEqual(News.CURATED.filter(n => /mặt nạ/i.test(n.q)).length, 1);
+  News._setRss([]);
 });

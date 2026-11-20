@@ -351,11 +351,14 @@ class Room {
   // khơi chuyện thời sự (mỗi ván tối đa một lần)
   botNews(i) {
     if (this.botGame.news >= 1 || !this.settings.botChat) return false;
-    const list = News.available(this.newsUsed, this.now());
-    if (!list.length) return false;
-    const n = BC.pick(list.slice(0, 6));
+    this.newsCats = this.newsCats || [];
+    const n0 = News.pickFor(this.newsUsed, this.newsCats, this.now());
+    if (!n0) return false;
+    const n = Object.assign({}, n0, { tag: BC.topicOf(n0.q) || n0.tag });   // máy đáp theo nội dung tin
     if (!this.botSay(i, 'news', {}, { news: n })) return false;
     this.newsUsed.push(n.id);
+    this.newsCats.push(n.cat || n.tag);
+    if (this.newsCats.length > 20) this.newsCats.splice(0, 10);
     if (this.newsUsed.length > 300) this.newsUsed.splice(0, 100);
     this.botGame.news++;
     return true;
@@ -1139,7 +1142,7 @@ class Room {
     return {
       v: 2, game: 'sam', code: this.code, created: this.created, touched: this.touched, settings: this.settings,
       players: this.players.map(p => ({ pid: p.pid, tokenHash: p.tokenHash, name: p.name, av: p.av, gender: p.gender || 'nam', member: !!p.member, bot: p.bot, auto: p.auto, score: p.score, lose: p.lose || 0 })),
-      chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, swapPlan: this.swapPlan, deckReq: this.deckReq, rstats: this.rstats, botUsed: this.botUsed, newsUsed: this.newsUsed,
+      chat: this.chat, chatSeq: this.chatSeq, spectators: this.spectators, deck: this.deck, swap: this.swap, swapPlan: this.swapPlan, deckReq: this.deckReq, rstats: this.rstats, botUsed: this.botUsed, newsUsed: this.newsUsed, newsCats: this.newsCats || [],
       hostPid: this.hostPid, phase: this.phase, g: gs, result: this.result, log: this.log,
       lastWinnerPid: this.lastWinnerPid, gameNo: this.gameNo, hostLog: this.hostLog,
     };
@@ -1153,7 +1156,7 @@ class Room {
       lastWinnerPid: s.lastWinnerPid, gameNo: s.gameNo || 0, hostLog: s.hostLog || [],
       chat: s.chat || [], chatSeq: s.chatSeq || 0, spectators: s.spectators || [], deck: migrateDeck(s.deck),
       swap: s.swap || null, swapPlan: s.swapPlan || null, deckReq: s.deckReq || null, rstats: s.rstats || {},
-      botUsed: s.botUsed || {}, newsUsed: s.newsUsed || [],
+      botUsed: s.botUsed || {}, newsUsed: s.newsUsed || [], newsCats: s.newsCats || [],
     });
     r.spectators.forEach(x => r.offlineSince.set(x.pid, r.now()));
     const g = r.g;
