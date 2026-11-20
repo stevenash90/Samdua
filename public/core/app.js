@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const GAMES = {};
 const gameOf = s => GAMES[s && s.game] || GAMES.sam;
 const GAME_NAMES = { sam: 'Sâm Lốc', masoi: 'Ma Sói' };
-const APP_VERSION = '3.4.4';
+const APP_VERSION = '3.5.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -261,31 +261,41 @@ const Account = {
       this.loggedIn(j, this.mode === 'login' ? 'Chào mừng trở lại,' : 'Đã tạo tài khoản cho');
     };
     b.append(f);
-    const gwrap = h('div', '');
     if (this.cfg && this.cfg.googleClientId) {
+      const gwrap = h('div', 'acc-google');
       gwrap.append(h('div', 'acc-or', '— hoặc —'));
-      const gb = h('div', ''); gb.id = 'gBtn'; gwrap.append(gb);
+      const gb = h('div', 'gbtn'); gwrap.append(gb);
+      gwrap.append(h('p', 'muted center', this.mode === 'register'
+        ? 'Đăng ký bằng Google: không cần đặt tên đăng nhập hay mật khẩu. Đã có tài khoản Google ở đây thì vào thẳng.'
+        : 'Lần đầu dùng Google sẽ tự tạo tài khoản mới.'));
       b.append(gwrap);
-      this.google(gb, ck);
+      this.google(gb, this.mode === 'register' ? 'signup_with' : 'signin_with', resp => this.googleAuth(resp, ck));
     }
     const guest = h('button', 'btn', 'Chơi tiếp với tư cách khách');
     guest.onclick = () => $('accSheet').classList.remove('on');
     b.append(guest, h('p', 'muted center', 'Khách vẫn chơi bình thường, nhưng lịch sử chỉ lưu trên máy này. Có tài khoản thì đăng nhập máy nào cũng thấy lịch sử, thống kê và cài đặt giọng đọc.'));
   },
-  google(el, ck) {
-    const init = () => {
-      if (!window.google || !google.accounts || !google.accounts.id) return setTimeout(init, 300);
-      google.accounts.id.initialize({
-        client_id: this.cfg.googleClientId,
-        callback: async resp => {
-          const j = await api('google', { credential: resp.credential, claim: ck ? ck.checked : true, av: myAv, gender: myGender(), name: $('inName').value.trim() || undefined });
-          if (j.err) return toast(j.err);
-          this.loggedIn(j, 'Chào');
-        },
-      });
-      google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', locale: 'vi', width: 280 });
+  /** Vẽ nút Google (thư viện GSI nạp không đồng bộ). onCred nhận phản hồi của nút vẽ gần nhất. */
+  google(el, text, onCred) {
+    this._gCb = onCred;
+    const init = (tries = 0) => {
+      if (!el.isConnected) return;
+      if (!window.google || !google.accounts || !google.accounts.id) {
+        if (tries > 40) { el.textContent = 'Không tải được nút Google (kiểm tra mạng hoặc trình chặn quảng cáo)'; el.className = 'muted center'; return; }
+        return setTimeout(() => init(tries + 1), 300);
+      }
+      if (this._gInit !== this.cfg.googleClientId) {
+        google.accounts.id.initialize({ client_id: this.cfg.googleClientId, callback: resp => this._gCb && this._gCb(resp), ux_mode: 'popup' });
+        this._gInit = this.cfg.googleClientId;
+      }
+      google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', shape: 'pill', text, locale: 'vi', width: 280 });
     };
     init();
+  },
+  async googleAuth(resp, ck) {
+    const j = await api('google', { credential: resp.credential, claim: ck ? ck.checked : true, av: myAv, gender: myGender(), name: $('inName').value.trim() || undefined });
+    if (j.err) return toast(j.err);
+    this.loggedIn(j, j.created ? 'Đã tạo tài khoản Google cho' : 'Chào mừng trở lại,');
   },
   renderProfile(b) {
     const u = this.user;
@@ -309,15 +319,30 @@ const Account = {
     sv.onclick = () => this.save({ name: nick.value.trim(), av, gender: gd });
     f.append(sv);
     b.append(f);
-    if (!u.google) {
-      const pf = h('div', 'card-panel form');
-      pf.append(h('b', '', 'Đổi mật khẩu'));
-      const o = document.createElement('input'); o.type = 'password'; o.placeholder = 'Mật khẩu hiện tại'; o.className = 'cb-in';
-      const n = document.createElement('input'); n.type = 'password'; n.placeholder = 'Mật khẩu mới'; n.className = 'cb-in';
-      const cb = h('button', 'btn', 'Đổi mật khẩu');
-      cb.onclick = async () => { const j = await api('password', { old: o.value, new: n.value }); toast(j.err || 'Đã đổi mật khẩu'); if (!j.err) { o.value = n.value = ''; } };
-      pf.append(o, n, cb); b.append(pf);
+    if (!u.google && this.cfg && this.cfg.googleClientId) {
+      const gf = h('div', 'card-panel form');
+      gf.append(h('b', '', 'Liên kết Google'), h('p', 'muted', 'Sau khi liên kết, đăng nhập được bằng Google hoặc tên + mật khẩu như cũ.'));
+      const gb = h('div', 'gbtn'); gf.append(gb); b.append(gf);
+      this.google(gb, 'continue_with', async resp => {
+        const j = await api('googlelink', { credential: resp.credential });
+        if (j.err) return toast(j.err);
+        this.set(j.user); this.render(); toast('Đã liên kết Google ' + (j.user.email || ''));
+      });
     }
+    const pf = h('div', 'card-panel form');
+    const setPw = u.hasPassword === false;
+    pf.append(h('b', '', setPw ? 'Đặt mật khẩu' : 'Đổi mật khẩu'));
+    if (setPw) pf.append(h('p', 'muted', 'Không bắt buộc. Có mật khẩu thì đăng nhập được bằng tên @' + u.username + ' khi không dùng Google.'));
+    const o = document.createElement('input'); o.type = 'password'; o.placeholder = 'Mật khẩu hiện tại'; o.className = 'cb-in';
+    const n = document.createElement('input'); n.type = 'password'; n.placeholder = 'Mật khẩu mới (ít nhất 6 ký tự)'; n.className = 'cb-in';
+    const cb = h('button', 'btn', setPw ? 'Đặt mật khẩu' : 'Đổi mật khẩu');
+    cb.onclick = async () => {
+      const j = await api('password', { old: o.value, new: n.value });
+      toast(j.err || (setPw ? 'Đã đặt mật khẩu' : 'Đã đổi mật khẩu'));
+      if (!j.err) { o.value = n.value = ''; if (setPw) { this.user.hasPassword = true; this.set(this.user); this.render(); } }
+    };
+    if (!setPw) pf.append(o);
+    pf.append(n, cb); b.append(pf);
     const nav = h('div', 'row');
     const hb = h('button', 'btn', '🕘 Lịch sử'); hb.onclick = () => { $('accSheet').classList.remove('on'); openHistory(); };
     const sb = h('button', 'btn', '📊 Thống kê'); sb.onclick = () => { $('accSheet').classList.remove('on'); openStats(); };

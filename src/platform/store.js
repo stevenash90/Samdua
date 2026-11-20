@@ -217,6 +217,12 @@ class PgStore extends BaseStore {
          gender = COALESCE($5, gender), settings = COALESCE($6::jsonb, settings) WHERE id = $1`,
       [id, f.name || null, f.av || null, f.passHash || null, f.gender || null, f.settings ? JSON.stringify(f.settings) : null]);
   }
+  async linkGoogle(id, sub, email) {
+    try {
+      const r = await this.pool.query('UPDATE users SET google_sub = $2, email = COALESCE($3, email) WHERE id = $1 AND google_sub IS NULL', [id, sub, email]);
+      return r.rowCount > 0;
+    } catch (e) { if (e.code === '23505') return false; throw e; }
+  }
   async createSession(hash, userId, expiresAt) {
     await this.pool.query('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1,$2,to_timestamp($3/1000.0))', [hash, userId, expiresAt]);
   }
@@ -308,7 +314,7 @@ class FileStore extends BaseStore {
   saveAccounts(a) { this.writeJson(this.p('accounts.json'), a); }
   async createUser(u) {
     const a = this.accounts();
-    if (a.users.some(x => x.username === u.username)) return false;
+    if (a.users.some(x => x.username === u.username || (u.googleSub && x.googleSub === u.googleSub))) return false;
     a.users.push(Object.assign({ createdAt: Date.now() }, u));
     this.saveAccounts(a);
     return true;
@@ -321,6 +327,13 @@ class FileStore extends BaseStore {
     if (!u) return;
     for (const k of ['name', 'av', 'passHash', 'gender', 'settings']) if (f[k]) u[k] = f[k];
     this.saveAccounts(a);
+  }
+  async linkGoogle(id, sub, email) {
+    const a = this.accounts(), u = a.users.find(x => x.id === id);
+    if (!u || u.googleSub || a.users.some(x => x.googleSub === sub)) return false;
+    u.googleSub = sub; if (email) u.email = email;
+    this.saveAccounts(a);
+    return true;
   }
   async createSession(hash, userId, expiresAt) {
     const a = this.accounts();

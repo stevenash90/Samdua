@@ -2,7 +2,7 @@
 'use strict';
 setSeg('fGender', myGender());
 Account.renderChip();
-api('config').then(c => { Account.cfg = c; });
+api('config').then(c => { if (c.err) return; Account.cfg = c; if ($('accSheet').classList.contains('on')) Account.render(); });
 Account.refresh();
 applySettings();
 window.addEventListener('resize', () => { if (S && current === 'sGame') { renderHand(); } });

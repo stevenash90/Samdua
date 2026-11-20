@@ -131,7 +131,7 @@ async function api(b, ip) {
   if (!ready) return { err: 'Máy chủ đang khởi động, thử lại sau vài giây' };
   if ((a === 'create' || a === 'join') && limited(ip)) return { err: 'Thao tác quá nhanh, đợi một chút' };
   if (NEWS_ON && (a === 'create' || a === 'join' || a === 'watch')) News.freshen(log);   // mở app: tin cũ quá 20 phút thì tải lại
-  if (['register', 'login', 'google', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
+  if (['register', 'login', 'google', 'googlelink', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
   if (a === 'config') return { googleClientId: C.GOOGLE_CLIENT_ID || null, games: Games.list() };
   if (a === 'rooms') {
     // phòng công khai đang có người: phòng còn ghế lên trước, rồi phòng đông người
@@ -154,6 +154,10 @@ async function api(b, ip) {
   if (a === 'profile') {
     if (!user) return { err: 'Bạn chưa đăng nhập' };
     return { user: await accounts.update(user.id, b) };
+  }
+  if (a === 'googlelink') {
+    if (!user) return { err: 'Bạn chưa đăng nhập' };
+    return accounts.linkGoogle(user.id, b.credential);
   }
   if (a === 'password') {
     if (!user) return { err: 'Bạn chưa đăng nhập' };

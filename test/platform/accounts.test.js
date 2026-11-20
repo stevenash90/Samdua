@@ -46,7 +46,7 @@ test('hồ sơ: tên, avatar, giới tính, cấu hình giọng; đổi mật kh
   assert.ok((await acc.login({ username: 'linh', password: 'moi12345' })).session);
 });
 
-test('đăng nhập Google: kiểm tra chữ ký, aud, iss, hạn; lần đầu tự tạo tài khoản', async () => {
+test('Google: kiểm tra chữ ký, aud, iss, hạn; lần đầu đăng ký, lần sau đăng nhập; đặt mật khẩu; liên kết', async () => {
   const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
   const jwk = Object.assign(publicKey.export({ format: 'jwk' }), { kid: 'k1', alg: 'RS256' });
   const sign = (payload, key = privateKey, kid = 'k1') => {
@@ -62,6 +62,22 @@ test('đăng nhập Google: kiểm tra chữ ký, aud, iss, hạn; lần đầu 
   assert.strictEqual(r.user.name, 'Phạm Đạt');
   const r2 = await acc.google({ credential: sign(base) });
   assert.strictEqual(r2.user.id, r.user.id, 'lần sau vào đúng tài khoản cũ');
+  assert.strictEqual(r.created, true, 'lần đầu = đăng ký');
+  assert.strictEqual(r2.created, false, 'lần sau = đăng nhập');
+  assert.strictEqual(r.user.hasPassword, false);
+  // tài khoản Google đặt mật khẩu lần đầu không cần mật khẩu cũ, sau đó đăng nhập bằng tên được
+  assert.deepStrictEqual(await acc.changePassword(r.user.id, '', 'gpass123'), {});
+  assert.ok((await acc.login({ username: r.user.username, password: 'gpass123' })).session);
+  assert.match((await acc.changePassword(r.user.id, '', 'khac1234')).err, /không đúng/, 'đã có mật khẩu thì phải nhập mật khẩu cũ');
+  // liên kết Google vào tài khoản mật khẩu
+  const pw = await acc.register({ username: 'minh', password: 'abcdef', name: 'Minh' });
+  assert.match((await acc.linkGoogle(pw.user.id, sign(base))).err, /tài khoản khác/, 'Google đã dùng cho tài khoản khác');
+  const g2 = Object.assign({}, base, { sub: '999', email: 'minh@gmail.com' });
+  const l = await acc.linkGoogle(pw.user.id, sign(g2));
+  assert.strictEqual(l.user.google, true, JSON.stringify(l));
+  assert.strictEqual(l.user.email, 'minh@gmail.com');
+  assert.strictEqual((await acc.google({ credential: sign(g2) })).user.id, pw.user.id, 'liên kết xong đăng nhập Google vào đúng tài khoản');
+  assert.match((await acc.linkGoogle(pw.user.id, sign(Object.assign({}, base, { sub: '777' })))).err, /Google khác/);
   assert.match((await acc.google({ credential: sign(Object.assign({}, base, { aud: 'khac' })) })).err, /aud/);
   assert.match((await acc.google({ credential: sign(Object.assign({}, base, { iss: 'evil.com' })) })).err, /iss/);
   assert.match((await acc.google({ credential: sign(Object.assign({}, base, { exp: 1 })) })).err, /hết hạn/);
