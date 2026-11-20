@@ -10,9 +10,9 @@
 .ms-banner.ph-vote{background:linear-gradient(135deg,#5c1a22,#2a0b10);border-color:#e0414e66}
 .ms-banner.win-wolf{background:linear-gradient(135deg,#6b1414,#1d0606)}
 .ms-banner.win-village{background:linear-gradient(135deg,#145a3a,#06200f)}
-.ms-bar{height:4px;border-radius:3px;background:#ffffff14;margin-top:8px;position:relative}
+.ms-bar{height:4px;border-radius:3px;background:#ffffff14;margin:10px 40px 2px 0;position:relative}
 .ms-bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#f3c45a,#ff8a4a);border-radius:3px;transition:width .25s linear}
-.ms-bar i::after{content:attr(data-s) "s";position:absolute;right:-2px;top:-17px;font-size:11px;font-style:normal;color:#f3c45a}
+.ms-bar::after{content:attr(data-s);position:absolute;right:-40px;top:50%;transform:translateY(-50%);width:34px;text-align:right;font-size:12px;font-weight:800;color:#f3c45a;font-variant-numeric:tabular-nums}
 .ms-bar[hidden]{display:none}
 
 .ms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
