@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const GAMES = {};
 const gameOf = s => GAMES[s && s.game] || GAMES.sam;
 const GAME_NAMES = { sam: 'Sâm Lốc', masoi: 'Ma Sói' };
-const APP_VERSION = '3.6.0';
+const APP_VERSION = '3.7.0';
 function showUpdateBar() {
   if (document.querySelector('.update-bar')) return;
   const b = document.createElement('div'); b.className = 'update-bar';
@@ -354,7 +354,7 @@ const Account = {
     const cb = h('button', 'btn', setPw ? 'Đặt mật khẩu' : 'Đổi mật khẩu');
     cb.onclick = async () => {
       const j = await api('password', { old: o.value, new: n.value });
-      toast(j.err || (setPw ? 'Đã đặt mật khẩu' : 'Đã đổi mật khẩu'));
+      toast(j.err || (setPw ? 'Đã đặt mật khẩu' : 'Đã đổi mật khẩu') + (j.loggedOut ? ` · đã đăng xuất ${j.loggedOut} thiết bị khác` : ''));
       if (!j.err) { o.value = n.value = ''; if (setPw) { this.user.hasPassword = true; this.set(this.user); this.render(); } }
     };
     if (!setPw) pf.append(o);
@@ -363,6 +363,13 @@ const Account = {
     const hb = h('button', 'btn', '🕘 Lịch sử'); hb.onclick = () => { $('accSheet').classList.remove('on'); openHistory(); };
     const sb = h('button', 'btn', '📊 Thống kê'); sb.onclick = () => { $('accSheet').classList.remove('on'); openStats(); };
     nav.append(hb, sb); b.append(nav);
+    const lx = h('button', 'btn', 'Đăng xuất mọi thiết bị khác');
+    lx.onclick = async () => {
+      if (!(await confirmBox('Đăng xuất tài khoản trên mọi máy khác? Máy này vẫn giữ đăng nhập.'))) return;
+      const j = await api('logoutOthers');
+      toast(j.err || (j.loggedOut ? `Đã đăng xuất ${j.loggedOut} thiết bị khác` : 'Không có thiết bị nào khác đang đăng nhập'));
+    };
+    b.append(lx);
     const lo = h('button', 'btn red', 'Đăng xuất'); lo.onclick = () => this.logout(); b.append(lo);
   },
 };

@@ -105,9 +105,12 @@ class PgStore extends BaseStore {
     super(log);
     const { Pool } = require('pg');
     const local = /localhost|127\.0\.0\.1|\/tmp|host=\//.test(url);
+    // PG_SSL_VERIFY=1: kiểm tra chứng chỉ TLS của database (Neon có chứng chỉ hợp lệ) — F-16.
+    // Mặc định giữ như cũ để không làm hỏng kết nối hiện tại; bật thử trên Render rồi xem /health.
+    const verify = process.env.PG_SSL_VERIFY === '1';
     this.pool = new Pool({
       connectionString: url, max: 5,
-      ssl: local || /sslmode=disable/.test(url) ? false : { rejectUnauthorized: false },
+      ssl: local || /sslmode=disable/.test(url) ? false : { rejectUnauthorized: verify },
     });
     this.pool.on('error', e => this.log('pg pool error', e.message));
     this.kind = 'postgres';
@@ -231,6 +234,12 @@ class PgStore extends BaseStore {
     return rows.length ? rows[0].user_id : null;
   }
   async deleteSession(hash) { await this.pool.query('DELETE FROM sessions WHERE token_hash = $1', [hash]); }
+  // xoá mọi phiên của một tài khoản, trừ phiên keepHash (đang dùng); trả số phiên đã xoá
+  async deleteUserSessions(userId, keepHash) {
+    const r = await this.pool.query('DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2', [userId, keepHash || '']);
+    return r.rowCount;
+  }
+  async purgeSessions() { return (await this.pool.query('DELETE FROM sessions WHERE expires_at < now()')).rowCount; }
   // gộp các ván đã chơi bằng danh tính thiết bị vào tài khoản
   async claimGames(oldPid, newPid) {
     const r = await this.pool.query(
@@ -346,6 +355,18 @@ class FileStore extends BaseStore {
     return x ? x.userId : null;
   }
   async deleteSession(hash) { const a = this.accounts(); a.sessions = a.sessions.filter(x => x.hash !== hash); this.saveAccounts(a); }
+  async deleteUserSessions(userId, keepHash) {
+    const a = this.accounts(), n = a.sessions.length;
+    a.sessions = a.sessions.filter(x => x.userId !== userId || x.hash === keepHash);
+    this.saveAccounts(a);
+    return n - a.sessions.length;
+  }
+  async purgeSessions() {
+    const a = this.accounts(), n = a.sessions.length;
+    a.sessions = a.sessions.filter(x => x.expiresAt > Date.now());
+    this.saveAccounts(a);
+    return n - a.sessions.length;
+  }
   async claimGames(oldPid, newPid) {
     let n = 0;
     for (const f of fs.readdirSync(this.p('games'))) {

@@ -43,17 +43,23 @@ const MS = (() => {
     if (!ticker) ticker = setInterval(tickTimer, 250);
     syncAudio();
   }
-  // Voice theo luật Ma Sói (lọc ở máy gửi): ban ngày cả làng nghe nhau; ban đêm chỉ bầy Sói nghe nhau, dân im;
-  // người đã chết chỉ nói được với người chết khác và người xem (kênh hồn ma).
+  // Voice theo luật Ma Sói, lọc ở CẢ hai đầu (máy gửi chỉ gửi cho người được nghe; máy nghe chỉ phát người được nói):
+  // ban ngày người sống nghe nhau; ban đêm chỉ bầy Sói nghe nhau, dân im; người chết chỉ nói với người chết khác.
+  // Người xem chỉ nghe người sống ban ngày (không nghe hồn ma, không nghe Sói ban đêm — tránh lộ vai).
   function syncVoice() {
     const m = me(), night = S.phase === 'night' || S.phase === 'witch';
-    let pol = null, label = '';
-    if (inGame() && m && !spec()) {
-      if (!m.alive) { pol = x => x.seat < 0 || (S.players[x.seat] && !S.players[x.seat].alive); label = 'ghost'; }
-      else if (night && m.role === 'wolf') { const mates = new Set(m.mates || []); pol = x => mates.has(x.seat); label = 'wolf'; }
-      else if (night) { pol = () => false; label = 'sleep'; }
+    const P = x => (x.seat >= 0 ? S.players[x.seat] : null);
+    const isAlive = x => !!(P(x) && P(x).alive);
+    const isDead = x => !!(P(x) && !P(x).alive);
+    let pol = null, label = '', hear = null;
+    if (inGame()) {
+      if (!m || spec()) { hear = x => !night && isAlive(x); }
+      else if (!m.alive) { pol = isDead; label = 'ghost'; hear = x => isDead(x) || (!night && isAlive(x)); }
+      else if (night && m.role === 'wolf') { const mates = new Set(m.mates || []); pol = x => mates.has(x.seat); label = 'wolf'; hear = pol; }
+      else if (night) { pol = () => false; label = 'sleep'; hear = () => false; }
+      else hear = isAlive;
     }
-    try { Voice.forceMute(false); Voice.setPolicy(pol, label); } catch (e) {}
+    try { Voice.forceMute(false); Voice.setPolicy(pol, label); Voice.setListen(hear); } catch (e) {}
   }
   function handleEvent(e) {
     if (e.type === 'narr' && narrOn) Sound.narrate(VOICE(e.key + '_' + e.n));
@@ -61,7 +67,7 @@ const MS = (() => {
     if (e.type === 'exec' && e.t === S.you) toast('⚖️ Bạn bị làng treo cổ!', 3000);
     if (e.type === 'over') { try { Sound.play(S.g && me() && ((S.g.winner === 'wolf') === (me().role === 'wolf')) ? 'win' : 'lose'); } catch (x) {} }
   }
-  function leave() { clearInterval(ticker); ticker = null; lastGameNo = 0; lastPhase = ''; bgmPick = null; try { Voice.forceMute(false); Voice.setPolicy(null, ''); } catch (e) {} try { Sound.narrStop(); Sound.bgm(null); } catch (e) {} }
+  function leave() { clearInterval(ticker); ticker = null; lastGameNo = 0; lastPhase = ''; bgmPick = null; try { Voice.forceMute(false); Voice.setPolicy(null, ''); Voice.setListen(null); } catch (e) {} try { Sound.narrStop(); Sound.bgm(null); } catch (e) {} }
 
   /* ---------- banner + đồng hồ ---------- */
   function phaseText() {

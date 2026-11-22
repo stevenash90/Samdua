@@ -8,6 +8,16 @@ const Voice = (() => {
   const muted = new Set(JSON.parse(localStorage.getItem('sam_vmute') || '[]'));   // vid đã tắt tiếng riêng
   let spkOff = false, actx = null, meter = null, members = [], forced = false;
   let policy = null, policyLabel = '';   // game quyết định mic của mình được gửi tới ai (Ma Sói: đêm chỉ bầy Sói nghe nhau)
+  let listen = null;                     // game quyết định mình được NGHE ai (lọc ở máy nghe: máy gửi bị sửa cũng không lọt tiếng)
+  // Được phát tiếng của vid này không? Người xem không bao giờ được nói (máy chủ khoá mic) nên luôn tắt tiếng họ.
+  function canHear(vid) {
+    const m = members.find(x => x.vid === vid);
+    if (!m || m.seat < 0) return false;
+    if (!listen) return true;
+    try { return !!listen(m); } catch (e) { return false; }
+  }
+  const silent = vid => spkOff || muted.has(vid) || !canHear(vid);
+  function applyListen() { for (const [vid, p] of peers) p.audio.muted = silent(vid); }
 
   const supported = () => !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   const inApp = () => /FBAN|FBAV|FB_IAB|Messenger|Instagram|Zalo|Line\/|MicroMessenger/i.test(navigator.userAgent);
@@ -44,7 +54,7 @@ const Voice = (() => {
     meter = setInterval(() => {
       const talking = new Set();
       if (micOn && sendingToAnyone() && myAn && levelOf(myAn) > 0.04) talking.add(myVid);
-      for (const [vid, p] of peers) if (!muted.has(vid) && !spkOff && levelOf(p.an) > 0.04) talking.add(vid);
+      for (const [vid, p] of peers) if (!silent(vid) && levelOf(p.an) > 0.04) talking.add(vid);
       paint(talking);
     }, 180);
   }
@@ -74,7 +84,7 @@ const Voice = (() => {
     if (peers.has(vid)) { pc.close(); return peers.get(vid); }
     const tr = pc.addTransceiver('audio', { direction: 'sendrecv' });
     const audio = document.createElement('audio');
-    audio.autoplay = true; audio.setAttribute('playsinline', ''); audio.muted = spkOff || muted.has(vid);
+    audio.autoplay = true; audio.setAttribute('playsinline', ''); audio.muted = silent(vid);
     document.body.append(audio);
     const p = { pc, polite: myVid < vid, makingOffer: false, ignoreOffer: false, sender: tr.sender, audio, an: null };
     peers.set(vid, p);
@@ -183,14 +193,14 @@ const Voice = (() => {
   }
   function setSpeaker(on) {
     spkOff = !on;
-    for (const [vid, p] of peers) p.audio.muted = spkOff || muted.has(vid);
+    applyListen();
     if (on) unlockPlayback();
     render();
   }
   function toggleMute(vid) {
     if (muted.has(vid)) muted.delete(vid); else muted.add(vid);
     localStorage.setItem('sam_vmute', JSON.stringify([...muted].slice(-50)));
-    const p = peers.get(vid); if (p) p.audio.muted = spkOff || muted.has(vid);
+    const p = peers.get(vid); if (p) p.audio.muted = silent(vid);
     renderList();
   }
 
@@ -202,8 +212,11 @@ const Voice = (() => {
     for (const vid of [...peers.keys()]) if (!want.has(vid)) drop(vid);
     for (const vid of want) if (!peers.has(vid)) peer(vid);
     applyTracks();
+    applyListen();
     render();
   }
+  /** fn(member) → true nếu mình được nghe người đó; null = nghe mọi người chơi. */
+  function setListen(fn) { listen = fn || null; applyListen(); }
   function setMe(vid) {
     myVid = vid;
     if (joined) act('vjoin', { mic: micOn });   // vừa kết nối lại: vào lại voice
@@ -294,7 +307,7 @@ const Voice = (() => {
     m.classList.toggle('ghost', policyLabel === 'ghost');
     m.title = off ? 'Đang tạm tắt mic (ban đêm)' : policyLabel === 'wolf' ? 'Mic chỉ bầy Sói nghe' : policyLabel === 'ghost' ? 'Mic chỉ người đã chết và người xem nghe' : 'Bật mic';
   }
-  return { forceMute, setPolicy, sync, onSignal, setMe, reset, supported, get joined() { return joined; }, debug: () => [...peers].map(([vid, p]) => ({ vid, state: p.pc.connectionState, muted: p.audio.muted, sending: !!p.sending })),
+  return { forceMute, setPolicy, setListen, sync, onSignal, setMe, reset, supported, get joined() { return joined; }, debug: () => [...peers].map(([vid, p]) => ({ vid, state: p.pc.connectionState, muted: p.audio.muted, sending: !!p.sending })),
     stats: async () => { const o = {}; for (const [vid, p] of peers) { let b = 0; (await p.pc.getStats()).forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') b += r.bytesReceived || 0; }); o[vid] = b; } return o; },
     async bytesIn() { let n = 0; for (const p of peers.values()) (await p.pc.getStats()).forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') n += r.bytesReceived || 0; }); return n; } };
 })();
