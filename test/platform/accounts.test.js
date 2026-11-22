@@ -42,8 +42,39 @@ test('hồ sơ: tên, avatar, giới tính, cấu hình giọng; đổi mật kh
   assert.strictEqual(u.gender, 'nu', 'giới tính lạ bị bỏ qua');
   assert.deepStrictEqual(u.settings, { voice: true, mcVol: 70 });
   assert.match((await acc.changePassword(r.user.id, 'sai', 'moi12345')).err, /không đúng/);
-  assert.deepStrictEqual(await acc.changePassword(r.user.id, 'abcdef', 'moi12345'), {});
+  // máy thứ hai đang đăng nhập; đổi mật khẩu từ máy 1 thì máy 2 bị đăng xuất, máy 1 giữ nguyên (F-10)
+  const may2 = await acc.login({ username: 'linh', password: 'abcdef' });
+  assert.deepStrictEqual(await acc.changePassword(r.user.id, 'abcdef', 'moi12345', r.session), { loggedOut: 1 });
+  assert.strictEqual(await acc.resolve(may2.session), null, 'phiên máy khác bị thu hồi');
+  assert.ok(await acc.resolve(r.session), 'phiên đang dùng còn nguyên');
   assert.ok((await acc.login({ username: 'linh', password: 'moi12345' })).session);
+  // đăng xuất mọi thiết bị khác
+  const may3 = await acc.login({ username: 'linh', password: 'moi12345' });
+  assert.deepStrictEqual(await acc.logoutOthers(r.user.id, r.session), { loggedOut: 2 });
+  assert.strictEqual(await acc.resolve(may3.session), null);
+  assert.ok(await acc.resolve(r.session));
+});
+
+test('làm sạch tên/avatar ở mọi đường vào tài khoản (F-09)', async () => {
+  const { acc } = await mk();
+  const r = await acc.register({ username: 'dai', password: 'abcdef', name: 'X'.repeat(5000), av: '<img src=x onerror=alert(1)>' });
+  assert.strictEqual(r.user.name.length, 16, 'tên cắt còn 16 ký tự');
+  assert.ok(!/[<>]/.test(r.user.av), 'avatar không còn < >');
+  assert.ok(Array.from(r.user.av).length <= 4);
+  const r2 = await acc.register({ username: 'dai2', password: 'abcdef', name: { x: 1 }, av: 42 });
+  assert.strictEqual(r2.user.name, 'dai2', 'tên không phải chuỗi → dùng tên đăng nhập');
+  assert.strictEqual(r2.user.av, '🙂');
+  const u = await acc.update(r.user.id, { name: 'A\u0000\u0007B', av: '<<>>' });
+  assert.strictEqual(u.name, 'AB');
+  assert.ok(!/[<>]/.test(u.av), 'avatar toàn ký tự cấm thì giữ avatar cũ');
+});
+
+test('dọn phiên hết hạn (F-10)', async () => {
+  const { st, acc } = await mk();
+  const r = await acc.register({ username: 'het', password: 'abcdef' });
+  await st.createSession('cu', r.user.id, Date.now() - 1000);
+  assert.strictEqual(await st.purgeSessions(), 1);
+  assert.ok(await acc.resolve(r.session), 'phiên còn hạn vẫn giữ');
 });
 
 test('Google: kiểm tra chữ ký, aud, iss, hạn; lần đầu đăng ký, lần sau đăng nhập; đặt mật khẩu; liên kết', async () => {
@@ -66,7 +97,7 @@ test('Google: kiểm tra chữ ký, aud, iss, hạn; lần đầu đăng ký, l�
   assert.strictEqual(r2.created, false, 'lần sau = đăng nhập');
   assert.strictEqual(r.user.hasPassword, false);
   // tài khoản Google đặt mật khẩu lần đầu không cần mật khẩu cũ, sau đó đăng nhập bằng tên được
-  assert.deepStrictEqual(await acc.changePassword(r.user.id, '', 'gpass123'), {});
+  assert.deepStrictEqual(await acc.changePassword(r.user.id, '', 'gpass123', r2.session), { loggedOut: 1 });
   assert.ok((await acc.login({ username: r.user.username, password: 'gpass123' })).session);
   assert.match((await acc.changePassword(r.user.id, '', 'khac1234')).err, /không đúng/, 'đã có mật khẩu thì phải nhập mật khẩu cũ');
   // liên kết Google vào tài khoản mật khẩu

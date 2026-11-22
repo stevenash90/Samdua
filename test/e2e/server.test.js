@@ -16,7 +16,7 @@ const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'samdua-e2e-'));
 const ENV = Object.assign({}, process.env, {
   BOT_NEWS: '0',
   PORT: String(PORT), DATABASE_URL: PG, DATA_DIR, BOT_MS: '60', TURN_MS: '15000', SAM_MS: '1500', REVEAL_MS: '400',
-  HOST_GRACE_MS: '1500', AFK_MS: '60000',
+  HOST_GRACE_MS: '1500', AFK_MS: '60000', HEALTH_KEY: 'e2e-health-key', ROOM_ORPHAN_MS: '3000',
 });
 let srv = null;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -26,7 +26,7 @@ async function startServer() {
   srv.stdout.on('data', d => process.env.E2E_VERBOSE && process.stdout.write(d));
   srv.stderr.on('data', d => process.stderr.write(d));
   for (let i = 0; i < 100; i++) {
-    try { const r = await fetch(BASE + '/health'); if (r.ok) return r.json(); } catch (e) {}
+    try { const r = await fetch(BASE + '/health?key=e2e-health-key'); if (r.ok) return r.json(); } catch (e) {}
     await sleep(100);
   }
   throw new Error('server không lên');
@@ -329,18 +329,131 @@ test('tài khoản: đăng ký, chơi ở máy 1, đăng nhập máy 2 thấy l�
   await p1.close(); await p2.close();
 });
 
-test('health check', async () => {
+test('health check: công khai chỉ có trạng thái, chi tiết cần khoá (F-11)', async () => {
   const h = await (await fetch(BASE + '/health')).json();
   assert.strictEqual(h.ok, true);
   assert.strictEqual(h.db, 'ok');
+  for (const k of ['turnEnv', 'ipFrom', 'lastStoreError', 'rooms', 'sockets']) assert.ok(!(k in h), `không công khai ${k}`);
+  const d = await (await fetch(BASE + '/health?key=e2e-health-key')).json();
+  assert.ok('rooms' in d && 'turnEnv' in d, 'có khoá thì xem được chi tiết');
+  const w = await (await fetch(BASE + '/health?key=sai')).json();
+  assert.ok(!('rooms' in w), 'khoá sai không xem được');
 });
 
-test('mật khẩu TURN (ice): chỉ cấp cho người đang ở trong phòng', async () => {
+// gửi đường dẫn thô (fetch tự chuẩn hoá nên không gửi được "/%" hay "//")
+function rawGet(p) {
+  return new Promise(res => {
+    const req = require('http').request({ host: 'localhost', port: PORT, path: p, method: 'GET' }, r => { r.resume(); r.on('end', () => res({ status: r.statusCode, headers: r.headers })); });
+    req.on('error', e => res({ error: e.code }));
+    req.end();
+  });
+}
+
+test('đường dẫn sai định dạng không làm sập máy chủ (F-01)', async () => {
+  for (const p of ['/%', '//', '/%E0%A4%A', '/..%2f..%2fpackage.json', '/%00', '/a/%c0%ae%c0%ae/']) {
+    const r = await rawGet(p);
+    assert.ok(!r.error, `${p}: kết nối không được đứt (${r.error})`);
+    assert.ok(r.status >= 400 && r.status < 500, `${p} → ${r.status}`);
+  }
+  const h = await fetch(BASE + '/health');
+  assert.strictEqual(h.status, 200, 'máy chủ vẫn sống');
+});
+
+test('header bảo mật trên trang (F-12)', async () => {
+  const r = await fetch(BASE + '/');
+  const csp = r.headers.get('content-security-policy') || '';
+  assert.match(csp, /frame-ancestors 'none'/);
+  assert.match(csp, /script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client/);
+  assert.strictEqual(r.headers.get('x-frame-options'), 'DENY');
+  assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+  assert.match(r.headers.get('permissions-policy') || '', /microphone=\(self\)/);
+});
+
+test('mật khẩu TURN (ice): chỉ cấp cho người đang kết nối vào một phòng (F-08)', async () => {
   const out = await api({ a: 'ice', token: 'ice-nguoi-ngoai-' + Date.now() });
   assert.ok(out.err, 'người ngoài không xin được');
   const tok = 'ice-nguoi-choi-' + Date.now();
   const c = await api({ a: 'create', token: tok, name: 'Ice', av: '🐸' });
   assert.ok(c.code);
+  assert.ok((await api({ a: 'ice', token: tok })).err, 'mới gọi lệnh tạo phòng (chưa kết nối) thì chưa cấp');
+  const cl = new Client(tok, 'ice');
+  await cl.connect(c.code);
   const ok = await api({ a: 'ice', token: tok });
-  assert.ok(Array.isArray(ok.iceServers) && ok.iceServers.length, 'người trong phòng nhận được');
+  assert.ok(Array.isArray(ok.iceServers) && ok.iceServers.length, 'đang kết nối trong phòng thì nhận được');
+  await cl.close();
+});
+
+test('gửi dồn tin WebSocket bị chặn; bật/tắt voice không ghi database (F-04)', async () => {
+  const tok = 'flood-token-' + Date.now();
+  const c = await api({ a: 'create', token: tok, name: 'Flood' });
+  const cl = new Client(tok, 'flood');
+  await cl.connect(c.code);
+  await cl.act('vjoin', { mic: false });
+  if (!PG) {
+    // bật/tắt mic 10 lần (tốc độ bình thường): file phòng không bị ghi lại
+    await sleep(300);
+    const f = path.join(DATA_DIR, 'rooms', c.code + '.json');
+    const m0 = fs.statSync(f).mtimeMs;
+    for (let k = 0; k < 10; k++) await cl.act('vmic', { on: k % 2 === 0 });
+    await sleep(300);
+    assert.strictEqual(fs.statSync(f).mtimeMs, m0, 'bật/tắt voice không ghi database');
+  }
+  let states = 0, closed = false;
+  cl.ws.on('message', b => { if (JSON.parse(b).t === 'state') states++; });
+  cl.ws.on('close', () => { closed = true; });
+  for (let k = 0; k < 400 && cl.ws.readyState === 1; k++) cl.ws.send(JSON.stringify({ t: 'act', a: 'vmic', on: k % 2 === 0 }));
+  await sleep(800);
+  assert.ok(states <= 60, `chỉ một phần tin được xử lý (${states})`);
+  assert.ok(closed, 'gửi dồn quá nhiều thì bị ngắt kết nối');
+  // kết nối mới gửi bình thường vẫn chơi được
+  const cl2 = new Client(tok, 'flood2');
+  await cl2.connect(c.code);
+  assert.strictEqual((await cl2.act('addBot')).err, undefined);
+  await cl2.close();
+});
+
+test('một người tối đa 3 kết nối vào cùng phòng (F-04)', async () => {
+  const tok = 'many-sock-token-' + Date.now();
+  const c = await api({ a: 'create', token: tok, name: 'Nhiều' });
+  const cs = [];
+  for (let k = 0; k < 4; k++) { const x = new Client(tok, 'm' + k); await x.connect(c.code); cs.push(x); await sleep(50); }
+  await sleep(200);
+  assert.ok(cs[0].gone, 'kết nối cũ nhất bị đóng');
+  assert.ok(!cs[3].gone, 'kết nối mới vẫn dùng được');
+  for (const x of cs) await x.close();
+});
+
+test('phòng tạo ra mà không ai kết nối thì bị dọn (F-06)', async () => {
+  const tok = 'orphan-token-' + Date.now();
+  const c = await api({ a: 'create', token: tok, name: 'Bỏ' });
+  assert.ok(c.code);
+  await sleep(4500);
+  const r = await api({ a: 'join', token: 'orphan-other-' + Date.now(), name: 'Khác', room: c.code });
+  assert.match(r.err || '', /Không tìm thấy/);
+});
+
+test('tín hiệu voice có hạn mức riêng: bắt tay cả phòng không bị chặn (F-04)', async () => {
+  const tA = 'sig-a-' + Date.now() + '-xxxxxx', tB = 'sig-b-' + Date.now() + '-xxxxxx';
+  const c = await api({ a: 'create', token: tA, name: 'SigA' });
+  assert.ok(c.code, JSON.stringify(c));
+  await api({ a: 'join', token: tB, name: 'SigB', room: c.code });
+  const a = new Client(tA, 'sa'), b = new Client(tB, 'sb');
+  await a.connect(c.code); await b.connect(c.code);
+  await a.act('vjoin', { mic: false }); await b.act('vjoin', { mic: false });
+  await sleep(200);
+  const bVid = b.S.voice.find(v => v.seat === 1).vid;
+  let got = 0;
+  b.ws.on('message', m => { if (JSON.parse(m).t === 'vsig') got++; });
+  for (let k = 0; k < 150; k++) a.ws.send(JSON.stringify({ t: 'vsig', to: bVid, data: { candidate: 'c' + k } }));
+  await sleep(500);
+  assert.ok(got >= 150, `150 gói ICE gửi dồn đều tới nơi (${got})`);
+  assert.strictEqual(a.ws.readyState, 1, 'không bị ngắt kết nối');
+  await a.close(); await b.close();
+});
+
+test('dò mã phòng bị chặn (F-05) — chạy cuối vì khoá IP một phút', async () => {
+  const tok = 'enum-token-' + Date.now();
+  const res = [];
+  for (let k = 0; k < 20; k++) res.push((await api({ a: 'watch', token: tok, room: 'Z' + String(k).padStart(3, '0') })).err);
+  assert.ok(res.some(e => /sai mã phòng nhiều lần|quá nhanh/.test(e)), 'sau khoảng 15 lần sai thì bị chặn: ' + res.slice(-3).join(' | '));
 });

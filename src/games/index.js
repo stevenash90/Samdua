@@ -10,8 +10,9 @@ const GAMES = {
   masoi: require('./masoi'),
 };
 
-function get(id) { return GAMES[id] || GAMES[PC.DEFAULT_GAME] || GAMES.sam; }
-function has(id) { return Object.prototype.hasOwnProperty.call(GAMES, id); }
+function has(id) { return typeof id === 'string' && Object.prototype.hasOwnProperty.call(GAMES, id); }
+// chỉ nhận đúng tên game đã đăng ký ("constructor", "__proto__"… rơi về game mặc định)
+function get(id) { return has(id) ? GAMES[id] : has(PC.DEFAULT_GAME) ? GAMES[PC.DEFAULT_GAME] : GAMES.sam; }
 function list() { return Object.values(GAMES).map(g => ({ id: g.id, name: g.name, minPlayers: g.minPlayers, maxPlayers: g.maxPlayers })); }
 
 module.exports = { GAMES, get, has, list };

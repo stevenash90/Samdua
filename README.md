@@ -25,9 +25,9 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - **Bàn 3D**: mặt nỉ nghiêng phối cảnh như ngồi tại bàn, viền gỗ, bài in 2 góc + khung J Q K, mặt lưng có hoa văn, bài trên tay xếp quạt. Điện thoại có chế độ màn ngang (nút ⟲). Cài đặt "Bài đã đánh trên bàn" (mặc định tắt) để hiện các bộ đã đánh.
 - **Máy 2 mức Amateur / Pro** (mặc định Pro): Pro mô phỏng hàng trăm khả năng từ bài đã ra và bài trên tay (không nhìn trộm bài ai) để chọn nước lợi nhất; thử nghiệm thắng ~36% số ván trước 3 máy thường (đều nhau = 25%). Máy tự **báo Sâm có tính toán** khi khả năng thành công ≥ 70% (`src/aipro.js`).
 - **Voice chat** kiểu Liên Quân: 🎧 nghe cả bàn, 🎙️ bật mic, đếm người trong voice + tắt tiếng riêng từng người, viền xanh quanh người đang nói. WebRTC nối thẳng giữa các máy; TURN lấy từ biến môi trường (Cloudflare / Metered / ExpressTURN…, xem `src/ice.js`). Người xem chỉ nghe.
-- **Ma Sói** (game thứ 2, chọn khi tạo phòng): 5–12 người, thiếu thì thêm máy; vai Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, Dân làng chia theo số người. Đêm dân không chat được, Sói có kênh riêng, người chết + người xem chat kênh hồn ma; voice tự tắt mic ban đêm và khi đã chết. Máy suy luận theo kết quả soi, lời khai Tiên tri, chat của người chơi và phiếu bầu (máy Sói biết nhận Tiên tri giả). Đo bằng máy tự chơi: Sói thắng 43–58% ở mọi số người.
+- **Ma Sói** (game thứ 2, chọn khi tạo phòng): 5–12 người, thiếu thì thêm máy; vai Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, Dân làng chia theo số người. Đêm dân không chat được, Sói có kênh riêng, người chết chat kênh hồn ma, người xem chat kênh người xem (người chết đọc được; người xem không thấy vai cho tới khi hết ván); voice tự tắt mic ban đêm và khi đã chết. Máy suy luận theo kết quả soi, lời khai Tiên tri, chat của người chơi và phiếu bầu (máy Sói biết nhận Tiên tri giả). Đo bằng máy tự chơi: Sói thắng 43–58% ở mọi số người.
   - **Người dẫn truyện** (v3.4): 35 câu thu sẵn ở `public/games/masoi/voice/<mã>_<số>.mp3`, máy chủ chọn câu và bắt các bước chỉ-để-nghe (trời sáng, treo cổ) chờ đọc xong; bước cần thao tác được cộng thêm thời gian đọc. Thời lượng từng câu ở `src/games/masoi/narration.json` (thêm/đổi file thì đo lại). Nhạc nền lặp vòng ở `public/games/masoi/bgm/`, tự nhỏ đi khi đang đọc. Nút 🎙️/🎵 trên đầu màn để tắt riêng.
-  - Voice theo luật (lọc ngay ở máy gửi, máy không được nghe không nhận byte âm thanh nào): ban ngày cả làng; ban đêm chỉ bầy Sói nghe nhau, dân im và không thấy ai đang bật mic; người chết chỉ nói với người chết + người xem.
+  - Voice theo luật (lọc ở cả máy gửi và máy nghe): ban ngày cả làng; ban đêm chỉ bầy Sói nghe nhau, dân im và không thấy ai đang bật mic; người chết chỉ nói với người chết; người xem chỉ nghe người sống ban ngày.
   - Ảnh vai (bộ Core 6) ở `public/games/masoi/roles/<vai>.webp`, vuông 480×480.
   - Ván có Phù thủy thì đêm nào cũng có lượt Phù thủy (kể cả khi bà đã chết) để không lộ. Sói treo máy không chọn ai thì bầy vồ ngẫu nhiên.
   - Nhạc: “Deep Horrors” – Kevin MacLeod (incompetech.com), CC BY 4.0.
@@ -64,6 +64,20 @@ Game bài Sâm Lốc online chơi theo phòng, 2–5 người. Mỗi người d�
 - `.github/workflows/backup.yml` chạy 02:00 mỗi ngày, xuất toàn bộ database, **mã hoá** rồi lưu 30 ngày ở GitHub → Actions → Artifacts. Cần 2 secret của repo: `DATABASE_URL`, `BACKUP_PASSWORD`. Chạy tay: Actions → "Sao lưu database" → Run workflow.
 - Render → Settings → **Health Check Path** = `/health` (máy chủ trả 503 khi DB lỗi, Render tự khởi động lại và báo email).
 - Cảnh báo khi web sập: tạo monitor miễn phí trên UptimeRobot trỏ vào `https://samdua-1.onrender.com/health` (5 phút/lần, báo email). Monitor này cũng giữ cho Render không ngủ.
+- **Mật khẩu sao lưu**: repo đang công khai nên ai có tài khoản GitHub cũng tải được file sao lưu đã mã hoá. Đặt `BACKUP_PASSWORD` là chuỗi ngẫu nhiên **≥ 24 ký tự** (không dùng mật khẩu dễ đoán), hoặc chuyển repo sang Private.
+
+## Bảo mật (v3.7)
+
+Kiểm tra bảo mật tháng 11/2026, đã sửa:
+- Đường dẫn sai định dạng (`/%`, `//`) không còn làm sập máy chủ; mọi phản hồi có header bảo mật (CSP, chống nhúng iframe, Referrer-Policy, Permissions-Policy).
+- **Ma Sói**: Sói chọn ai chỉ gửi cho bầy Sói và người chết. **Người xem không thấy vai, kênh Sói, kênh hồn ma hay hành động đêm cho tới khi hết ván** (trước đây mở trình duyệt thứ hai bấm 👀 Xem là biết hết). Người xem chat ở kênh riêng (người chết đọc được). Voice lọc ở cả máy gửi và máy nghe; người xem không bao giờ nói được.
+- Chống lạm dụng: mỗi kết nối WebSocket tối đa ~15 tin/giây (gửi dồn bị bỏ, quá nhiều thì ngắt); mỗi người tối đa 3 kết nối/phòng, mỗi IP tối đa 40; bật/tắt voice không ghi database; tạo phòng tối đa 10/phút/IP và 2000 phòng toàn máy chủ; phòng tạo ra mà không ai vào sau 5 phút thì dọn; nhập sai mã phòng 15 lần/phút thì khoá một phút (chống dò phòng riêng tư).
+- Mật khẩu TURN chỉ cấp khi đang thật sự kết nối vào một phòng.
+- Tài khoản: tên/avatar được làm sạch ở mọi đường vào; đổi mật khẩu thì đăng xuất các máy khác; có nút "Đăng xuất mọi thiết bị khác"; phiên hết hạn được dọn mỗi ngày.
+- `/health` công khai chỉ trả `ok`/`version`/`storage`/`db`. Xem chi tiết: đặt biến `HEALTH_KEY` trên Render rồi mở `/health?key=<HEALTH_KEY>`.
+- Giới hạn tần suất chỉ tin `CF-Connecting-IP` (bỏ `True-Client-IP` vì người dùng tự đặt được).
+
+Biến môi trường mới (đều có mặc định, không bắt buộc đặt): `HEALTH_KEY`, `MAX_ROOMS`, `CREATE_PER_MIN`, `MISS_PER_MIN`, `ROOM_ORPHAN_MS`, `WS_RATE`, `WS_BURST`, `WS_MAX_DROPS`, `WS_PER_IP`, `WS_PER_PID`, `PG_SSL_VERIFY` (đặt `1` để kiểm tra chứng chỉ TLS của database — bật thử rồi xem `/health` còn `"db":"ok"`).
 
 ## Cấu trúc
 
@@ -133,7 +147,7 @@ Bảng dữ liệu được tạo tự động (migration chạy lúc khởi đ�
 ## Vận hành
 
 - **Sao lưu**: `DATABASE_URL=... npm run backup` → file `backup-<thời gian>.json` (đủ mọi bảng).
-- **Kiểm tra sống**: `GET /health` trả `ok`, kiểu lưu trữ, trạng thái DB, số phòng, số kết nối.
+- **Kiểm tra sống**: `GET /health` trả `ok`, phiên bản, kiểu lưu trữ, trạng thái DB. Số phòng, số kết nối, TURN, nguồn IP: `/health?key=<HEALTH_KEY>`.
 - **Quay lại bản trước**: trên Render chọn deploy cũ → *Rollback*. Hoặc `git revert` commit lỗi rồi push.
 - **Sau khi máy chủ khởi động lại**: các ván đang chơi tự tạm dừng. Chủ phòng bấm **Tiếp tục** khi mọi người đã vào lại.
 

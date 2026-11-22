@@ -68,8 +68,69 @@ test('không lộ vai: dân chỉ thấy vai mình (và vai người chết), S�
     const raw = JSON.stringify(v);
     assert.ok(!raw.includes('"roles"'), 'không gửi cả mảng vai');
   }
+  // người xem KHÔNG thấy vai khi ván đang chơi (F-03): ai cũng vào xem được, kể cả người chơi mở trình duyệt thứ hai
   const spec = room.view(-1, 'spec');
-  assert.ok(spec.players.every((p, k) => p.role === g.roles[k]), 'người xem thấy hết');
+  assert.ok(spec.players.every(p => p.role === null), 'người xem không thấy vai người còn sống');
+  assert.strictEqual(spec.ghostNight, undefined, 'người xem không thấy hành động đêm');
+  assert.strictEqual(spec.me, undefined);
+  room.close();
+});
+
+test('người xem không biết bí mật cho tới khi hết ván; người chết thì biết (F-03)', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 6_500_000 });
+  const { room, h } = mkRoom(7);
+  const sp = room.addSpectator('ms-spec-token-' + Math.random(), 'Spy', '👀');
+  room.handle(h.pid, { a: 'start' });
+  const g = room.g;
+  // một người chết
+  const dead = g.roles.findIndex((r, k) => k !== 0 && r !== 'wolf');
+  room.kill(dead, 'wolf');
+  const sv = room.view(-1, 'spec');
+  sv.players.forEach((p, k) => { if (k !== dead) assert.strictEqual(p.role, null, `người xem thấy vai ${k}`); });
+  assert.ok(sv.g.deaths.every(d => d.cause === 'night' || d.cause === 'vote' || d.cause === 'hunter'), 'người xem không biết nguyên nhân chết ban đêm');
+  const dv = room.view(dead);
+  assert.ok(dv.players.every((p, k) => p.role === g.roles[k]), 'người chết thấy hết');
+  assert.ok(dv.ghostNight, 'người chết xem được hành động đêm');
+  // chat: Sói nói ở kênh Sói — người xem không đọc được; người chết đọc được
+  const wolf = g.roles.indexOf('wolf');
+  room.botChat(wolf, 'cắn đứa nào', 'wolf');
+  const wmsg = room.chat[room.chat.length - 1];
+  assert.ok(!room.view(-1, 'spec').chat.some(m => m.id === wmsg.id), 'người xem không đọc kênh Sói');
+  assert.ok(room.view(dead).chat.some(m => m.id === wmsg.id), 'người chết đọc kênh Sói');
+  // người xem chat → kênh người xem: người chết đọc được, người sống không
+  assert.deepStrictEqual(room.handle(sp.pid, { a: 'chat', text: 'chào cả nhà' }), {});
+  const smsg = room.chat[room.chat.length - 1];
+  assert.strictEqual(smsg.ch, 'spec');
+  assert.ok(room.view(dead).chat.some(m => m.id === smsg.id));
+  const alive = g.roles.findIndex((r, k) => k !== dead && room.alive(k));
+  assert.ok(!room.view(alive).chat.some(m => m.id === smsg.id), 'người sống không đọc chat người xem');
+  // hồn ma chat → người xem không đọc được (hồn ma biết hết vai)
+  room.addChat({ kind: 'player', name: 'x', text: 'Sói là ghế 3', ch: 'ghost' });
+  const gmsg = room.chat[room.chat.length - 1];
+  assert.ok(!room.view(-1, 'spec').chat.some(m => m.id === gmsg.id), 'người xem không đọc kênh hồn ma');
+  // hết ván: người xem thấy hết
+  for (const k of room.aliveIdx()) if (g.roles[k] === 'wolf') room.kill(k, 'vote');
+  room.checkWin();
+  assert.strictEqual(room.phase, 'over');
+  assert.ok(room.view(-1, 'spec').players.every((p, k) => p.role === g.roles[k]), 'hết ván người xem thấy hết');
+  room.close();
+});
+
+test('sự kiện "Sói chọn ai" chỉ gửi cho bầy Sói và người chết (F-02)', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 6_700_000 });
+  const { room, h } = mkRoom(7);
+  room.handle(h.pid, { a: 'start' });
+  const g = room.g;
+  const wolf = g.roles.indexOf('wolf');
+  const prey = g.roles.findIndex((r, k) => r !== 'wolf' && k !== wolf);
+  room.outbox = [];
+  assert.deepStrictEqual(room.nightAct(wolf, 'wolf', prey), {});
+  const has = evs => evs.some(e => e.type === 'wolfvote');
+  for (let k = 0; k < room.players.length; k++) {
+    if (g.roles[k] === 'wolf') assert.ok(has(room.eventsFor(k)), `Sói ${k} phải biết đồng bọn chọn ai`);
+    else assert.ok(!has(room.eventsFor(k)), `người ${k} (${g.roles[k]}) không được biết ai là Sói`);
+  }
+  assert.ok(!has(room.eventsFor(-1)), 'người xem không nhận');
   room.close();
 });
 

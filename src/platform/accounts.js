@@ -35,6 +35,9 @@ function validPassword(p) {
 
 const GENDERS = ['nam', 'nu'];
 const cleanGender = g => (GENDERS.includes(g) ? g : null);
+// làm sạch tên/avatar ở MỌI đường vào tài khoản (đăng ký, Google, sửa hồ sơ) giống như trong phòng (F-09)
+const cleanUserName = (s, d) => String(typeof s === 'string' ? s : '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || d;
+const cleanUserAv = (s, d) => Array.from(String(typeof s === 'string' ? s : '').replace(/[\u0000-\u001f\u007f<>]/g, '')).slice(0, 4).join('') || d;
 const publicUser = u => u && {
   id: u.id, username: u.username, name: u.name, av: u.av, gender: u.gender || 'nam', settings: u.settings || null,
   google: !!u.googleSub, email: u.email || null, hasPassword: !!u.passHash, pid: userPid(u.id),
@@ -87,7 +90,7 @@ function createAccounts(store, opts = {}) {
       if (!u) return { err: 'Tên đăng nhập 3–20 ký tự, chỉ gồm chữ thường không dấu, số, dấu _ hoặc .' };
       const pw = validPassword(password);
       if (!pw) return { err: 'Mật khẩu ít nhất 6 ký tự' };
-      const user = { id: crypto.randomBytes(8).toString('hex'), username: u, name: name || u, av: av || '🙂', gender: cleanGender(gender) || 'nam', passHash: await hashPassword(pw) };
+      const user = { id: crypto.randomBytes(8).toString('hex'), username: u, name: cleanUserName(name, u), av: cleanUserAv(av, '🙂'), gender: cleanGender(gender) || 'nam', passHash: await hashPassword(pw) };
       if (!(await store.createUser(user))) return { err: 'Tên đăng nhập đã có người dùng' };
       return { user: publicUser(user), session: await newSession(user.id) };
     },
@@ -107,8 +110,8 @@ function createAccounts(store, opts = {}) {
       if (!user) {
         const base = (String(p.email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9_.]/g, '') || 'user').slice(0, 14).padEnd(3, '0');
         for (let k = 0; k < 5 && !user; k++) {
-          const cand = { id: crypto.randomBytes(8).toString('hex'), username: base + crypto.randomInt(1000, 9999), name: String(name || p.name || base).replace(/\s+/g, ' ').trim().slice(0, 16) || base,
-            av: av || '🙂', gender: cleanGender(gender) || 'nam', googleSub: p.sub, email: p.email || null };
+          const cand = { id: crypto.randomBytes(8).toString('hex'), username: base + crypto.randomInt(1000, 9999), name: cleanUserName(name, cleanUserName(p.name, base)),
+            av: cleanUserAv(av, '🙂'), gender: cleanGender(gender) || 'nam', googleSub: p.sub, email: p.email || null };
           if (await store.createUser(cand)) { user = cand; created = true; }
           else if ((user = await store.userByGoogle(p.sub))) break;   // bấm 2 lần cùng lúc: tài khoản vừa được tạo
         }
@@ -138,22 +141,30 @@ function createAccounts(store, opts = {}) {
     },
     async update(userId, f) {
       const clean = {};
-      if (f.name) clean.name = String(f.name).replace(/\s+/g, ' ').trim().slice(0, 16);
-      if (f.av) clean.av = Array.from(String(f.av)).slice(0, 4).join('');
+      if (f.name) { const n = cleanUserName(f.name, ''); if (n) clean.name = n; }
+      if (f.av) { const v = cleanUserAv(f.av, ''); if (v) clean.av = v; }
       if (cleanGender(f.gender)) clean.gender = f.gender;
       if (f.settings && typeof f.settings === 'object' && JSON.stringify(f.settings).length < 4000) clean.settings = f.settings;
       await store.updateUser(userId, clean);
       return publicUser(await store.userById(userId));
     },
-    /** Đổi mật khẩu; tài khoản Google chưa có mật khẩu thì đặt mới không cần mật khẩu cũ. */
-    async changePassword(userId, oldPw, newPw) {
+    /**
+     * Đổi mật khẩu; tài khoản Google chưa có mật khẩu thì đặt mới không cần mật khẩu cũ.
+     * Đổi xong thì đăng xuất mọi thiết bị khác (giữ phiên đang dùng) — F-10.
+     */
+    async changePassword(userId, oldPw, newPw, keepSession) {
       const user = await store.userById(userId);
       if (!user) return { err: 'Tài khoản không tồn tại' };
       if (user.passHash && !(await checkPassword(String(oldPw || ''), user.passHash))) return { err: 'Mật khẩu hiện tại không đúng' };
       const pw = validPassword(newPw);
       if (!pw) return { err: 'Mật khẩu mới ít nhất 6 ký tự' };
       await store.updateUser(userId, { passHash: await hashPassword(pw) });
-      return {};
+      const others = await store.deleteUserSessions(userId, keepSession ? sha(keepSession) : null);
+      return others ? { loggedOut: others } : {};
+    },
+    /** Đăng xuất mọi thiết bị khác (giữ phiên đang dùng). */
+    async logoutOthers(userId, keepSession) {
+      return { loggedOut: await store.deleteUserSessions(userId, keepSession ? sha(keepSession) : null) };
     },
   };
 }

@@ -343,16 +343,30 @@ class Room extends BaseRoom {
   }
 
   /* ---------- chat ---------- */
-  ghost(i, role) { return role === 'spec' || i < 0 || (this.g && this.inGame() && !this.alive(i)); }
+  // "Hồn ma" = người chơi ĐÃ CHẾT trong ván đang diễn ra: thấy hết vai, đọc kênh Sói, xem hành động đêm.
+  // Người xem KHÔNG phải hồn ma (F-03): ai cũng vào xem được (kể cả người đang chơi mở thêm trình duyệt thứ hai),
+  // nên người xem chỉ thấy những gì dân làng thấy cho tới khi hết ván.
+  isSpec(i, role) { return role === 'spec' || i < 0; }
+  ghost(i, role) { return !this.isSpec(i, role) && !!(this.g && this.inGame() && !this.alive(i)); }
   canSeeChat(m, i, role) {
     const ch = m.ch || 'all';
     if (ch === 'all') return true;
     if (this.phase === 'over' || this.phase === 'lobby') return true;
-    if (ch === 'wolf') return this.ghost(i, role) || (i >= 0 && this.isWolf(i));
+    if (ch === 'wolf') return this.ghost(i, role) || (i >= 0 && !this.isSpec(i, role) && this.isWolf(i));
     if (ch === 'ghost') return this.ghost(i, role);
-    return true;
+    // kênh người xem: người xem với nhau, người chết đọc được (một chiều — người xem không đọc kênh hồn ma)
+    if (ch === 'spec') return this.isSpec(i, role) || this.ghost(i, role);
+    return false;
   }
-  specChannel() { return this.inGame() ? 'ghost' : 'all'; }
+  specChannel() { return this.inGame() ? 'spec' : 'all'; }
+  // Sự kiện gửi đi cũng phải lọc như view (F-02): Sói đang chọn ai chỉ bầy Sói và hồn ma được biết.
+  eventsFor(i, role) {
+    const r = role || (i < 0 ? 'spec' : 'player');
+    return super.eventsFor(i, r).filter(e => {
+      if (e.type !== 'wolfvote') return true;
+      return this.ghost(i, r) || (i >= 0 && !this.isSpec(i, r) && this.isWolf(i));
+    });
+  }
   chatChannel(i) {
     if (!this.inGame()) return 'all';
     if (!this.alive(i)) return 'ghost';
@@ -460,15 +474,15 @@ class Room extends BaseRoom {
     const over = this.phase === 'over';
     const known = k => {
       if (!g) return null;
-      if (over || ghost || k === i) return g.roles[k];
-      if (i >= 0 && this.isWolf(i) && this.isWolf(k)) return 'wolf';
+      if (over || ghost || (k === i && !spec)) return g.roles[k];
+      if (i >= 0 && !spec && this.isWolf(i) && this.isWolf(k)) return 'wolf';
       if (!g.alive[k] && this.settings.revealRole) return g.roles[k];
       return null;
     };
     const showVotes = g && (this.phase === 'vote' || this.phase === 'exec');
     const votesNow = this.phase === 'vote' ? g.votes : g && g.lastVote && g.lastVote.day === g.day ? g.lastVote.votes : {};
-    // ban đêm: dân thường không thấy ai đang bật mic (tránh đoán Sói qua việc ai bật mic lúc đêm)
-    if (g && (this.phase === 'night' || this.phase === 'witch') && !ghost && !(i >= 0 && this.isWolf(i)) && Array.isArray(v.voice)) {
+    // ban đêm: dân thường và người xem không thấy ai đang bật mic (tránh đoán Sói qua việc ai bật mic lúc đêm)
+    if (g && (this.phase === 'night' || this.phase === 'witch') && !ghost && !(i >= 0 && !spec && this.isWolf(i)) && Array.isArray(v.voice)) {
       v.voice = v.voice.map(m => (m.seat === i ? m : Object.assign({}, m, { mic: false })));
     }
     v.settings = Object.assign({}, this.settings);

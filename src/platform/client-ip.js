@@ -1,6 +1,6 @@
 // Lấy IP thật của người dùng để giới hạn tần suất (chống spam / dò mật khẩu).
 // Trên Render, mọi kết nối đi qua máy trung gian nên địa chỉ socket là của Render, không phải của người dùng.
-// Thứ tự tin: CF-Connecting-IP / True-Client-IP (Cloudflare đặt, người dùng không giả được)
+// Thứ tự tin: CF-Connecting-IP (Cloudflare đặt, người dùng không giả được)
 //   → phần tử CUỐI của X-Forwarded-For (do máy trung gian gần nhất thêm vào; phần đầu người dùng tự ghi được nên không tin)
 //   → địa chỉ socket. Chỉ đọc header khi chạy sau proxy (Render tự đặt biến RENDER, hoặc TRUST_PROXY=1).
 const net = require('net');
@@ -16,10 +16,10 @@ function clientIp(req, env = process.env) {
   const sock = clean(req.socket && req.socket.remoteAddress) || 'unknown';
   if (trust) {
     const h = req.headers || {};
-    for (const name of ['cf-connecting-ip', 'true-client-ip']) {
-      const ip = clean(h[name]);
-      if (ip) { seen[name] = (seen[name] || 0) + 1; return ip; }
-    }
+    // Chỉ tin CF-Connecting-IP (Cloudflare luôn ghi đè). Bỏ True-Client-IP: Cloudflare không ghi đè header này
+    // (trừ gói Enterprise) nên người dùng tự đặt được để né giới hạn tần suất (F-15).
+    const cf = clean(h['cf-connecting-ip']);
+    if (cf) { seen['cf-connecting-ip'] = (seen['cf-connecting-ip'] || 0) + 1; return cf; }
     const xff = String(h['x-forwarded-for'] || '').split(',').map(clean).filter(Boolean);
     if (xff.length) { seen['x-forwarded-for'] = (seen['x-forwarded-for'] || 0) + 1; return xff[xff.length - 1]; }
   }

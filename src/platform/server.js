@@ -38,6 +38,24 @@ function newCode() {
 
 /* ---------------- WebSocket ---------------- */
 const sockets = new Map(); // room code -> Set(ws)
+const ipConns = new Map(); // ip -> số kết nối WebSocket đang mở
+const VOICE_ACTS = new Set(['vjoin', 'vmic', 'vleave']);
+
+// Giới hạn tần suất mỗi kết nối (thùng token, F-04): đủ rộng cho thao tác bình thường, chặn gửi dồn.
+// Vượt thì bỏ tin; bị bỏ quá nhiều trong 10 giây thì đóng kết nối.
+// Tín hiệu voice (vsig) có hạn mức riêng rộng hơn: lúc bắt tay với cả phòng 12 người, mỗi máy gửi hàng chục gói ICE cùng lúc.
+function allowMsg(ws, buf) {
+  const now = Date.now();
+  const sig = buf.length < 200000 && /^\s*\{\s*"t"\s*:\s*"vsig"/.test(buf.toString('utf8', 0, 24));
+  const key = sig ? 'sigBucket' : 'bucket', rate = sig ? C.WS_RATE * 8 : C.WS_RATE, burst = sig ? C.WS_BURST * 8 : C.WS_BURST;
+  const b = ws[key] || (ws[key] = { tokens: burst, at: now, drops: 0, dropAt: now });
+  b.tokens = Math.min(burst, b.tokens + ((now - b.at) / 1000) * rate);
+  b.at = now;
+  if (b.tokens >= 1) { b.tokens -= 1; return true; }
+  if (now - b.dropAt > 10000) { b.drops = 0; b.dropAt = now; }
+  if (++b.drops > C.WS_MAX_DROPS) { log('ws gửi dồn, đóng kết nối', ws.ip); ws.close(1008, 'flood'); }
+  return false;
+}
 
 function sendJson(ws, obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); }
 
@@ -58,10 +76,16 @@ function closeSockets(room) {
   sockets.delete(room.code);
 }
 
-function onSocket(ws) {
+function onSocket(ws, req) {
+  ws.ip = clientIp(req);
+  const n = (ipConns.get(ws.ip) || 0) + 1;
+  ipConns.set(ws.ip, n);
+  ws.on('close', () => { const k = (ipConns.get(ws.ip) || 1) - 1; if (k > 0) ipConns.set(ws.ip, k); else ipConns.delete(ws.ip); });
+  if (n > C.WS_PER_IP) { ws.close(1008, 'too many connections'); return; }
   ws.alive = true;
   ws.on('pong', () => (ws.alive = true));
   ws.on('message', buf => {
+    if (!allowMsg(ws, buf)) return;
     let m;
     try { m = JSON.parse(buf); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
@@ -83,6 +107,8 @@ function onSocket(ws) {
       if (room.closed) return;
       if (m.a === 'leave') { leaveSocket(ws, room); ws.room = null; }
       if (res.quiet) { if (room.tick()) room.publish(); return; }
+      // bật/tắt voice không cần lưu: chỉ gửi trạng thái, không ghi database (F-04)
+      if (VOICE_ACTS.has(m.a)) { if (!res.err) room.publish(); return; }
       if (!res.err || res.dup) room.commit();
     }
   });
@@ -103,12 +129,16 @@ function hello(ws, m) {
   if (!room || room.closed) return sendJson(ws, { t: 'gone' });
   const who = room.who(String(m.token || ''));
   if (!who) return sendJson(ws, { t: 'gone' });
+  // một người tối đa vài kết nối vào cùng phòng (điện thoại + máy tính + tab dự phòng); quá thì đóng kết nối cũ nhất
+  const same = [...(sockets.get(room.code) || [])].filter(o => o !== ws && o.pid === who.pid);
+  if (same.length >= C.WS_PER_PID) { sendJson(same[0], { t: 'gone' }); same[0].close(); }
   if (ws.room) { const old = rooms.get(ws.room); if (old) { leaveSocket(ws, old); old.disconnect(ws.pid); } }
   ws.room = room.code;
   ws.pid = who.pid;
   if (!sockets.has(room.code)) sockets.set(room.code, new Set());
   sockets.get(room.code).add(ws);
   room.connect(ws.pid);
+  room.everConnected = true;
   room.publish();
   sendJson(ws, { t: 'vme', vid: room.vidOf(ws.pid) });
 }
@@ -125,13 +155,25 @@ function limited(ip, n = 40) {
   return h.n > n;
 }
 
+// Nhập sai mã phòng liên tục = đang dò mã phòng riêng tư (F-05): khoá IP đó một phút
+function notFound(ip) {
+  limited('miss:' + ip, C.MISS_PER_MIN);
+  return { err: 'Không tìm thấy phòng' };
+}
+function missBlocked(ip) {
+  const h = hits.get('miss:' + ip);
+  return !!(h && Date.now() - h.at <= 60000 && h.n >= C.MISS_PER_MIN);
+}
+
 async function api(b, ip) {
   const a = b.a, token = String(b.token || '');
   if (token.length < 16 || token.length > 100) return { err: 'Thiếu mã người chơi' };
   if (!ready) return { err: 'Máy chủ đang khởi động, thử lại sau vài giây' };
-  if ((a === 'create' || a === 'join') && limited(ip)) return { err: 'Thao tác quá nhanh, đợi một chút' };
+  if ((a === 'create' || a === 'join' || a === 'watch') && limited(ip)) return { err: 'Thao tác quá nhanh, đợi một chút' };
+  if ((a === 'join' || a === 'watch') && missBlocked(ip)) return { err: 'Nhập sai mã phòng nhiều lần, đợi một phút' };
+  if (a === 'create' && limited('create:' + ip, C.CREATE_PER_MIN)) return { err: 'Tạo phòng nhanh quá, đợi một chút' };
   if (NEWS_ON && (a === 'create' || a === 'join' || a === 'watch')) News.freshen(log);   // mở app: tin cũ quá 20 phút thì tải lại
-  if (['register', 'login', 'google', 'googlelink', 'password'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
+  if (['register', 'login', 'google', 'googlelink', 'password', 'logoutOthers'].includes(a) && limited('acc:' + ip, 20)) return { err: 'Thử quá nhiều lần, đợi một phút' };
   if (a === 'config') return { googleClientId: C.GOOGLE_CLIENT_ID || null, games: Games.list() };
   if (a === 'rooms') {
     // phòng công khai đang có người: phòng còn ghế lên trước, rồi phòng đông người
@@ -161,14 +203,20 @@ async function api(b, ip) {
   }
   if (a === 'password') {
     if (!user) return { err: 'Bạn chưa đăng nhập' };
-    return accounts.changePassword(user.id, b.old, b.new);
+    return accounts.changePassword(user.id, b.old, b.new, String(b.session));
+  }
+  if (a === 'logoutOthers') {
+    if (!user) return { err: 'Bạn chưa đăng nhập' };
+    return accounts.logoutOthers(user.id, String(b.session));
   }
 
   const pid = user ? user.pid : pidOf(token);
   if (a === 'ice') {
     // mật khẩu TURN (tính tiền theo dung lượng): chỉ cấp cho người đang ở trong một phòng, tối đa 10 lần/phút mỗi IP
     if (limited('ice:' + ip, 10)) return { err: 'Thao tác quá nhanh, đợi một chút' };
-    const inRoom = [...rooms.values()].some(r => r.idxOf(pid) >= 0 || r.specIdx(pid) >= 0 || r.idxOf(pidOf(token)) >= 0 || r.specIdx(pidOf(token)) >= 0);
+    // phải đang thật sự kết nối (WebSocket mở) vào một phòng, không chỉ vừa gọi lệnh tạo phòng (F-08)
+    const pids = new Set([pid, pidOf(token)]);
+    const inRoom = [...sockets.values()].some(set => [...set].some(ws => pids.has(ws.pid)));
     if (!inRoom) return { err: 'Bạn chưa ở trong phòng nào' };
     return { iceServers: await ICE.iceServers(process.env, log) };
   }
@@ -176,6 +224,7 @@ async function api(b, ip) {
   const nameOf = () => b.name || (user && user.name);
   const avOf = () => b.av || (user && user.av);
   if (a === 'create') {
+    if (rooms.size >= C.MAX_ROOMS) return { err: 'Máy chủ đang quá đông phòng, thử lại sau ít phút' };
     const code = newCode();
     const game = Games.get(b.game);   // mặc định: Sâm
     const room = new game.Room(code, deps());
@@ -187,7 +236,7 @@ async function api(b, ip) {
   }
   if (a === 'join') {
     const room = rooms.get(String(b.room || '').toUpperCase());
-    if (!room || room.closed) return { err: 'Không tìm thấy phòng' };
+    if (!room || room.closed) return notFound(ip);
     // tài khoản đang ngồi trong phòng từ thiết bị khác: chuyển ghế sang thiết bị này
     if (user && room.auth(token) < 0 && room.players.some(p => p.pid === user.pid && !p.bot)) { room.rebind(user.pid, token); room.commit(); }
     const i = room.auth(token);
@@ -210,7 +259,7 @@ async function api(b, ip) {
   }
   if (a === 'watch') {
     const room = rooms.get(String(b.room || '').toUpperCase());
-    if (!room || room.closed) return { err: 'Không tìm thấy phòng' };
+    if (!room || room.closed) return notFound(ip);
     if (user) room.rebind(user.pid, token);
     if (room.auth(token) >= 0) return { code: room.code };   // đã là người chơi
     if (!room.addSpectator(token, nameOf(), avOf(), ident)) return { err: 'Phòng đã đủ người xem' };
@@ -288,59 +337,112 @@ const MIME = {
   '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
 };
 
+// Header bảo mật cho trang và file tĩnh (F-12). Google Sign-In cần accounts.google.com; font lấy từ Google Fonts.
+const SEC_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'microphone=(self), camera=(), geolocation=(), payment=()',
+  'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self' https://accounts.google.com/gsi/client",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://*.googleusercontent.com",
+    "media-src 'self' blob:",
+    "connect-src 'self' ws: wss: https://accounts.google.com/gsi/",
+    "frame-src https://accounts.google.com/gsi/",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join('; '),
+};
+function sendPlain(res, code, text) {
+  res.writeHead(code, Object.assign({ 'Content-Type': 'text/plain; charset=utf-8' }, SEC_HEADERS));
+  res.end(text || '');
+}
+
 function serveStatic(req, res, pathname) {
-  let rel = decodeURIComponent(pathname);
+  let rel;
+  // đường dẫn sai định dạng (vd "/%") từng làm sập cả máy chủ (F-01): trả 400
+  try { rel = decodeURIComponent(pathname); } catch (e) { return sendPlain(res, 400, 'Đường dẫn không hợp lệ'); }
+  if (rel.includes('\0')) return sendPlain(res, 400, 'Đường dẫn không hợp lệ');
   if (rel === '/' || rel === '') rel = '/index.html';
   const file = path.normalize(path.join(PUB, rel));
-  if (!file.startsWith(PUB + path.sep)) { res.writeHead(403); return res.end(); }
+  if (!file.startsWith(PUB + path.sep)) return sendPlain(res, 403);
   fs.stat(file, (e, st) => {
-    if (e || !st.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Không tìm thấy'); }
+    if (e || !st.isFile()) return sendPlain(res, 404, 'Không tìm thấy');
     const ext = path.extname(file);
     const audio = ext === '.ogg' || ext === '.mp3';
-    res.writeHead(200, {
+    res.writeHead(200, Object.assign({
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Content-Length': st.size,
       'Cache-Control': audio ? 'public, max-age=604800' : 'no-cache',
-      'X-Content-Type-Options': 'nosniff',
-    });
+    }, SEC_HEADERS));
     if (req.method === 'HEAD') return res.end();
-    fs.createReadStream(file).pipe(res);
+    fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
   });
 }
 
-const server = http.createServer((req, res) => {
-  const u = new URL(req.url, 'http://x');
+function handleHttp(req, res) {
+  let u;
+  // "//" hoặc URL lạ làm new URL() ném lỗi và từng làm sập cả máy chủ (F-01): trả 400
+  try { u = new URL(req.url, 'http://x'); } catch (e) { return sendPlain(res, 400, 'Đường dẫn không hợp lệ'); }
   if (u.pathname === '/health' || u.pathname === '/healthz') {
+    // Công khai chỉ trả trạng thái (F-11). Chi tiết (biến TURN, nguồn IP, lỗi DB, số phòng) cần /health?key=<HEALTH_KEY>.
+    const detail = !!C.HEALTH_KEY && u.searchParams.get('key') === C.HEALTH_KEY;
     const body = {
       ok: ready && !(store.lastError && (!store.lastOk || store.lastError.at > store.lastOk)),
-      version: VERSION, storage: store.kind, uptimeSec: Math.round((Date.now() - started) / 1000),
-      news: News.status(), turn: ICE.status(), turnEnv: ICE.envNames(), ipFrom: ipSources(), rooms: rooms.size, sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0),
-      lastStoreError: store.lastError,
+      version: VERSION, storage: store.kind,
     };
-    store.ping().then(() => (body.db = 'ok'), e => { body.db = 'error: ' + e.message; body.ok = false; }).finally(() => {
+    if (detail) {
+      Object.assign(body, {
+        uptimeSec: Math.round((Date.now() - started) / 1000),
+        news: News.status(), turn: ICE.status(), turnEnv: ICE.envNames(), ipFrom: ipSources(), rooms: rooms.size,
+        sockets: [...sockets.values()].reduce((s, x) => s + x.size, 0), wsIps: ipConns.size, lastStoreError: store.lastError,
+      });
+    }
+    store.ping().then(() => (body.db = 'ok'), e => { body.db = detail ? 'error: ' + e.message : 'error'; body.ok = false; }).finally(() => {
       res.writeHead(body.ok ? 200 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(body));
     });
     return;
   }
   if (req.method === 'POST' && u.pathname === '/api') {
-    let body = '';
-    req.on('data', c => { body += c; if (body.length > 20000) req.destroy(); });
+    let body = '', big = false;
+    req.on('error', () => {});
+    req.on('data', c => {
+      if (big) return;
+      body += c;
+      if (body.length > 20000) { big = true; sendPlain(res, 413); req.destroy(); }
+    });
     req.on('end', async () => {
+      if (big) return;
       let out;
       try { out = await api(JSON.parse(body), clientIp(req)); }
       catch (e) { log('api error', e && e.message); out = { err: 'Yêu cầu lỗi' }; }
+      if (res.headersSent) return;
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(out));
     });
     return;
   }
   if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(req, res, u.pathname);
-  res.writeHead(405); res.end();
+  sendPlain(res, 405);
+}
+const server = http.createServer((req, res) => {
+  // một yêu cầu lỗi không bao giờ được kéo sập cả máy chủ
+  try { handleHttp(req, res); } catch (e) {
+    log('http error', req.method, String(req.url).slice(0, 200), e && e.message);
+    try { if (!res.headersSent) sendPlain(res, 400); else res.destroy(); } catch (x) { /* bỏ qua */ }
+  }
 });
 
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
 wss.on('connection', onSocket);
+wss.on('error', e => log('wss error', e && e.message));
 
 // heartbeat + chuyển chủ phòng + AFK + dọn phòng bỏ hoang
 setInterval(() => {
@@ -356,7 +458,10 @@ setInterval(() => {
     if (r.closed) continue;
     if (r.tick()) r.commit();
     const live = sockets.get(r.code);
-    if ((!live || !live.size) && now - r.touched > C.ROOM_IDLE_MS) r.close();
+    if (live && live.size) continue;
+    // phòng tạo ra mà chưa ai kết nối vào quá vài phút: dọn luôn (F-06)
+    if (!r.everConnected && now - (r.created || r.touched) > C.ROOM_ORPHAN_MS) { r.close(); continue; }
+    if (now - r.touched > C.ROOM_IDLE_MS) r.close();
   }
 }, 2000);
 
@@ -369,10 +474,15 @@ async function boot() {
       if (!s || s.v !== 2) continue;
       const r = Games.get(s.game || 'sam').Room.restore(s, deps());
       if (!r.humans().length) { store.deleteRoom(r.code); continue; }
+      r.everConnected = true;   // phòng khôi phục sau khởi động lại: giữ thời gian chờ mọi người vào lại như cũ
       rooms.set(r.code, r);
     } catch (e) { log('restore failed', s && s.code, e.message); }
   }
   ready = true;
+  // dọn phiên đăng nhập đã hết hạn lúc khởi động và mỗi ngày (F-10)
+  const purge = () => store.purgeSessions().then(n => n && log('đã dọn', n, 'phiên hết hạn'), e => log('dọn phiên lỗi', e.message));
+  purge();
+  setInterval(purge, 24 * 3600 * 1000).unref();
   log(`Sâm Dứa ${VERSION} | games=${Games.list().map(g => g.id).join(',')} | storage=${store.kind} | rooms restored=${rooms.size}`);
 }
 
@@ -386,6 +496,8 @@ async function shutdown(sig) {
   process.exit(0);
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+// lỗi không ai bắt: ghi log đầy đủ để còn biết (F-18); Promise lỗi thì chỉ ghi log, không làm sập máy chủ
+process.on('unhandledRejection', e => log('unhandledRejection', e && (e.stack || e.message || e)));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = { server, rooms, store };
